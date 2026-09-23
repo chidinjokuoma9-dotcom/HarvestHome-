@@ -1,0 +1,7 @@
+supabase/**
+schema.sql
+README.md
+.git/**
+.github/**
+wrangler.jsonc
+.assetsignore

@@ -39,7 +39,18 @@ create table if not exists public.payments (
 );
 
 create or replace function public.handle_new_user() returns trigger language plpgsql security definer set search_path = public as $$
-begin insert into public.profiles(id,full_name,role) values(new.id,coalesce(new.raw_user_meta_data->>'full_name','Buyer'),coalesce(new.raw_user_meta_data->>'role','Buyer')); return new; end; $$;
+begin
+  insert into public.profiles(id,full_name,role)
+  values(
+    new.id,
+    coalesce(new.raw_user_meta_data->>'full_name','Buyer'),
+    case when (new.raw_user_meta_data->>'role') in ('Buyer','Seller')
+      then new.raw_user_meta_data->>'role'
+      else 'Buyer'
+    end
+  );
+  return new;
+end; $$;
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created after insert on auth.users for each row execute procedure public.handle_new_user();
 
@@ -48,6 +59,14 @@ create or replace function public.is_staff() returns boolean language sql stable
 alter table public.profiles enable row level security; alter table public.listings enable row level security; alter table public.listing_media enable row level security; alter table public.favourites enable row level security; alter table public.enquiries enable row level security; alter table public.payments enable row level security;
 
 drop policy if exists profiles_read_self on public.profiles; create policy profiles_read_self on public.profiles for select using (id=auth.uid() or public.is_staff());
+drop policy if exists profiles_read_listing_sellers on public.profiles;
+create policy profiles_read_listing_sellers on public.profiles for select using (
+  exists (
+    select 1 from public.listings l
+    where l.seller_id=public.profiles.id
+      and l.status='approved'
+  )
+);
 drop policy if exists profiles_update_self on public.profiles; create policy profiles_update_self on public.profiles for update using (id=auth.uid());
 drop policy if exists listings_public_approved on public.listings; create policy listings_public_approved on public.listings for select using (status='approved' or seller_id=auth.uid() or public.is_staff());
 drop policy if exists listings_insert_owner on public.listings; create policy listings_insert_owner on public.listings for insert with check (seller_id=auth.uid());

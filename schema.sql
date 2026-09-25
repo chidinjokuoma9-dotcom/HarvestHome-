@@ -3,7 +3,7 @@ create extension if not exists pgcrypto;
 create table if not exists public.profiles (
  id uuid primary key references auth.users(id) on delete cascade,
  full_name text,
- role text not null default 'Seller' check (role in ('Buyer','Seller','Moderator','Admin')),
+ role text not null default 'Buyer' check (role in ('Buyer','Seller','Moderator','Admin')),
  country text default 'Nigeria',
  verified boolean not null default false,
  created_at timestamptz not null default now(),
@@ -33,6 +33,24 @@ create table if not exists public.enquiries (
  buyer_id uuid references public.profiles(id) on delete set null, message text not null, created_at timestamptz not null default now()
 );
 
+create table if not exists public.conversations (
+ id uuid primary key default gen_random_uuid(),
+ listing_id uuid not null references public.listings(id) on delete cascade,
+ buyer_id uuid not null references public.profiles(id) on delete cascade,
+ seller_id uuid not null references public.profiles(id) on delete cascade,
+ created_at timestamptz not null default now(),
+ updated_at timestamptz not null default now(),
+ unique(listing_id,buyer_id,seller_id)
+);
+
+create table if not exists public.messages (
+ id uuid primary key default gen_random_uuid(),
+ conversation_id uuid not null references public.conversations(id) on delete cascade,
+ sender_id uuid not null references public.profiles(id) on delete cascade,
+ body text not null check (char_length(trim(body)) between 1 and 2000),
+ created_at timestamptz not null default now()
+);
+
 create table if not exists public.payments (
  id uuid primary key default gen_random_uuid(), user_id uuid references public.profiles(id) on delete set null,
  reference text unique, service text, amount integer not null, currency text not null default 'NGN', status text not null default 'initialized', created_at timestamptz not null default now()
@@ -46,7 +64,7 @@ begin
     coalesce(new.raw_user_meta_data->>'full_name','Buyer'),
     case when (new.raw_user_meta_data->>'role') in ('Buyer','Seller')
       then new.raw_user_meta_data->>'role'
-      else 'Seller'
+      else 'Buyer'
     end
   );
   return new;
@@ -75,6 +93,29 @@ drop policy if exists listings_delete_owner_staff on public.listings; create pol
 drop policy if exists media_public on public.listing_media; create policy media_public on public.listing_media for select using (true);
 drop policy if exists media_owner on public.listing_media; create policy media_owner on public.listing_media for all using (exists(select 1 from public.listings l where l.id=listing_id and (l.seller_id=auth.uid() or public.is_staff()))) with check (exists(select 1 from public.listings l where l.id=listing_id and (l.seller_id=auth.uid() or public.is_staff())));
 drop policy if exists fav_owner on public.favourites; create policy fav_owner on public.favourites for all using (user_id=auth.uid()) with check (user_id=auth.uid());
+
+
+drop policy if exists conversations_participants on public.conversations;
+create policy conversations_participants on public.conversations for select using (buyer_id=auth.uid() or seller_id=auth.uid() or public.is_staff());
+drop policy if exists conversations_buyer_insert on public.conversations;
+create policy conversations_buyer_insert on public.conversations for insert with check (buyer_id=auth.uid());
+drop policy if exists conversations_participant_update on public.conversations;
+create policy conversations_participant_update on public.conversations for update using (buyer_id=auth.uid() or seller_id=auth.uid() or public.is_staff()) with check (buyer_id=auth.uid() or seller_id=auth.uid() or public.is_staff());
+
+drop policy if exists messages_participants on public.messages;
+create policy messages_participants on public.messages for select using (exists(select 1 from public.conversations c where c.id=conversation_id and (c.buyer_id=auth.uid() or c.seller_id=auth.uid() or public.is_staff())));
+drop policy if exists messages_participant_insert on public.messages;
+create policy messages_participant_insert on public.messages for insert with check (sender_id=auth.uid() and exists(select 1 from public.conversations c where c.id=conversation_id and (c.buyer_id=auth.uid() or c.seller_id=auth.uid() or public.is_staff())));
+
+drop policy if exists profiles_read_conversation_participants on public.profiles;
+create policy profiles_read_conversation_participants on public.profiles for select using (
+  exists(select 1 from public.conversations c where (c.buyer_id=public.profiles.id or c.seller_id=public.profiles.id) and (c.buyer_id=auth.uid() or c.seller_id=auth.uid() or public.is_staff()))
+);
+
+create index if not exists conversations_buyer_updated_idx on public.conversations(buyer_id,updated_at desc);
+create index if not exists conversations_seller_updated_idx on public.conversations(seller_id,updated_at desc);
+create index if not exists messages_conversation_created_idx on public.messages(conversation_id,created_at);
+
 drop policy if exists enquiries_buyer on public.enquiries; create policy enquiries_buyer on public.enquiries for insert with check (buyer_id=auth.uid());
 drop policy if exists enquiries_read on public.enquiries; create policy enquiries_read on public.enquiries for select using (buyer_id=auth.uid() or exists(select 1 from public.listings l where l.id=listing_id and l.seller_id=auth.uid()) or public.is_staff());
 drop policy if exists payments_owner on public.payments; create policy payments_owner on public.payments for select using (user_id=auth.uid() or public.is_staff());

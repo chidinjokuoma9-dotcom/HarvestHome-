@@ -1,7 +1,7 @@
 (() => {
 "use strict";
-const C = window.HARVESTHOME_CONFIG;
-const sb = (C.SUPABASE_URL && C.SUPABASE_ANON_KEY && C.SUPABASE_URL.startsWith("http")) ? window.supabase.createClient(C.SUPABASE_URL, C.SUPABASE_ANON_KEY) : null;
+const C = window.HARVESTHOME_CONFIG || { APP_NAME:"HarvestHome", VERSION:"V8", SUPPORTED_COUNTRIES:[{name:"Nigeria",code:"NG",currency:"NGN",symbol:"₦"}], CATEGORIES:["All categories","Houses","Land","Equipment","Farm Produce"], MODES:["All","Sale","Lease"], LOCATIONS:{Nigeria:["All locations"]}, DEFAULT_COUNTRY:"Nigeria", DEFAULT_CURRENCY:"NGN", MAX_IMAGE_FILES:6, MAX_VIDEO_MB:25 };
+const sb = (window.supabase && C.SUPABASE_URL && C.SUPABASE_ANON_KEY && C.SUPABASE_URL.startsWith("http")) ? window.supabase.createClient(C.SUPABASE_URL, C.SUPABASE_ANON_KEY) : null;
 let authUser = null, authProfile = null;
 const KEYS = {users:"hh_v4_users",session:"hh_v4_session",favourites:"hh_v4_favourites",enquiries:"hh_v4_enquiries",sellerListings:"hh_v4_seller_listings",country:"hh_v4_country",currency:"hh_v4_currency",reset:"hh_v6_reset_tokens",payments:"hh_v6_payments"};
 const DEMO_ADMIN={email:"admin@harvesthome.app",name:"HarvestHome Admin",password:"Admin123!",role:"Admin"};

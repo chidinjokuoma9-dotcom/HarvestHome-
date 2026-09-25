@@ -3,7 +3,7 @@ create extension if not exists pgcrypto;
 create table if not exists public.profiles (
  id uuid primary key references auth.users(id) on delete cascade,
  full_name text,
- role text not null default 'Buyer' check (role in ('Buyer','Seller','Moderator','Admin')),
+ role text not null default 'Seller' check (role in ('Buyer','Seller','Moderator','Admin')),
  country text default 'Nigeria',
  verified boolean not null default false,
  created_at timestamptz not null default now(),
@@ -46,7 +46,7 @@ begin
     coalesce(new.raw_user_meta_data->>'full_name','Buyer'),
     case when (new.raw_user_meta_data->>'role') in ('Buyer','Seller')
       then new.raw_user_meta_data->>'role'
-      else 'Buyer'
+      else 'Seller'
     end
   );
   return new;
@@ -78,6 +78,8 @@ drop policy if exists fav_owner on public.favourites; create policy fav_owner on
 drop policy if exists enquiries_buyer on public.enquiries; create policy enquiries_buyer on public.enquiries for insert with check (buyer_id=auth.uid());
 drop policy if exists enquiries_read on public.enquiries; create policy enquiries_read on public.enquiries for select using (buyer_id=auth.uid() or exists(select 1 from public.listings l where l.id=listing_id and l.seller_id=auth.uid()) or public.is_staff());
 drop policy if exists payments_owner on public.payments; create policy payments_owner on public.payments for select using (user_id=auth.uid() or public.is_staff());
+drop policy if exists payments_owner_insert on public.payments; create policy payments_owner_insert on public.payments for insert with check (user_id=auth.uid() or public.is_staff());
+drop policy if exists payments_owner_update on public.payments; create policy payments_owner_update on public.payments for update using (user_id=auth.uid() or public.is_staff()) with check (user_id=auth.uid() or public.is_staff());
 
 insert into storage.buckets (id,name,public) values ('listing-media','listing-media',true) on conflict (id) do nothing;
 drop policy if exists listing_media_public_read on storage.objects; create policy listing_media_public_read on storage.objects for select using (bucket_id='listing-media');

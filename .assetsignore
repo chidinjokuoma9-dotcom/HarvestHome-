@@ -5,3 +5,4 @@ README.md
 .github/**
 wrangler.jsonc
 .assetsignore
+node_modules/**

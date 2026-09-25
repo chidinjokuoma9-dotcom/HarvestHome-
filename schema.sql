@@ -85,3 +85,7 @@ insert into storage.buckets (id,name,public) values ('listing-media','listing-me
 drop policy if exists listing_media_public_read on storage.objects; create policy listing_media_public_read on storage.objects for select using (bucket_id='listing-media');
 drop policy if exists listing_media_authenticated_upload on storage.objects; create policy listing_media_authenticated_upload on storage.objects for insert to authenticated with check (bucket_id='listing-media');
 drop policy if exists listing_media_owner_delete on storage.objects; create policy listing_media_owner_delete on storage.objects for delete to authenticated using (bucket_id='listing-media' and owner_id::uuid=auth.uid());
+
+create index if not exists listings_status_country_idx on public.listings(status,country);
+create index if not exists listings_seller_created_idx on public.listings(seller_id,created_at desc);
+create index if not exists listings_category_mode_idx on public.listings(category,mode);

@@ -1,4 +1,5 @@
 create extension if not exists pgcrypto;
+alter table public.profiles alter column role set default 'Buyer';
 
 create table if not exists public.profiles (
  id uuid primary key references auth.users(id) on delete cascade,
@@ -74,7 +75,7 @@ create trigger on_auth_user_created after insert on auth.users for each row exec
 
 create or replace function public.is_staff() returns boolean language sql stable security definer set search_path=public as $$ select exists(select 1 from public.profiles where id=auth.uid() and role in ('Admin','Moderator')); $$;
 
-alter table public.profiles enable row level security; alter table public.listings enable row level security; alter table public.listing_media enable row level security; alter table public.favourites enable row level security; alter table public.enquiries enable row level security; alter table public.payments enable row level security;
+alter table public.profiles enable row level security; alter table public.conversations enable row level security; alter table public.messages enable row level security; alter table public.listings enable row level security; alter table public.listing_media enable row level security; alter table public.favourites enable row level security; alter table public.enquiries enable row level security; alter table public.payments enable row level security;
 
 drop policy if exists profiles_read_self on public.profiles; create policy profiles_read_self on public.profiles for select using (id=auth.uid() or public.is_staff());
 drop policy if exists profiles_read_listing_sellers on public.profiles;

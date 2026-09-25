@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/wrangler.json",
-  "name": "harvesthome",
+  "name": "harvesthome-ng",
   "main": "worker.js",
   "compatibility_date": "2026-09-24",
   "assets": {

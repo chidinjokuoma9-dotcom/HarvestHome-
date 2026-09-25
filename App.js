@@ -21,7 +21,8 @@ const seed = [
  {id:"ae-1",country:"United Arab Emirates",category:"Commercial Property",title:"Commercial Space in Dubai",price:950000,currency:"AED",location:"Dubai",mode:"Lease",description:"Commercial property opportunity in a major business district.",seller:"Dubai Property Market",emoji:"🏢",views:61}
 ];
 
-const state={view:"marketplace",search:"",country:localStorage.getItem(KEYS.country)||C.DEFAULT_COUNTRY,location:"All locations",category:"All categories",mode:"All",dashboardTab:"overview",authMode:"login"};\nlet chatTimer=null;
+const state={view:"marketplace",search:"",country:localStorage.getItem(KEYS.country)||C.DEFAULT_COUNTRY,location:"All locations",category:"All categories",mode:"All",dashboardTab:"overview",authMode:"login"};
+let chatTimer=null;
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
 const json=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}};
 const put=(k,v)=>localStorage.setItem(k,JSON.stringify(v));

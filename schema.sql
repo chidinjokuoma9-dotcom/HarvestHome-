@@ -1,5 +1,6 @@
 create extension if not exists pgcrypto;
 alter table public.profiles alter column role set default 'Buyer';
+alter table public.profiles add column if not exists avatar_url text;
 
 create table if not exists public.profiles (
  id uuid primary key references auth.users(id) on delete cascade,
@@ -144,6 +145,15 @@ drop policy if exists payments_owner_insert on public.payments; create policy pa
 drop policy if exists payments_owner_update on public.payments; create policy payments_owner_update on public.payments for update using (user_id=auth.uid() or public.is_staff()) with check (user_id=auth.uid() or public.is_staff());
 
 insert into storage.buckets (id,name,public) values ('listing-media','listing-media',true) on conflict (id) do nothing;
+insert into storage.buckets (id,name,public) values ('profile-media','profile-media',true) on conflict (id) do nothing;
+drop policy if exists profile_media_public_read on storage.objects;
+create policy profile_media_public_read on storage.objects for select using (bucket_id='profile-media');
+drop policy if exists profile_media_authenticated_upload on storage.objects;
+create policy profile_media_authenticated_upload on storage.objects for insert to authenticated with check (bucket_id='profile-media' and (storage.foldername(name))[1]=auth.uid()::text);
+drop policy if exists profile_media_owner_update on storage.objects;
+create policy profile_media_owner_update on storage.objects for update to authenticated using (bucket_id='profile-media' and (storage.foldername(name))[1]=auth.uid()::text) with check (bucket_id='profile-media' and (storage.foldername(name))[1]=auth.uid()::text);
+drop policy if exists profile_media_owner_delete on storage.objects;
+create policy profile_media_owner_delete on storage.objects for delete to authenticated using (bucket_id='profile-media' and (storage.foldername(name))[1]=auth.uid()::text);
 drop policy if exists listing_media_public_read on storage.objects; create policy listing_media_public_read on storage.objects for select using (bucket_id='listing-media');
 drop policy if exists listing_media_authenticated_upload on storage.objects; create policy listing_media_authenticated_upload on storage.objects for insert to authenticated with check (bucket_id='listing-media');
 drop policy if exists listing_media_owner_delete on storage.objects; create policy listing_media_owner_delete on storage.objects for delete to authenticated using (bucket_id='listing-media' and owner_id::uuid=auth.uid());

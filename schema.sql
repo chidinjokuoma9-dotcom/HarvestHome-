@@ -123,6 +123,15 @@ create policy conversations_participant_update on public.conversations for updat
 
 drop policy if exists messages_participants on public.messages;
 create policy messages_participants on public.messages for select using (exists(select 1 from public.conversations c where c.id=conversation_id and (c.buyer_id=auth.uid() or c.seller_id=auth.uid() or public.is_staff())));
+drop policy if exists messages_participant_update on public.messages;
+create policy messages_participant_update on public.messages for update
+using (sender_id=auth.uid())
+with check (sender_id=auth.uid());
+
+drop policy if exists messages_participant_delete on public.messages;
+create policy messages_participant_delete on public.messages for delete
+using (sender_id=auth.uid());
+
 drop policy if exists messages_participant_insert on public.messages;
 create policy messages_participant_insert on public.messages for insert with check (sender_id=auth.uid() and exists(select 1 from public.conversations c where c.id=conversation_id and (c.buyer_id=auth.uid() or c.seller_id=auth.uid() or public.is_staff())));
 

@@ -96,7 +96,7 @@ if(state.dashboardTab==="moderation")return adminPanel();
 if(state.dashboardTab==="enquiries")return `<div class="panel-heading"><div><span class="eyebrow">Messages</span><h2>My enquiries</h2></div></div>${enq.length?enq.map(e=>`<div class="enquiry"><div><b>${esc(e.listingTitle)}</b><p>${esc(e.message)}</p></div><small>${esc(e.date)}</small></div>`).join(""):`<div class="empty-state compact"><div>💬</div><h3>No enquiries yet</h3></div>`}`;
 return `<div class="panel-heading"><div><span class="eyebrow">Account overview</span><h2>Your global workspace</h2></div></div><div class="stat-grid"><div class="stat"><span>Favourites</span><strong>${favs.length}</strong></div><div class="stat"><span>My listings</span><strong>${mine.length}</strong></div><div class="stat"><span>Enquiries</span><strong>${enq.length}</strong></div></div><div class="account-card"><div class="avatar">${esc(u.name.charAt(0).toUpperCase())}</div><div><h3>${esc(u.name)}</h3><p>${esc(u.email)}</p><small>${esc(u.role||"Buyer")} account</small></div></div><div class="dashboard-callout"><b>Ready to sell internationally?</b><p>Create a listing and choose its country, location and currency.</p><button class="primary-btn" data-a="newListing">Create listing</button></div>`}
 
-async async function getChatConversations(){
+async function getChatConversations(){
   if(!sb||!authUser)return [];
   const {data,error}=await sb.from('conversations').select('*').or(`buyer_id.eq.${authUser.id},seller_id.eq.${authUser.id}`).order('updated_at',{ascending:false});
   if(error)throw error;

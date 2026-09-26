@@ -117,9 +117,25 @@ drop policy if exists fav_owner on public.favourites; create policy fav_owner on
 drop policy if exists conversations_participants on public.conversations;
 create policy conversations_participants on public.conversations for select using (buyer_id=auth.uid() or seller_id=auth.uid() or public.is_staff());
 drop policy if exists conversations_buyer_insert on public.conversations;
-create policy conversations_buyer_insert on public.conversations for insert with check (buyer_id=auth.uid());
+create policy conversations_buyer_insert on public.conversations for insert
+with check (
+  buyer_id=auth.uid()
+  and exists (
+    select 1 from public.listings l
+    where l.id=listing_id
+      and l.seller_id=seller_id
+      and l.status='approved'
+  )
+);
+
 drop policy if exists conversations_participant_update on public.conversations;
-create policy conversations_participant_update on public.conversations for update using (buyer_id=auth.uid() or seller_id=auth.uid() or public.is_staff()) with check (buyer_id=auth.uid() or seller_id=auth.uid() or public.is_staff());
+create policy conversations_participant_update on public.conversations for update
+using (buyer_id=auth.uid() or seller_id=auth.uid() or public.is_staff())
+with check (
+  buyer_id=buyer_id
+  and seller_id=seller_id
+  and listing_id=listing_id
+);
 
 drop policy if exists messages_participants on public.messages;
 create policy messages_participants on public.messages for select using (exists(select 1 from public.conversations c where c.id=conversation_id and (c.buyer_id=auth.uid() or c.seller_id=auth.uid() or public.is_staff())));

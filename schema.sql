@@ -149,10 +149,12 @@ create trigger protect_conversation_participants
 before update on public.conversations
 for each row execute function public.prevent_conversation_participant_change();
 
+revoke execute on function public.prevent_conversation_participant_change() from public, anon, authenticated;
+
 drop policy if exists conversations_participant_update on public.conversations;
 create policy conversations_participant_update on public.conversations for update
 using (buyer_id=auth.uid() or seller_id=auth.uid() or public.is_staff())
-with check (buyer_id=old.buyer_id);
+with check (buyer_id=auth.uid() or seller_id=auth.uid() or public.is_staff());
 
 drop policy if exists messages_participants on public.messages;
 create policy messages_participants on public.messages for select using (exists(select 1 from public.conversations c where c.id=conversation_id and (c.buyer_id=auth.uid() or c.seller_id=auth.uid() or public.is_staff())));

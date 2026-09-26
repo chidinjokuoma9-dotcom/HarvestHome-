@@ -1,0 +1,71 @@
+name: Fix seller submission confirmation
+
+on:
+  push:
+    paths:
+      - ".github/workflows/fix-seller-confirmation.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Add persistent seller submission confirmation
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path("App.js")
+          text = path.read_text(encoding="utf-8")
+
+          marker = 'function listingSubmit(e){'
+          fn = r'''function showListingSubmittedConfirmation(title,listingId){
+  $("#modalRoot").innerHTML=`<div class="modal-backdrop"><div class="modal">
+    <span class="eyebrow">Listing received</span>
+    <h2>Your listing has been submitted</h2>
+    <p><strong>${esc(title)}</strong> is now <b>Pending moderator approval</b>.</p>
+    <div class="dashboard-callout">
+      <b>Please wait for approval.</b>
+      <p>Your listing has reached the HarvestHome moderation team. It will not appear publicly until an Admin or Moderator approves it.</p>
+    </div>
+    <p>You can safely log out now. We have also saved a notification in your account.</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="outline-btn" id="submittedListings">View My Listing</button>
+      <button class="primary-btn" id="submittedLogout">Log out</button>
+    </div>
+  </div></div>`;
+  $("#submittedListings")?.addEventListener("click",()=>{close();state.dashboardTab="listings";render()});
+  $("#submittedLogout")?.addEventListener("click",()=>act("logout"));
+}
+
+'''
+          if "function showListingSubmittedConfirmation(" not in text:
+              if marker not in text:
+                  raise SystemExit("listingSubmit marker not found")
+              text = text.replace(marker, fn + marker, 1)
+
+          old = "close();state.view='dashboard';state.dashboardTab='listings';render();toast('Listing submitted. It is now under moderator review.');return"
+          new = "close();state.view='dashboard';state.dashboardTab='listings';render();showListingSubmittedConfirmation(d.title,row.id);return"
+          if old not in text:
+              raise SystemExit("listing success line not found")
+          text = text.replace(old, new, 1)
+
+          path.write_text(text, encoding="utf-8")
+
+      - name: Commit and push
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add App.js
+          if git diff --cached --quiet; then
+            echo "No changes needed."
+            exit 0
+          fi
+          git commit -m "Improve seller listing submission confirmation"
+          git push

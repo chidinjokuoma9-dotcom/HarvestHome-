@@ -56,6 +56,16 @@ create table if not exists public.payments (
  id uuid primary key default gen_random_uuid(), user_id uuid references public.profiles(id) on delete set null,
  reference text unique, service text, amount integer not null, currency text not null default 'NGN', status text not null default 'initialized', created_at timestamptz not null default now()
 );
+create table if not exists public.notifications (
+ id uuid primary key default gen_random_uuid(),
+ user_id uuid not null references public.profiles(id) on delete cascade,
+ type text not null default 'system',
+ title text not null,
+ message text not null,
+ listing_id uuid references public.listings(id) on delete set null,
+ is_read boolean not null default false,
+ created_at timestamptz not null default now()
+);
 
 create or replace function public.handle_new_user() returns trigger language plpgsql security definer set search_path = public as $$
 begin
@@ -75,7 +85,14 @@ create trigger on_auth_user_created after insert on auth.users for each row exec
 
 create or replace function public.is_staff() returns boolean language sql stable security definer set search_path=public as $$ select exists(select 1 from public.profiles where id=auth.uid() and role in ('Admin','Moderator')); $$;
 
-alter table public.profiles enable row level security; alter table public.conversations enable row level security; alter table public.messages enable row level security; alter table public.listings enable row level security; alter table public.listing_media enable row level security; alter table public.favourites enable row level security; alter table public.enquiries enable row level security; alter table public.payments enable row level security;
+alter table public.profiles enable row level security; alter table public.notifications enable row level security; alter table public.conversations enable row level security; alter table public.messages enable row level security; alter table public.listings enable row level security; alter table public.listing_media enable row level security; alter table public.favourites enable row level security; alter table public.enquiries enable row level security; alter table public.payments enable row level security;
+
+drop policy if exists notifications_read_own on public.notifications;
+create policy notifications_read_own on public.notifications for select using (user_id=auth.uid() or public.is_staff());
+drop policy if exists notifications_update_own on public.notifications;
+create policy notifications_update_own on public.notifications for update using (user_id=auth.uid()) with check (user_id=auth.uid());
+drop policy if exists notifications_insert_self_or_staff on public.notifications;
+create policy notifications_insert_self_or_staff on public.notifications for insert with check (user_id=auth.uid() or public.is_staff());
 
 drop policy if exists profiles_read_self on public.profiles; create policy profiles_read_self on public.profiles for select using (id=auth.uid() or public.is_staff());
 drop policy if exists profiles_read_listing_sellers on public.profiles;
@@ -112,6 +129,9 @@ drop policy if exists profiles_read_conversation_participants on public.profiles
 create policy profiles_read_conversation_participants on public.profiles for select using (
   exists(select 1 from public.conversations c where (c.buyer_id=public.profiles.id or c.seller_id=public.profiles.id) and (c.buyer_id=auth.uid() or c.seller_id=auth.uid() or public.is_staff()))
 );
+
+create index if not exists notifications_user_created_idx on public.notifications(user_id,created_at desc);
+create index if not exists notifications_user_unread_idx on public.notifications(user_id,is_read);
 
 create index if not exists conversations_buyer_updated_idx on public.conversations(buyer_id,updated_at desc);
 create index if not exists conversations_seller_updated_idx on public.conversations(seller_id,updated_at desc);

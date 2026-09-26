@@ -1,1 +1,28 @@
-<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="HarvestHome — international marketplace for houses, land, equipment and farm produce."><title>HarvestHome — Buy, sell & lease what matters.</title><link rel="stylesheet" href="Style.css"></head><body><div id="app"></div><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="Config.js"></script><script src="App.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="HarvestHome — international marketplace for houses, land, equipment and farm produce.">
+<title>HarvestHome — Buy, sell & lease what matters.</title>
+<link rel="stylesheet" href="Style.css">
+</head>
+<body>
+<div id="app"><div style="padding:40px;font-family:system-ui,sans-serif;color:#17351f"><h1>🌿 HarvestHome</h1><p>Loading marketplace…</p></div></div>
+<script>
+(function(){
+  function showError(message){
+    var app=document.getElementById("app");
+    if(app){
+      app.innerHTML='<div style="max-width:700px;margin:60px auto;padding:28px;font-family:system-ui,sans-serif;color:#17351f;background:#fff;border:1px solid #e1e8e1;border-radius:18px"><h1>🌿 HarvestHome</h1><h2>We hit a loading error</h2><p>Please refresh the page. If the problem continues, the technical error below will help us fix it:</p><pre style="white-space:pre-wrap;background:#f5f8f5;padding:14px;border-radius:10px;overflow:auto">'+String(message||"Unknown error").replace(/[&<>]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;"}[c]})+'</pre></div>';
+    }
+  }
+  window.addEventListener("error",function(e){showError(e.message||"Script loading error");});
+  window.addEventListener("unhandledrejection",function(e){showError(e.reason&&e.reason.message?e.reason.message:String(e.reason||"Unhandled promise error"));});
+})();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="Config.js"></script>
+<script src="App.js"></script>
+</body>
+</html>

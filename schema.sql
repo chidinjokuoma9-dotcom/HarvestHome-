@@ -104,7 +104,31 @@ create policy profiles_read_listing_sellers on public.profiles for select using 
       and l.status='approved'
   )
 );
-drop policy if exists profiles_update_self on public.profiles; create policy profiles_update_self on public.profiles for update using (id=auth.uid());
+create or replace function public.prevent_profile_privilege_change()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $
+begin
+  if not public.is_staff() and (new.role <> old.role or new.verified <> old.verified) then
+    raise exception 'Protected profile fields cannot be changed by this user';
+  end if;
+  return new;
+end;
+$;
+
+drop trigger if exists protect_profile_privileges on public.profiles;
+create trigger protect_profile_privileges
+before update on public.profiles
+for each row execute function public.prevent_profile_privilege_change();
+
+revoke execute on function public.prevent_profile_privilege_change() from public, anon, authenticated;
+
+drop policy if exists profiles_update_self on public.profiles;
+create policy profiles_update_self on public.profiles for update
+using (id=auth.uid() or public.is_staff())
+with check (id=auth.uid() or public.is_staff());
 drop policy if exists listings_public_approved on public.listings; create policy listings_public_approved on public.listings for select using (status='approved' or seller_id=auth.uid() or public.is_staff());
 drop policy if exists listings_insert_owner on public.listings; create policy listings_insert_owner on public.listings for insert with check (seller_id=auth.uid());
 drop policy if exists listings_update_owner_staff on public.listings; create policy listings_update_owner_staff on public.listings for update using (seller_id=auth.uid() or public.is_staff());
@@ -199,7 +223,13 @@ create policy profile_media_owner_update on storage.objects for update to authen
 drop policy if exists profile_media_owner_delete on storage.objects;
 create policy profile_media_owner_delete on storage.objects for delete to authenticated using (bucket_id='profile-media' and (storage.foldername(name))[1]=auth.uid()::text);
 drop policy if exists listing_media_public_read on storage.objects; create policy listing_media_public_read on storage.objects for select using (bucket_id='listing-media');
-drop policy if exists listing_media_authenticated_upload on storage.objects; create policy listing_media_authenticated_upload on storage.objects for insert to authenticated with check (bucket_id='listing-media');
+drop policy if exists listing_media_authenticated_upload on storage.objects;
+create policy listing_media_authenticated_upload on storage.objects
+for insert to authenticated
+with check (
+  bucket_id='listing-media'
+  and (storage.foldername(name))[1]=auth.uid()::text
+);
 drop policy if exists listing_media_owner_delete on storage.objects; create policy listing_media_owner_delete on storage.objects for delete to authenticated using (bucket_id='listing-media' and owner_id::uuid=auth.uid());
 
 create index if not exists listings_status_country_idx on public.listings(status,country);

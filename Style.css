@@ -10,3 +10,14 @@
 .account-btn{display:inline-flex;align-items:center;gap:7px}.nav-avatar{width:28px;height:28px;border-radius:50%;object-fit:cover}.avatar-wrap{display:flex;flex-direction:column;align-items:center;gap:10px;min-width:130px}.profile-avatar{width:92px;height:92px;border-radius:50%;object-fit:cover;border:3px solid #e5eadf}.photo-btn{position:relative;overflow:hidden;cursor:pointer}.photo-btn input{display:none}.profile-help{max-width:520px;color:#6b7268;font-size:.9rem}
 
 .seller-line{font-size:12px;color:#4f6256;margin:6px 0 0;font-weight:650}.seller-line::first-letter{font-size:13px}
+
+/* Account profile */
+.profile-card{display:grid;grid-template-columns:150px 1fr;gap:28px;align-items:start;padding:24px;border:1px solid #e3e9df;border-radius:18px;background:#fff}
+.profile-avatar-wrap{display:flex;flex-direction:column;align-items:center;gap:12px}
+.profile-placeholder{display:flex;align-items:center;justify-content:center;background:#eef4ea;color:#2f5b36;font-size:2rem;font-weight:700}
+.profile-upload{cursor:pointer;text-align:center}
+.profile-details{max-width:620px}
+.profile-details form{display:grid;gap:14px}
+.profile-details label{display:grid;gap:7px;font-weight:600}
+.profile-details input{width:100%;box-sizing:border-box}
+@media(max-width:700px){.profile-card{grid-template-columns:1fr}.profile-avatar-wrap{align-items:flex-start}}

@@ -55,8 +55,17 @@ create table if not exists public.messages (
 
 create table if not exists public.payments (
  id uuid primary key default gen_random_uuid(), user_id uuid references public.profiles(id) on delete set null,
- reference text unique, service text, amount integer not null, currency text not null default 'NGN', status text not null default 'initialized', created_at timestamptz not null default now()
+ listing_id uuid references public.listings(id) on delete set null,
+ seller_id uuid references public.profiles(id) on delete set null,
+ reference text unique, service text, amount integer not null, currency text not null default 'NGN',
+ status text not null default 'initialized', paid_at timestamptz, created_at timestamptz not null default now()
 );
+alter table public.payments add column if not exists listing_id uuid references public.listings(id) on delete set null;
+alter table public.payments add column if not exists seller_id uuid references public.profiles(id) on delete set null;
+alter table public.payments add column if not exists paid_at timestamptz;
+create index if not exists payments_created_idx on public.payments(created_at desc);
+create index if not exists payments_listing_idx on public.payments(listing_id);
+create index if not exists payments_seller_idx on public.payments(seller_id);
 create table if not exists public.notifications (
  id uuid primary key default gen_random_uuid(),
  user_id uuid not null references public.profiles(id) on delete cascade,

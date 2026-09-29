@@ -427,23 +427,67 @@ async function moderate(cmd){
  if(sb&&authUser){
   try{
    const {data:listing,error:fetchError}=await sb.from('listings').select('id,title,seller_id,status').eq('id',id).maybeSingle();
-   if(fetchError)throw fetchError;if(!listing)throw new Error('Listing not found.');
+   if(fetchError)throw fetchError;
+   if(!listing)throw new Error('Listing not found.');
+
+   // Approval is payment-gated per listing. Paying for one listing
+   // never unlocks another listing belonging to the same seller.
+   if(action==='approve'){
+    const {data:payments,error:paymentError}=await sb.from('payments')
+      .select('id,status,service,amount,currency,reference,created_at')
+      .eq('listing_id',id)
+      .eq('status','success')
+      .order('created_at',{ascending:false})
+      .limit(1);
+    if(paymentError)throw paymentError;
+
+    if(!payments||!payments.length){
+      toast('Approval blocked: this listing has no successful payment. The seller must pay for this specific listing first.',true);
+      createNotification(
+        authUser.id,
+        'payment_required',
+        'Payment required before approval',
+        `Listing "${listing.title}" cannot be approved yet because no successful payment is linked to this specific listing. Payment for another listing does not count.`,
+        listing.id
+      );
+      render();
+      return;
+    }
+   }
+
    if(action==='delete'){
-    const {error}=await sb.from('listings').update({status:'deleted'}).eq('id',id);if(error)throw error;
+    const {error}=await sb.from('listings').update({status:'deleted'}).eq('id',id);
+    if(error)throw error;
     await createNotification(listing.seller_id,'listing_review','Listing removed',`Your listing "${listing.title}" was removed by a moderator.`,listing.id);
    }else{
     const status=action==='approve'?'approved':'rejected';
-    const {error}=await sb.from('listings').update({status}).eq('id',id);if(error)throw error;
-    if(status==='approved'){try{await sb.rpc('award_listing_approval_reward',{p_listing_id:id})}catch(e){console.warn('Approval reward could not be recorded:',e.message)}}
+    const {error}=await sb.from('listings').update({status}).eq('id',id);
+    if(error)throw error;
+    if(status==='approved'){
+      try{await sb.rpc('award_listing_approval_reward',{p_listing_id:id})}
+      catch(e){console.warn('Approval reward could not be recorded:',e.message)}
+    }
     if(status==='approved')await createNotification(listing.seller_id,'listing_review','Listing approved',`Your listing "${listing.title}" has been approved and is now visible on HarvestHome.`,listing.id);
     else await createNotification(listing.seller_id,'listing_review','Listing not approved',`Your listing "${listing.title}" was not approved. Please review the listing details and submit an updated listing if needed.`,listing.id);
    }
-   await syncListings();await syncAdminRewards();toast(action==='delete'?'Listing removed.':`Listing ${action==='approve'?'approved':'rejected'} and seller notified.`);render();return;
+   await syncListings();await syncAdminRewards();
+   toast(action==='delete'?'Listing removed.':`Listing ${action==='approve'?'approved':'rejected'} and seller notified.`);
+   render();
+   return;
   }catch(e){toast(e.message||'Moderation action failed.',true);return}
  }
  let ls=json(KEYS.sellerListings,[]);
- if(action==='delete'){ls=ls.filter(x=>x.id!==id);toast('Listing removed.')}else{let l=ls.find(x=>x.id===id);if(!l)return;l.status=action==='approve'?'approved':'rejected';toast(`Listing ${l.status}.`)}
- put(KEYS.sellerListings,ls);render()
+ if(action==='delete'){
+  ls=ls.filter(x=>x.id!==id);
+  toast('Listing removed.');
+ }else{
+  let l=ls.find(x=>x.id===id);
+  if(!l)return;
+  l.status=action==='approve'?'approved':'rejected';
+  toast(`Listing ${l.status}.`);
+ }
+ put(KEYS.sellerListings,ls);
+ render()
 }
 async function del(id){
   if(sb&&authUser){

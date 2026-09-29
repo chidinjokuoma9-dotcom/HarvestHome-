@@ -368,6 +368,7 @@ async function moderate(cmd){
    }else{
     const status=action==='approve'?'approved':'rejected';
     const {error}=await sb.from('listings').update({status}).eq('id',id);if(error)throw error;
+    if(status==='approved'){try{await sb.rpc('award_listing_approval_reward',{p_listing_id:id})}catch(e){console.warn('Approval reward could not be recorded:',e.message)}}
     if(status==='approved')await createNotification(listing.seller_id,'listing_review','Listing approved',`Your listing "${listing.title}" has been approved and is now visible on HarvestHome.`,listing.id);
     else await createNotification(listing.seller_id,'listing_review','Listing not approved',`Your listing "${listing.title}" was not approved. Please review the listing details and submit an updated listing if needed.`,listing.id);
    }

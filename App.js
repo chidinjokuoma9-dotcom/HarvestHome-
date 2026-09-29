@@ -3,7 +3,7 @@
 const C = window.HARVESTHOME_CONFIG || { APP_NAME:"HarvestHome", VERSION:"V8", SUPPORTED_COUNTRIES:[{name:"Nigeria",code:"NG",currency:"NGN",symbol:"₦"}], CATEGORIES:["All categories","Houses","Land","Equipment","Farm Produce"], MODES:["All","Sale","Lease"], LOCATIONS:{Nigeria:["All locations"]}, DEFAULT_COUNTRY:"Nigeria", DEFAULT_CURRENCY:"NGN", MAX_IMAGE_FILES:6, MAX_VIDEO_MB:25 };
 const sb = (window.supabase && C.SUPABASE_URL && C.SUPABASE_ANON_KEY && C.SUPABASE_URL.startsWith("http")) ? window.supabase.createClient(C.SUPABASE_URL, C.SUPABASE_ANON_KEY) : null;
 let authUser = null, authProfile = null;
-const KEYS = {users:"hh_v4_users",session:"hh_v4_session",favourites:"hh_v4_favourites",enquiries:"hh_v4_enquiries",sellerListings:"hh_v4_seller_listings",country:"hh_v4_country",currency:"hh_v4_currency",reset:"hh_v6_reset_tokens",payments:"hh_v6_payments",notifications:"hh_v8_notifications",notificationReads:"hh_v8_notification_reads"};
+const KEYS = {users:"hh_v4_users",session:"hh_v4_session",favourites:"hh_v4_favourites",enquiries:"hh_v4_enquiries",sellerListings:"hh_v4_seller_listings",country:"hh_v4_country",currency:"hh_v4_currency",reset:"hh_v6_reset_tokens",payments:"hh_v6_payments",notifications:"hh_v8_notifications",notificationReads:"hh_v8_notification_reads",rewards:"hh_v9_rewards",recommendations:"hh_v9_recommendations"};
 const DEMO_ADMIN={email:"admin@harvesthome.app",name:"HarvestHome Admin",password:"Admin123!",role:"Admin"};
 const V5 = {maxImages:6,maxVideoMB:25};
 const mapURL=l=>`https://www.openstreetmap.org/search?query=${encodeURIComponent(`${l.location||""}, ${l.country||""}`)}`;
@@ -26,9 +26,62 @@ async function syncListings(){
   try{
     const {data,error}=await sb.from('listings').select('*, profiles: seller_id(full_name,verified)').order('created_at',{ascending:false});
     if(error)throw error;
-    const remote=(data||[]).filter(l=>l.seller_id&&l.status!=="deleted").map(l=>({...l,id:l.id,ownerEmail:authUser?.id===l.seller_id?(authUser.email||''):undefined,seller:l.profiles?.full_name||'HarvestHome Seller',sellerVerified:!!l.profiles?.verified,images:l.cover_url?[{data:l.cover_url}]:[],video:l.video_url?{data:l.video_url}:null,views:l.views||0}));
-    put(KEYS.sellerListings,remote);
+    const remote=(data||[]).filter(l=>l&&l.seller_id&&l.status!=="deleted").map(l=>({...l,id:l.id,ownerEmail:authUser?.id===l.seller_id?(authUser.email||''):undefined,seller:l.profiles?.full_name||l.seller_name||'HarvestHome Seller',sellerVerified:!!l.profiles?.verified,images:l.cover_url?[{data:l.cover_url}]:[],video:l.video_url?{data:l.video_url}:null,views:l.views||0}));
+    const cached=json(KEYS.sellerListings,[]);
+    const remoteIds=new Set(remote.map(x=>String(x.id)));
+    const mineCached=cached.filter(x=>x&&x.seller_id===authUser?.id&&!remoteIds.has(String(x.id))&&x.status!=="deleted");
+    put(KEYS.sellerListings,[...remote,...mineCached]);
   }catch(e){console.warn('Supabase listings sync failed',e.message)}
+}
+
+function rewardDefaults(){return {points:0,participation:0,recommendations:0,buyers:0}}
+function localReward(email,field,points=0){
+  if(!email)return;
+  const all=json(KEYS.rewards,{});
+  const r={...rewardDefaults(),...(all[email]||{})};
+  r[field]=(Number(r[field])||0)+Number(points||0);
+  r.points=(Number(r.participation)||0)+(Number(r.recommendations)||0)+(Number(r.buyers)||0);
+  all[email]=r;put(KEYS.rewards,all);
+}
+function getReward(email){return {...rewardDefaults(),...(json(KEYS.rewards,{})[email]||{})}}
+async function syncRewards(){
+  if(!sb||!authUser)return;
+  try{
+    const {data,error}=await sb.from("seller_rewards").select("*").eq("user_id",authUser.id).maybeSingle();
+    if(!error&&data){
+      const all=json(KEYS.rewards,{});
+      all[authUser.email]={points:data.points||0,participation:data.participation_points||0,recommendations:data.recommendation_points||0,buyers:data.buyer_count||0};
+      put(KEYS.rewards,all);
+    }
+  }catch(e){console.warn("Rewards sync failed",e.message)}
+}
+async function awardParticipation(points,reason){
+  const u=user();if(!u)return;
+  if(sb&&authUser){
+    const {error}=await sb.rpc("award_participation_points",{p_user_id:authUser.id,p_points:Number(points),p_reason:reason||"participation"});
+    if(!error){localReward(u.email,"participation",points);await syncRewards();return}
+  }
+  localReward(u.email,"participation",points);
+}
+async function recommendSeller(listingId){
+  const u=user();
+  if(!u){auth("login");toast("Log in to recommend a seller.",true);return}
+  const l=listings().find(x=>String(x.id)===String(listingId));
+  if(!l||!l.seller_id){toast("This listing is not connected to a seller account yet.",true);return}
+  if(l.seller_id===u.id){toast("You cannot recommend yourself.",true);return}
+  try{
+    if(sb&&authUser){
+      const {error}=await sb.rpc("recommend_seller",{p_seller_id:l.seller_id,p_listing_id:l.id});
+      if(error)throw error;
+    }else{
+      const all=json(KEYS.recommendations,[]);
+      const key=`${u.email}:${l.seller_id}:${l.id}`;
+      if(all.some(x=>x.key===key)){toast("You already recommended this seller.",true);return}
+      all.push({key,buyerEmail:u.email,seller_id:l.seller_id,listing_id:l.id,date:new Date().toISOString()});
+      put(KEYS.recommendations,all);
+    }
+    toast("Seller recommended. Thank you!");
+  }catch(err){toast(err.message||"Recommendation could not be saved.",true)}
 }
 
 async function fav(id){
@@ -97,7 +150,7 @@ async function syncFavourites(){
   }catch(e){console.warn('Supabase favourites sync failed',e.message)}
 }
 async function loadProfile(){if(!sb||!authUser){authProfile=null;return}const {data}=await sb.from('profiles').select('*').eq('id',authUser.id).maybeSingle();authProfile=data||null}
-async function loadAuth(){if(!sb){render();return}const {data}=await sb.auth.getSession();authUser=data.session?.user||null;await loadProfile();await syncListings();await syncFavourites();await syncNotifications();await syncPayments();render();}
+async function loadAuth(){if(!sb){render();return}const {data}=await sb.auth.getSession();authUser=data.session?.user||null;await loadProfile();await syncListings();await syncFavourites();await syncNotifications();await syncPayments();await syncRewards();render();}
 async function syncPayments(){
   if(!sb||!authUser)return;
   try{
@@ -116,7 +169,7 @@ function marketplace(){let ls=filtered();return `${header()}<section class="hero
 function cat(i,t,d,v){return `<button class="category-card" data-cat="${esc(v)}"><span>${i}</span><div><h3>${t}</h3><p>${d}</p></div><b>→</b></button>`}
 function flag(c){return ({NG:"🇳🇬",GH:"🇬🇭",KE:"🇰🇪",ZA:"🇿🇦",GB:"🇬🇧",US:"🇺🇸",CA:"🇨🇦",AE:"🇦🇪"}[c]||"🌍")}
 function filtered(){let q=state.search.toLowerCase().trim();return listings().filter(l=>(l.status||"approved")==="approved"&&(l.country||"Nigeria")===state.country&&(!q||`${l.title} ${l.category} ${l.location} ${l.description} ${l.seller}`.toLowerCase().includes(q))&&(state.location==="All locations"||l.location===state.location)&&(state.category==="All categories"||l.category===state.category)&&(state.mode==="All"||l.mode===state.mode))}
-function card(l){let u=user(),f=json(KEYS.favourites,{}),fav=u&&(f[u.email]||[]).includes(l.id);let img=l.images&&l.images[0]&&l.images[0].data;return `<article class="listing-card"><div class="listing-image ${slug(l.category)}">${img?`<img src="${img}" alt="${esc(l.title)}">`:`<span>${l.emoji||"📦"}</span>`}<button class="heart ${fav?"active":""}" data-fav="${l.id}">${fav?"♥":"♡"}</button><span class="mode-pill">${esc(l.mode)}</span></div><div class="listing-body"><span class="listing-category">${esc(l.category)}</span><h3>${esc(l.title)}</h3><p class="location">📍 \${esc(l.location)} · \${esc(l.country)}</p><p class="seller-line">👤 \${esc(l.seller||'HarvestHome Seller')}\${l.sellerVerified?' · ✓ Verified seller':''}</p><p class="description">\${esc(l.description)}</p><div class="listing-bottom"><strong>${money(l.price,l.currency||countryInfo().currency)}</strong><span>${l.views||0} views</span></div><div class="listing-actions"><button class="outline-btn full" data-contact="${l.id}">Contact seller</button><div class="media-links"><a target="_blank" rel="noopener" href="${mapURL(l)}">📍 Map</a>${l.video?`<span>🎥 Video</span>`:""}</div></div></div></article>`}
+function card(l){let u=user(),f=json(KEYS.favourites,{}),fav=u&&(f[u.email]||[]).includes(l.id);let img=l.images&&l.images[0]&&l.images[0].data;return `<article class="listing-card"><div class="listing-image ${slug(l.category)}">${img?`<img src="${img}" alt="${esc(l.title)}">`:`<span>${l.emoji||"📦"}</span>`}<button class="heart ${fav?"active":""}" data-fav="${l.id}">${fav?"♥":"♡"}</button><span class="mode-pill">${esc(l.mode)}</span></div><div class="listing-body"><span class="listing-category">${esc(l.category)}</span><h3>${esc(l.title)}</h3><p class="location">📍 \${esc(l.location)} · \${esc(l.country)}</p><p class="seller-line">👤 \${esc(l.seller||'HarvestHome Seller')}\${l.sellerVerified?' · ✓ Verified seller':''}</p><p class="description">\${esc(l.description)}</p><div class="listing-bottom"><strong>${money(l.price,l.currency||countryInfo().currency)}</strong><span>${l.views||0} views</span></div><div class="listing-actions"><button class="outline-btn full" data-contact="${l.id}">Contact seller</button><button class="ghost-btn full" data-recommend="${l.id}">⭐ Recommend seller</button><div class="media-links"><a target="_blank" rel="noopener" href="${mapURL(l)}">📍 Map</a>${l.video?`<span>🎥 Video</span>`:""}</div></div></div></article>`}
 function empty(){return `<div class="empty-state"><div>🔎</div><h3>No matching listings</h3><p>Try another market, location or search.</p><button class="primary-btn" data-a="clear">Clear filters</button></div>`}
 function footer(){return `<footer><div class="container footer-grid"><div><div class="footer-brand">🌿 HarvestHome</div><p>The international marketplace for property, equipment and farm produce.</p></div><div><b>Markets</b>${C.SUPPORTED_COUNTRIES.slice(0,4).map(x=>`<button data-country="${esc(x.name)}">${flag(x.code)} ${esc(x.name)}</button>`).join("")}</div><div><b>Account</b><button data-a="login">Login</button><button data-a="signup">Create account</button></div></div><div class="container footer-bottom">© ${new Date().getFullYear()} HarvestHome · International marketplace</div></footer>`}
 
@@ -131,7 +184,7 @@ function adminPanel(){
   <div class="table-wrap"><table><thead><tr><th>Payer</th><th>Listing / Service</th><th>Amount</th><th>Status</th><th>Reference</th><th>Date</th></tr></thead><tbody>${ps.length?ps.map(p=>`<tr><td><b>${esc(p.profiles?.full_name||p.user_id||'Customer')}</b></td><td><b>${esc(p.listings?.title||'No listing linked')}</b><small>${esc(p.service||'Marketplace')}</small></td><td>${money((Number(p.amount)||0)/100,p.currency||'NGN')}</td><td><span class="status-pill ${slug(p.status||'initialized')}">${esc(p.status||'initialized')}</span></td><td><code>${esc(p.reference||'—')}</code></td><td>${p.created_at?new Date(p.created_at).toLocaleString():'—'}</td></tr>`).join(''):`<tr><td colspan="6">No payments recorded yet.</td></tr>`}</tbody></table></div>
   <div class="dashboard-callout"><b>Payment records</b><p>Moderators can see who paid, which listing or service was paid for, the amount, status and Paystack reference.</p></div>`;
 }
-function dashboard(){let u=user();if(!u){state.view="marketplace";return marketplace()}let favs=json(KEYS.favourites,{})[u.email]||[], mine=json(KEYS.sellerListings,[]).filter(x=>authUser&&String(x.seller_id)===String(authUser.id)), enq=json(KEYS.enquiries,[]).filter(x=>x.buyerEmail===u.email), notifications=authUser?notificationFeed(mine):[], unread=notifications.filter(n=>!n.is_read).length;return `${header()}<section class="dashboard-hero"><div class="container"><button class="back-btn" data-a="home">← Marketplace</button><span class="eyebrow">My account</span><h1>Welcome, ${esc(u.name.split(" ")[0])}.</h1><p>Manage your favourites, enquiries and seller listings across your selected market.</p></div></section><section class="dashboard-section"><div class="container dashboard-layout"><aside class="dashboard-nav"><button class="${state.dashboardTab==="overview"?"active":""}" data-tab="overview">Overview</button><button class="${state.dashboardTab==="profile"?"active":""}" data-tab="profile">Profile</button><button class="${state.dashboardTab==="favourites"?"active":""}" data-tab="favourites">Favourites (${favs.length})</button><button class="${state.dashboardTab==="listings"?"active":""}" data-tab="listings">My listings (${mine.length})</button><button class="${state.dashboardTab==="notifications"?"active":""}" data-tab="notifications">🔔 Notifications${unread?` (${unread})`:``}</button><button class="${state.dashboardTab==="enquiries"?"active":""}" data-tab="enquiries">Enquiries (${enq.length})</button><button class="${state.dashboardTab==="chats"?"active":""}" data-tab="chats">💬 Chats</button>${(u.role==="Admin"||u.role==="Moderator")?`<button class="${state.dashboardTab==="moderation"?"active":""}" data-tab="moderation">Moderation</button>`:""}<button class="${state.dashboardTab==="payments"?"active":""}" data-tab="payments">Payments</button><button data-a="logout">Logout</button></aside><div class="dashboard-content">${dashTab(u,favs,mine,enq)}</div></div></section>${footer()}`}
+function dashboard(){let u=user();if(!u){state.view="marketplace";return marketplace()}let favs=json(KEYS.favourites,{})[u.email]||[], mine=json(KEYS.sellerListings,[]).filter(x=>authUser&&String(x.seller_id)===String(authUser.id)), enq=json(KEYS.enquiries,[]).filter(x=>x.buyerEmail===u.email), notifications=authUser?notificationFeed(mine):[], unread=notifications.filter(n=>!n.is_read).length;return `${header()}<section class="dashboard-hero"><div class="container"><button class="back-btn" data-a="home">← Marketplace</button><span class="eyebrow">My account</span><h1>Welcome, ${esc(u.name.split(" ")[0])}.</h1><p>Manage your favourites, enquiries and seller listings across your selected market.</p></div></section><section class="dashboard-section"><div class="container dashboard-layout"><aside class="dashboard-nav"><button class="${state.dashboardTab==="overview"?"active":""}" data-tab="overview">Overview</button><button class="${state.dashboardTab==="profile"?"active":""}" data-tab="profile">Profile</button><button class="${state.dashboardTab==="favourites"?"active":""}" data-tab="favourites">Favourites (${favs.length})</button><button class="${state.dashboardTab==="listings"?"active":""}" data-tab="listings">My listings (${mine.length})</button><button class="${state.dashboardTab==="rewards"?"active":""}" data-tab="rewards">🏆 Rewards</button><button class="${state.dashboardTab==="notifications"?"active":""}" data-tab="notifications">🔔 Notifications${unread?` (${unread})`:``}</button><button class="${state.dashboardTab==="enquiries"?"active":""}" data-tab="enquiries">Enquiries (${enq.length})</button><button class="${state.dashboardTab==="chats"?"active":""}" data-tab="chats">💬 Chats</button>${(u.role==="Admin"||u.role==="Moderator")?`<button class="${state.dashboardTab==="moderation"?"active":""}" data-tab="moderation">Moderation</button>`:""}<button class="${state.dashboardTab==="payments"?"active":""}" data-tab="payments">Payments</button><button data-a="logout">Logout</button></aside><div class="dashboard-content">${dashTab(u,favs,mine,enq)}</div></div></section>${footer()}`}
 function notificationFeed(mine=[]){
   if(!authUser)return [];
   const remote=json(KEYS.notifications,{})[authUser.id]||[];
@@ -193,7 +246,7 @@ function dashTab(u,favs,mine,enq){
     const ls=listings().filter(x=>favs.includes(x.id));
     return "<div class=\"panel-heading\"><div><span class=\"eyebrow\">Saved</span><h2>Your favourites</h2></div></div>"+(ls.length?"<div class=\"listing-grid\">"+ls.map(card).join("")+"</div>":"<div class=\"empty-state compact\"><div>♡</div><h3>No favourites yet</h3><p>Save listings from any market.</p></div>");
   }
-  if(state.dashboardTab==="listings"){
+  if(state.dashboardTab==="rewards"){const r=getReward(u.email);return `<div class="panel-heading"><div><span class="eyebrow">Seller rewards</span><h2>Participation & recommendations</h2></div></div><div class="stat-grid"><div class="stat"><span>Total points</span><strong>${r.points}</strong></div><div class="stat"><span>Participation points</span><strong>${r.participation}</strong></div><div class="stat"><span>Recommendation points</span><strong>${r.recommendations}</strong></div><div class="stat"><span>Buyer referrals</span><strong>${r.buyers}</strong></div></div><div class="dashboard-callout"><b>How rewards work</b><p>Publish listings and stay active to earn participation points. Buyers who recommend your listings add recommendation points, and new buyers brought to your listings add buyer-referral points.</p></div>`;}if(state.dashboardTab==="listings"){
     return "<div class=\"panel-heading\"><div><span class=\"eyebrow\">Seller workspace</span><h2>My listings</h2></div><button class=\"primary-btn\" data-a=\"newListing\">+ Create listing</button></div>"+(mine.length?"<div class=\"table-wrap\"><table><thead><tr><th>Listing</th><th>Market</th><th>Price</th><th>Status</th><th>Actions</th></tr></thead><tbody>"+mine.map(l=>"<tr><td><b>"+esc(l.title)+"</b></td><td>"+esc(l.country)+" · "+esc(l.location)+"</td><td>"+money(l.price,l.currency)+"</td><td><span class=\"status-pill "+slug(l.status||"pending")+"\">"+(l.status==="pending"?"Under review":l.status==="approved"?"Approved":l.status==="rejected"?"Not approved":esc(l.status||""))+"</span></td><td><button class=\"danger-text\" data-del=\""+esc(l.id)+"\">Delete</button></td></tr>").join("")+"</tbody></table></div>":"<div class=\"empty-state compact\"><div>＋</div><h3>No listings yet</h3><button class=\"primary-btn\" data-a=\"newListing\">Create listing</button></div>");
   }
   if(state.dashboardTab==="payments"){
@@ -264,7 +317,7 @@ async function paymentSubmit(e){
 function bind(){
 document.querySelectorAll("[data-a]").forEach(e=>e.onclick=()=>act(e.dataset.a));document.querySelectorAll("[data-pay-listing]").forEach(e=>e.onclick=()=>paymentModal(e.dataset.payListing));$$("[data-scroll]").forEach(e=>e.onclick=()=>document.getElementById(e.dataset.scroll)?.scrollIntoView({behavior:"smooth"}));
 $("#countryTop")?.addEventListener("change",e=>switchCountry(e.target.value));$("#profilePhotoInput")?.addEventListener("change",e=>uploadProfilePhoto(e.target.files[0]));$("#profileForm")?.addEventListener("submit",saveProfile);$("#countryFilter")?.addEventListener("change",e=>switchCountry(e.target.value));$("#locationFilter")?.addEventListener("change",e=>{state.location=e.target.value;render()});$("#categoryFilter")?.addEventListener("change",e=>{state.category=e.target.value;render()});$("#modeFilter")?.addEventListener("change",e=>{state.mode=e.target.value;render()});
-$("#searchInput")?.addEventListener("keydown",e=>{if(e.key==="Enter"){state.search=e.target.value;render()}});$$("[data-cat]").forEach(e=>e.onclick=()=>{state.category=e.dataset.cat;render()});$$("[data-country]").forEach(e=>e.onclick=()=>switchCountry(e.dataset.country));$$("[data-fav]").forEach(e=>e.onclick=x=>{x.stopPropagation();fav(e.dataset.fav)});$$("[data-contact]").forEach(e=>e.onclick=()=>contact(e.dataset.contact));$$("[data-chat]").forEach(e=>e.onclick=async()=>{const l=listings().find(x=>String(x.id)===String(e.dataset.listing));if(l)await openChat(e.dataset.chat,l)});$$("[data-tab]").forEach(e=>e.onclick=()=>{state.dashboardTab=e.dataset.tab;render()});$$("[data-notification]").forEach(e=>e.onclick=()=>markNotificationRead(e.dataset.notification));$$("[data-del]").forEach(e=>e.onclick=()=>del(e.dataset.del));$$("[data-mod]").forEach(e=>e.onclick=()=>moderate(e.dataset.mod))
+$("#searchInput")?.addEventListener("keydown",e=>{if(e.key==="Enter"){state.search=e.target.value;render()}});$$("[data-cat]").forEach(e=>e.onclick=()=>{state.category=e.dataset.cat;render()});$$("[data-country]").forEach(e=>e.onclick=()=>switchCountry(e.dataset.country));$$("[data-fav]").forEach(e=>e.onclick=x=>{x.stopPropagation();fav(e.dataset.fav)});$("[data-contact]").forEach(e=>e.onclick=()=>contact(e.dataset.contact));$("[data-recommend]").forEach(e=>e.onclick=()=>recommendSeller(e.dataset.recommend));$$("[data-chat]").forEach(e=>e.onclick=async()=>{const l=listings().find(x=>String(x.id)===String(e.dataset.listing));if(l)await openChat(e.dataset.chat,l)});$$("[data-tab]").forEach(e=>e.onclick=()=>{state.dashboardTab=e.dataset.tab;render()});$$("[data-notification]").forEach(e=>e.onclick=()=>markNotificationRead(e.dataset.notification));$$("[data-del]").forEach(e=>e.onclick=()=>del(e.dataset.del));$$("[data-mod]").forEach(e=>e.onclick=()=>moderate(e.dataset.mod))
 }
 function switchCountry(c){state.country=c;state.location="All locations";state.category="All categories";localStorage.setItem(KEYS.country,c);render()}
 async function act(a){if(a==="home"){state.view="marketplace";render();scrollTo(0,0)}if(a==="login")auth("login");if(a==="signup")auth("signup");if(a==="logout"){if(sb) await sb.auth.signOut();localStorage.removeItem(KEYS.session);authUser=null;authProfile=null;state.view="marketplace";render();toast("Logged out.")}if(a==="dashboard"){state.view="dashboard";render()}if(a==="admin"){state.view="dashboard";state.dashboardTab="moderation";render()}if(a==="search"){state.search=$("#searchInput")?.value||"";render()}if(a==="clear"){state.search="";state.location="All locations";state.category="All categories";state.mode="All";render()}if(a==="newListing")listingModal();if(a==="pay")paymentModal();if(a==="markAllNotifications")markAllNotificationsRead()}
@@ -334,6 +387,6 @@ async function del(id){
   render();
   toast("Listing deleted.")
 }
-if(sb){sb.auth.onAuthStateChange(async (event,session)=>{authUser=session?.user||null; if(authUser){await loadProfile();await syncListings();await syncFavourites();await syncNotifications();} else authProfile=null; render(); if(event==='PASSWORD_RECOVERY') setTimeout(showReset,0);}); loadAuth();}else{render();}
+if(sb){sb.auth.onAuthStateChange(async (event,session)=>{authUser=session?.user||null; if(authUser){await loadProfile();await syncListings();await syncFavourites();await syncNotifications();await syncRewards();} else authProfile=null; render(); if(event==='PASSWORD_RECOVERY') setTimeout(showReset,0);}); loadAuth();}else{render();}
 
 })();

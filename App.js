@@ -74,13 +74,13 @@ async function syncListings(){
     put(KEYS.sellerListings,[...base,...mineCached]);
   }catch(e){console.warn('Supabase listings sync failed',e.message)}
 }
-function rewardDefaults(){return {points:0,participation:0,recommendations:0,buyers:0}}
+function rewardDefaults(){return {points:0,participation:0,recommendations:0,referralPoints:0,buyers:0}}
 function localReward(email,field,points=0){
   if(!email)return;
   const all=json(KEYS.rewards,{});
   const r={...rewardDefaults(),...(all[email]||{})};
   r[field]=(Number(r[field])||0)+Number(points||0);
-  r.points=(Number(r.participation)||0)+(Number(r.recommendations)||0)+(Number(r.buyers)||0);
+  r.points=(Number(r.participation)||0)+(Number(r.recommendations)||0)+(Number(r.referralPoints)||0);
   all[email]=r;put(KEYS.rewards,all);
 }
 function getReward(email){return {...rewardDefaults(),...(json(KEYS.rewards,{})[email]||{})}}
@@ -90,7 +90,7 @@ async function syncRewards(){
     const {data,error}=await sb.from("seller_rewards").select("*").eq("user_id",authUser.id).maybeSingle();
     if(!error&&data){
       const all=json(KEYS.rewards,{});
-      all[authUser.email]={points:data.points||0,participation:data.participation_points||0,recommendations:data.recommendation_points||0,buyers:data.buyer_count||0};
+      all[authUser.email]={points:data.points||0,participation:data.participation_points||0,recommendations:data.recommendation_points||0,referralPoints:data.buyer_referral_points||0,buyers:data.buyer_count||0};
       put(KEYS.rewards,all);
     }
   }catch(e){console.warn("Rewards sync failed",e.message)}

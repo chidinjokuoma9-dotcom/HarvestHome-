@@ -6,6 +6,7 @@ serve(async(req)=>{ if(req.method==='OPTIONS') return new Response('ok',{headers
  const {data:{user}}=await supabase.auth.getUser(); if(!user) return new Response(JSON.stringify({error:'Sign in required.'}),{status:401,headers:cors});
  const body=await req.json(); const amount=Number(body.amount); if(!Number.isFinite(amount)||amount<=0) throw new Error('Invalid amount');
  const listingId=body.listing_id ? String(body.listing_id) : null;
+ if(!listingId) throw new Error('Select the exact listing this payment is for');
  let listing=null;
  if(listingId){
    const {data,error}=await supabase.from('listings').select('id,title,seller_id,status,currency').eq('id',listingId).maybeSingle();

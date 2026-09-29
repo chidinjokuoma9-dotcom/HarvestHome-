@@ -59,6 +59,19 @@ begin
     return 0;
   end if;
 
+  -- A seller's own browsing does not inflate public view counts.
+  if exists (
+    select 1
+    from public.listings
+    where id = p_listing_id
+      and seller_id = auth.uid()
+  ) then
+    select coalesce(views, 0) into v_views
+    from public.listings
+    where id = p_listing_id;
+    return coalesce(v_views, 0);
+  end if;
+
   insert into public.listing_views(listing_id, viewer_id)
   values(p_listing_id, auth.uid());
 

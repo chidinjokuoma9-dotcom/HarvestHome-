@@ -116,12 +116,12 @@ begin
     sr.buyer_count,
     sr.recommendation_count,
     case
-      when sr.points >= 50 or sr.buyer_count >= 5 then 'Qualified'
+      when sr.points >= 100 or sr.buyer_count >= 10 then 'Qualified'
       else 'Building'
     end::text,
     case
-      when sr.points >= 100 or sr.buyer_count >= 10 then 'Gold'
-      when sr.points >= 50 or sr.buyer_count >= 5 then 'Reward'
+      when sr.points >= 250 or sr.buyer_count >= 25 then 'Gold'
+      when sr.points >= 100 or sr.buyer_count >= 10 then 'Reward'
       else 'Standard'
     end::text
   from public.seller_rewards sr

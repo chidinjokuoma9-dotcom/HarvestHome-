@@ -433,52 +433,35 @@ async function moderate(cmd){
    if(fetchError)throw fetchError;
    if(!listing)throw new Error('Listing not found.');
 
-   // Approval is payment-gated per listing. Paying for one listing
-   // never unlocks another listing belonging to the same seller.
    if(action==='approve'){
-    const {data:payments,error:paymentError}=await sb.from('payments')
-      .select('id,status,service,amount,currency,reference,created_at')
-      .eq('listing_id',id)
-      .eq('status','success')
-      .order('created_at',{ascending:false})
-      .limit(1);
-    if(paymentError)throw paymentError;
-
-    if(!payments||!payments.length){
-      toast('Approval blocked: this listing has no successful payment. The seller must pay for this specific listing first.',true);
-      createNotification(
-        authUser.id,
-        'payment_required',
-        'Payment required before approval',
-        `Listing "${listing.title}" cannot be approved yet because no successful payment is linked to this specific listing. Payment for another listing does not count.`,
-        listing.id
-      );
+    const {data:result,error:approvalError}=await sb.rpc('approve_paid_listing',{p_listing_id:id});
+    if(approvalError)throw approvalError;
+    if(!result?.approved){
+      toast('Approval blocked: no successful payment is linked to this exact listing.',true);
+      await createNotification(authUser.id,'payment_required','Payment required before approval',`Listing "${listing.title}" cannot be approved because no successful payment is linked to this exact listing.`,listing.id);
       render();
       return;
     }
-   }
-
-   if(action==='delete'){
+   }else if(action==='delete'){
     const {error}=await sb.from('listings').update({status:'deleted'}).eq('id',id);
     if(error)throw error;
     await createNotification(listing.seller_id,'listing_review','Listing removed',`Your listing "${listing.title}" was removed by a moderator.`,listing.id);
    }else{
-    const status=action==='approve'?'approved':'rejected';
+    const status='rejected';
     const {data:updatedListing,error}=await sb.from('listings').update({status}).eq('id',id).select('id,status').maybeSingle();
     if(error)throw error;
     if(!updatedListing||updatedListing.status!==status)throw new Error('The listing status could not be updated in Supabase. Please check the moderator permissions for listings.');
-    if(error)throw error;
-    const cachedListings=json(KEYS.sellerListings,[]);
-    const cachedListing=cachedListings.find(x=>String(x.id)===String(id));
-    if(cachedListing){cachedListing.status=status;cachedListing.updated_at=new Date().toISOString();put(KEYS.sellerListings,cachedListings);}
-    toast(status==='approved'?'Listing approved immediately.':'Listing rejected.');
-    render();
-    if(status==='approved'){
-      try{await sb.rpc('award_listing_approval_reward',{p_listing_id:id})}
-      catch(e){console.warn('Approval reward could not be recorded:',e.message)}
-    }
-    if(status==='approved')await createNotification(listing.seller_id,'listing_review','Listing approved',`Your listing "${listing.title}" has been approved and is now visible on HarvestHome.`,listing.id);
-    else await createNotification(listing.seller_id,'listing_review','Listing not approved',`Your listing "${listing.title}" was not approved. Please review the listing details and submit an updated listing if needed.`,listing.id);
+    await createNotification(listing.seller_id,'listing_review','Listing not approved',`Your listing "${listing.title}" was not approved. Please review the listing details and submit an updated listing if needed.`,listing.id);
+   }
+
+   const status=action==='approve'?'approved':action==='reject'?'rejected':'deleted';
+   const cachedListings=json(KEYS.sellerListings,[]);
+   const cachedListing=cachedListings.find(x=>String(x.id)===String(id));
+   if(cachedListing){cachedListing.status=status;cachedListing.updated_at=new Date().toISOString();put(KEYS.sellerListings,cachedListings);}
+   if(action==='approve'){
+    toast('Listing approved immediately.');
+    try{await sb.rpc('award_listing_approval_reward',{p_listing_id:id})}catch(e){console.warn('Approval reward could not be recorded:',e.message)}
+    await createNotification(listing.seller_id,'listing_review','Listing approved',`Your listing "${listing.title}" has been approved and is now visible on HarvestHome.`,listing.id);
    }
    await syncListings();await syncAdminRewards();
    toast(action==='delete'?'Listing removed.':`Listing ${action==='approve'?'approved':'rejected'} and seller notified.`);

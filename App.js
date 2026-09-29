@@ -27,14 +27,52 @@ async function syncListings(){
   try{
     const {data,error}=await sb.from('listings').select('*, profiles: seller_id(full_name,verified)').order('created_at',{ascending:false});
     if(error)throw error;
-    const remote=(data||[]).filter(l=>l&&l.seller_id&&l.status!=="deleted").map(l=>({...l,id:l.id,ownerEmail:authUser?.id===l.seller_id?(authUser.email||''):undefined,seller:l.profiles?.full_name||l.seller_name||'HarvestHome Seller',sellerVerified:!!l.profiles?.verified,images:l.cover_url?[{data:l.cover_url}]:[],video:l.video_url?{data:l.video_url}:null,views:l.views||0}));
+
+    const base=(data||[]).filter(l=>l&&l.seller_id&&l.status!=='deleted').map(l=>({
+      ...l,id:l.id,
+      ownerEmail:authUser?.id===l.seller_id?(authUser.email||''):undefined,
+      seller:l.profiles?.full_name||l.seller_name||'HarvestHome Seller',
+      sellerVerified:!!l.profiles?.verified,
+      images:l.cover_url?[{data:l.cover_url}]:[],
+      video:l.video_url?{data:l.video_url}:null,
+      views:l.views||0
+    }));
+
+    if(base.length){
+      const mediaResult=await sb.from('listing_media')
+        .select('listing_id,media_type,storage_path')
+        .in('listing_id',base.map(l=>l.id));
+
+      if(!mediaResult.error){
+        const byListing={};
+        (mediaResult.data||[]).forEach(m=>{
+          if(!byListing[m.listing_id])byListing[m.listing_id]={images:[],video:null};
+          const publicUrl=sb.storage.from('listing-media').getPublicUrl(m.storage_path).data.publicUrl;
+          if(m.media_type==='image'){
+            if(!byListing[m.listing_id].images.some(x=>x.data===publicUrl)){
+              byListing[m.listing_id].images.push({data:publicUrl});
+            }
+          }else if(m.media_type==='video'){
+            byListing[m.listing_id].video={data:publicUrl};
+          }
+        });
+        base.forEach(l=>{
+          const media=byListing[l.id];
+          if(!media)return;
+          const fallback=l.cover_url?[{data:l.cover_url}]:[];
+          l.images=media.images.length?media.images:fallback;
+          if(l.cover_url&&!l.images.some(x=>x.data===l.cover_url))l.images=[{data:l.cover_url},...l.images];
+          if(media.video)l.video=media.video;
+        });
+      }
+    }
+
     const cached=json(KEYS.sellerListings,[]);
-    const remoteIds=new Set(remote.map(x=>String(x.id)));
-    const mineCached=cached.filter(x=>x&&x.seller_id===authUser?.id&&!remoteIds.has(String(x.id))&&x.status!=="deleted");
-    put(KEYS.sellerListings,[...remote,...mineCached]);
+    const remoteIds=new Set(base.map(x=>String(x.id)));
+    const mineCached=cached.filter(x=>x&&x.seller_id===authUser?.id&&!remoteIds.has(String(x.id))&&x.status!=='deleted');
+    put(KEYS.sellerListings,[...base,...mineCached]);
   }catch(e){console.warn('Supabase listings sync failed',e.message)}
 }
-
 function rewardDefaults(){return {points:0,participation:0,recommendations:0,buyers:0}}
 function localReward(email,field,points=0){
   if(!email)return;
@@ -175,7 +213,35 @@ function marketplace(){let ls=filtered();return `${header()}<section class="hero
 function cat(i,t,d,v){return `<button class="category-card" data-cat="${esc(v)}"><span>${i}</span><div><h3>${t}</h3><p>${d}</p></div><b>→</b></button>`}
 function flag(c){return ({NG:"🇳🇬",GH:"🇬🇭",KE:"🇰🇪",ZA:"🇿🇦",GB:"🇬🇧",US:"🇺🇸",CA:"🇨🇦",AE:"🇦🇪"}[c]||"🌍")}
 function filtered(){let q=state.search.toLowerCase().trim();return listings().filter(l=>(l.status||"approved")==="approved"&&(l.country||"Nigeria")===state.country&&(!q||`${l.title} ${l.category} ${l.location} ${l.description} ${l.seller}`.toLowerCase().includes(q))&&(state.location==="All locations"||l.location===state.location)&&(state.category==="All categories"||l.category===state.category)&&(state.mode==="All"||l.mode===state.mode))}
-function card(l){let u=user(),f=json(KEYS.favourites,{}),fav=u&&(f[u.email]||[]).includes(l.id);let img=l.images&&l.images[0]&&l.images[0].data;return `<article class="listing-card"><div class="listing-image ${slug(l.category)}">${img?`<img src="${img}" alt="${esc(l.title)}">`:`<span>${l.emoji||"📦"}</span>`}<button class="heart ${fav?"active":""}" data-fav="${l.id}">${fav?"♥":"♡"}</button><span class="mode-pill">${esc(l.mode)}</span></div><div class="listing-body"><span class="listing-category">${esc(l.category)}</span><h3>${esc(l.title)}</h3><p class="location">📍 \${esc(l.location)} · \${esc(l.country)}</p><p class="seller-line">👤 \${esc(l.seller||'HarvestHome Seller')}\${l.sellerVerified?' · ✓ Verified seller':''}</p><p class="description">\${esc(l.description)}</p><div class="listing-bottom"><strong>${money(l.price,l.currency||countryInfo().currency)}</strong><span>${l.views||0} views</span></div><div class="listing-actions"><button class="outline-btn full" data-contact="${l.id}">Contact seller</button><button class="ghost-btn full" data-recommend="${l.id}">⭐ Recommend seller</button><div class="media-links"><a target="_blank" rel="noopener" href="${mapURL(l)}">📍 Map</a>${l.video?`<span>🎥 Video</span>`:""}</div></div></div></article>`}
+function card(l){
+  let u=user(),f=json(KEYS.favourites,{}),fav=u&&(f[u.email]||[]).includes(l.id);
+  const imgs=(l.images||[]).filter(x=>x&&x.data);
+  const img=imgs[0]?.data;
+  const thumbs=imgs.slice(1).map((x,i)=>`<img src="${esc(x.data)}" alt="${esc(l.title)} photo ${i+2}" style="width:72px;height:56px;object-fit:cover;border:2px solid #fff;border-radius:8px;box-shadow:0 1px 5px rgba(0,0,0,.18);background:#eee">`).join("");
+  const mediaCount=imgs.length+(l.video?1:0);
+  return `<article class="listing-card">
+    <div class="listing-image ${slug(l.category)}" style="padding:0;overflow:hidden;position:relative">
+      ${img?`<img src="${esc(img)}" alt="${esc(l.title)}" style="width:100%;height:220px;object-fit:cover;display:block">`:`<span>${l.emoji||"📦"}</span>`}
+      <button class="heart ${fav?"active":""}" data-fav="${l.id}">${fav?"♥":"♡"}</button>
+      <span class="mode-pill">${esc(l.mode)}</span>
+    </div>
+    ${thumbs?`<div style="display:flex;gap:8px;padding:10px 12px 0;overflow-x:auto;background:#fff;border-bottom:1px solid #eee">${thumbs}</div>`:""}
+    <div class="listing-body">
+      <span class="listing-category">${esc(l.category)}</span>
+      <h3>${esc(l.title)}</h3>
+      <p class="location">📍 ${esc(l.location)} · ${esc(l.country)}</p>
+      <p class="seller-line">👤 ${esc(l.seller||'HarvestHome Seller')}${l.sellerVerified?' · ✓ Verified seller':''}</p>
+      <p class="description">${esc(l.description)}</p>
+      <div class="listing-bottom"><strong>${money(l.price,l.currency||countryInfo().currency)}</strong><span>${l.views||0} views</span></div>
+      ${l.video?`<div style="margin:12px 0;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;background:#000">
+        <video controls playsinline preload="metadata" src="${esc(l.video.data)}" style="width:100%;max-height:260px;display:block"></video>
+        <div style="padding:7px 10px;background:#fff;font-size:12px;font-weight:600">🎥 Listing video</div>
+      </div>`:""}
+      ${mediaCount>1?`<small style="display:block;margin:6px 0;color:#667085">${imgs.length} photos${l.video?" + 1 video":""}</small>`:""}
+      <div class="listing-actions"><button class="outline-btn full" data-contact="${l.id}">Contact seller</button><button class="ghost-btn full" data-recommend="${l.id}">⭐ Recommend seller</button><div class="media-links"><a target="_blank" rel="noopener" href="${mapURL(l)}">📍 Map</a></div></div>
+    </div>
+  </article>`;
+}
 function empty(){return `<div class="empty-state"><div>🔎</div><h3>No matching listings</h3><p>Try another market, location or search.</p><button class="primary-btn" data-a="clear">Clear filters</button></div>`}
 function footer(){return `<footer><div class="container footer-grid"><div><div class="footer-brand">🌿 HarvestHome</div><p>The international marketplace for property, equipment and farm produce.</p></div><div><b>Markets</b>${C.SUPPORTED_COUNTRIES.slice(0,4).map(x=>`<button data-country="${esc(x.name)}">${flag(x.code)} ${esc(x.name)}</button>`).join("")}</div><div><b>HarvestHome</b><button data-scroll="about">About & rewards</button><button data-scroll="how">How it works</button></div><div><b>Account</b><button data-a="login">Login</button><button data-a="signup">Create account</button></div></div><div class="container footer-bottom">© ${new Date().getFullYear()} HarvestHome · International marketplace</div></footer>`}
 

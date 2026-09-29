@@ -466,6 +466,11 @@ async function moderate(cmd){
     const status=action==='approve'?'approved':'rejected';
     const {error}=await sb.from('listings').update({status}).eq('id',id);
     if(error)throw error;
+    const cachedListings=json(KEYS.sellerListings,[]);
+    const cachedListing=cachedListings.find(x=>String(x.id)===String(id));
+    if(cachedListing){cachedListing.status=status;cachedListing.updated_at=new Date().toISOString();put(KEYS.sellerListings,cachedListings);}
+    toast(status==='approved'?'Listing approved immediately.':'Listing rejected.');
+    render();
     if(status==='approved'){
       try{await sb.rpc('award_listing_approval_reward',{p_listing_id:id})}
       catch(e){console.warn('Approval reward could not be recorded:',e.message)}

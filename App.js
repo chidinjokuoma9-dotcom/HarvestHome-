@@ -14,7 +14,7 @@ const seed = [];
 
 const state={view:"marketplace",search:"",country:localStorage.getItem(KEYS.country)||C.DEFAULT_COUNTRY,location:"All locations",category:"All categories",mode:"All",dashboardTab:"overview",authMode:"login",payments:[],transactionFilterSeller:{status:"all",range:"all",search:""},transactionFilterAdmin:{status:"all",range:"all",search:""}};
 let chatTimer=null;
-state.rewardAdmin=[];
+state.rewardAdmin=[];state.sellerPerformance={listings:0,approved:0,pending:0,rejected:0,views:0,chats:0,uniqueBuyers:0,recommendations:0};
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
 const json=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}};
 const put=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
@@ -90,7 +90,7 @@ async function syncRewards(){
     const {data,error}=await sb.from("seller_rewards").select("*").eq("user_id",authUser.id).maybeSingle();
     if(!error&&data){
       const all=json(KEYS.rewards,{});
-      all[authUser.email]={points:data.points||0,participation:data.participation_points||0,recommendations:data.recommendation_points||0,referralPoints:data.buyer_referral_points||0,buyers:data.buyer_count||0};
+      all[authUser.email]={points:data.points||0,participation:data.participation_points||0,recommendations:data.recommendation_points||0,referralPoints:data.buyer_referral_points||0,buyers:data.buyer_count||0,recommendationCount:data.recommendation_count||0};
       put(KEYS.rewards,all);
     }
   }catch(e){console.warn("Rewards sync failed",e.message)}
@@ -99,6 +99,25 @@ async function syncAdminRewards(){
   if(!sb||!authUser||!['Admin','Moderator'].includes(user()?.role)){state.rewardAdmin=[];return}
   try{const {data,error}=await sb.rpc('get_reward_eligibility');if(error)throw error;state.rewardAdmin=data||[]}
   catch(e){console.warn('Admin reward eligibility sync failed',e.message);state.rewardAdmin=[]}
+}
+async function syncSellerPerformance(){
+  state.sellerPerformance={listings:0,approved:0,pending:0,rejected:0,views:0,chats:0,uniqueBuyers:0,recommendations:0};
+  if(!authUser||!sb)return;
+  try{
+    const {data,error}=await sb.from('listings').select('id,status,views').eq('seller_id',authUser.id);
+    if(error)throw error;
+    const rows=data||[],perf=state.sellerPerformance;
+    perf.listings=rows.length;
+    perf.approved=rows.filter(x=>x.status==='approved').length;
+    perf.pending=rows.filter(x=>x.status==='pending').length;
+    perf.rejected=rows.filter(x=>x.status==='rejected').length;
+    perf.views=rows.reduce((sum,x)=>sum+(Number(x.views)||0),0);
+    const {count,error:chatError}=await sb.from('conversations').select('id',{count:'exact',head:true}).eq('seller_id',authUser.id);
+    if(!chatError)perf.chats=count||0;
+    const r=getReward(authUser.email);
+    perf.uniqueBuyers=Number(r.buyers)||0;
+    perf.recommendations=Number(r.recommendationCount)||0;
+  }catch(e){console.warn('Seller performance sync failed',e.message)}
 }
 async function awardParticipation(points,reason){
   const u=user();if(!u)return;
@@ -204,7 +223,7 @@ async function syncFavourites(){
   }catch(e){console.warn('Supabase favourites sync failed',e.message)}
 }
 async function loadProfile(){if(!sb||!authUser){authProfile=null;return}const {data}=await sb.from('profiles').select('*').eq('id',authUser.id).maybeSingle();authProfile=data||null}
-async function loadAuth(){if(!sb){render();return}const {data}=await sb.auth.getSession();authUser=data.session?.user||null;await loadProfile();await syncListings();await syncFavourites();await syncNotifications();await syncPayments();await syncRewards();await syncAdminRewards();render();}
+async function loadAuth(){if(!sb){render();return}const {data}=await sb.auth.getSession();authUser=data.session?.user||null;await loadProfile();await syncListings();await syncFavourites();await syncNotifications();await syncPayments();await syncRewards();await syncSellerPerformance();await syncAdminRewards();render();}
 async function syncPayments(){
   if(!sb||!authUser)return;
   try{
@@ -333,7 +352,7 @@ function dashTab(u,favs,mine,enq){
     const ls=listings().filter(x=>favs.includes(x.id));
     return "<div class=\"panel-heading\"><div><span class=\"eyebrow\">Saved</span><h2>Your favourites</h2></div></div>"+(ls.length?"<div class=\"listing-grid\">"+ls.map(card).join("")+"</div>":"<div class=\"empty-state compact\"><div>♡</div><h3>No favourites yet</h3><p>Save listings from any market.</p></div>");
   }
-  if(state.dashboardTab==="rewards"){const r=getReward(u.email);const qualified=Number(r.points)>=50||Number(r.buyers)>=5;const gold=Number(r.points)>=100||Number(r.buyers)>=10;const nextPoints=gold?100:qualified?100:50;const nextBuyers=gold?10:qualified?10:5;return `<div class="panel-heading"><div><span class="eyebrow">Seller rewards</span><h2>Participation & referrals</h2></div><span class="status-pill ${gold?"approved":qualified?"approved":"pending"}">${gold?"Gold level":qualified?"Reward qualified":"Building points"}</span></div><div class="stat-grid"><div class="stat"><span>Total points</span><strong>${r.points}</strong></div><div class="stat"><span>Participation points</span><strong>${r.participation}</strong></div><div class="stat"><span>Recommendation points</span><strong>${r.recommendations}</strong></div><div class="stat"><span>Buyer referral points</span><strong>${r.referralPoints||0}</strong></div><div class="stat"><span>Unique buyers</span><strong>${r.buyers}</strong></div></div><div class="dashboard-callout"><b>How you earn</b><p>Creating a listing earns participation points. An approved listing earns an approval reward. Buyer recommendations and new unique buyers add referral rewards. Duplicate recommendations and repeat buyers do not count twice.</p></div><div class="dashboard-callout"><b>Next milestone</b><p>${gold?"You have reached Gold level. Keep participating to maintain momentum.":"Reach "+nextPoints+" total points or "+nextBuyers+" unique buyers to reach the next reward level."}</p></div>`;}if(state.dashboardTab==="listings"){
+  if(state.dashboardTab==="rewards"){const r=getReward(u.email);const qualified=Number(r.points)>=100||Number(r.buyers)>=10;const gold=Number(r.points)>=250||Number(r.buyers)>=25;const nextPoints=gold?250:qualified?250:100;const nextBuyers=gold?25:qualified?25:10;return `<div class="panel-heading"><div><span class="eyebrow">Seller rewards</span><h2>Participation & referrals</h2></div><span class="status-pill ${gold?"approved":qualified?"approved":"pending"}">${gold?"Gold level":qualified?"Reward qualified":"Building points"}</span></div><div class="stat-grid"><div class="stat"><span>Total points</span><strong>${r.points}</strong></div><div class="stat"><span>Participation points</span><strong>${r.participation}</strong></div><div class="stat"><span>Recommendation points</span><strong>${r.recommendations}</strong></div><div class="stat"><span>Buyer referral points</span><strong>${r.referralPoints||0}</strong></div><div class="stat"><span>Unique buyers</span><strong>${r.buyers}</strong></div></div><div class="dashboard-callout"><b>How you earn</b><p>Creating a listing earns participation points. An approved listing earns an approval reward. Buyer recommendations and new unique buyers add referral rewards. Duplicate recommendations and repeat buyers do not count twice.</p></div><div class="dashboard-callout"><b>Next milestone</b><p>${gold?"You have reached Gold level. Keep participating to maintain momentum.":"Reach "+nextPoints+" total points or "+nextBuyers+" unique buyers to reach the next reward level."}</p></div>`;}if(state.dashboardTab==="listings"){
     return "<div class=\"panel-heading\"><div><span class=\"eyebrow\">Seller workspace</span><h2>My listings</h2></div><button class=\"primary-btn\" data-a=\"newListing\">+ Create listing</button></div>"+(mine.length?"<div class=\"table-wrap\"><table><thead><tr><th>Listing</th><th>Market</th><th>Price</th><th>Status</th><th>Actions</th></tr></thead><tbody>"+mine.map(l=>"<tr><td><b>"+esc(l.title)+"</b></td><td>"+esc(l.country)+" · "+esc(l.location)+"</td><td>"+money(l.price,l.currency)+"</td><td><span class=\"status-pill "+slug(l.status||"pending")+"\">"+(l.status==="pending"?"Under review":l.status==="approved"?"Approved":l.status==="rejected"?"Not approved":esc(l.status||""))+"</span></td><td><button class=\"danger-text\" data-del=\""+esc(l.id)+"\">Delete</button></td></tr>").join("")+"</tbody></table></div>":"<div class=\"empty-state compact\"><div>＋</div><h3>No listings yet</h3><button class=\"primary-btn\" data-a=\"newListing\">Create listing</button></div>");
   }
   if(state.dashboardTab==="payments"){
@@ -349,7 +368,9 @@ function dashTab(u,favs,mine,enq){
 }
   if(state.dashboardTab==="moderation")return adminPanel();
   if(state.dashboardTab==="enquiries")return "<div class=\"panel-heading\"><div><span class=\"eyebrow\">Messages</span><h2>My enquiries</h2></div></div>"+(enq.length?enq.map(e=>"<div class=\"enquiry\"><div><b>"+esc(e.listingTitle)+"</b><p>"+esc(e.message)+"</p></div><small>"+esc(e.date)+"</small></div>").join(""):"<div class=\"empty-state compact\"><div>💬</div><h3>No enquiries yet</h3></div>");
-  return "<div class=\"panel-heading\"><div><span class=\"eyebrow\">Account overview</span><h2>Your global workspace</h2></div></div><div class=\"stat-grid\"><div class=\"stat\"><span>Favourites</span><strong>"+favs.length+"</strong></div><div class=\"stat\"><span>My listings</span><strong>"+mine.length+"</strong></div><div class=\"stat\"><span>Enquiries</span><strong>"+enq.length+"</strong></div></div><div class=\"dashboard-callout\"><b>Ready to sell internationally?</b><p>Create a listing and choose its country, location and currency.</p><button class=\"primary-btn\" data-a=\"newListing\">Create listing</button></div>";
+  const p=state.sellerPerformance||{},isSeller=mine.length>0||u.role==="Seller";
+  return `<div class="panel-heading"><div><span class="eyebrow">Account overview</span><h2>Your global workspace</h2></div></div><div class="stat-grid"><div class="stat"><span>Favourites</span><strong>${favs.length}</strong></div><div class="stat"><span>My listings</span><strong>${mine.length}</strong></div><div class="stat"><span>Enquiries</span><strong>${enq.length}</strong></div></div>${isSeller?`<div class="panel-heading" style="margin-top:24px"><div><span class="eyebrow">Seller performance</span><h2>Marketplace activity</h2></div></div><div class="stat-grid"><div class="stat"><span>Approved listings</span><strong>${p.approved||0}</strong></div><div class="stat"><span>Under review</span><strong>${p.pending||0}</strong></div><div class="stat"><span>Listing views</span><strong>${p.views||0}</strong></div><div class="stat"><span>Buyer conversations</span><strong>${p.chats||0}</strong></div><div class="stat"><span>Unique buyers</span><strong>${p.uniqueBuyers||0}</strong></div><div class="stat"><span>Recommendations</span><strong>${p.recommendations||0}</strong></div></div><div class="dashboard-callout"><b>Build genuine marketplace activity</b><p>Keep approved listings current, respond to buyer conversations and earn recommendations from real buyers. Your reward progress is based on verified participation.</p><button class="primary-btn" data-tab="listings">Manage listings</button></div>`:""}<div class="dashboard-callout"><b>Ready to sell internationally?</b><p>Create a listing and choose its country, location and currency.</p><button class="primary-btn" data-a="newListing">Create listing</button></div>`;
+
 }
 async function getChatConversations(){
   if(!sb||!authUser)return [];
@@ -531,7 +552,7 @@ async function del(id){
   render();
   toast("Listing deleted.")
 }
-if(sb){sb.auth.onAuthStateChange(async (event,session)=>{authUser=session?.user||null; if(authUser){await loadProfile();await syncListings();await syncFavourites();await syncNotifications();await syncRewards();await syncAdminRewards();} else {authProfile=null;state.rewardAdmin=[];} render(); if(event==='PASSWORD_RECOVERY') setTimeout(showReset,0);}); loadAuth();}else{render();}
+if(sb){sb.auth.onAuthStateChange(async (event,session)=>{authUser=session?.user||null; if(authUser){await loadProfile();await syncListings();await syncFavourites();await syncNotifications();await syncRewards();await syncSellerPerformance();await syncAdminRewards();} else {authProfile=null;state.rewardAdmin=[];state.sellerPerformance={listings:0,approved:0,pending:0,rejected:0,views:0,chats:0,uniqueBuyers:0,recommendations:0};} render(); if(event==='PASSWORD_RECOVERY') setTimeout(showReset,0);}); loadAuth();}else{render();}
 
 })();
 // HarvestHome responsive publish/moderation patch marker

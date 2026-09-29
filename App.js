@@ -464,7 +464,9 @@ async function moderate(cmd){
     await createNotification(listing.seller_id,'listing_review','Listing removed',`Your listing "${listing.title}" was removed by a moderator.`,listing.id);
    }else{
     const status=action==='approve'?'approved':'rejected';
-    const {error}=await sb.from('listings').update({status}).eq('id',id);
+    const {data:updatedListing,error}=await sb.from('listings').update({status}).eq('id',id).select('id,status').maybeSingle();
+    if(error)throw error;
+    if(!updatedListing||updatedListing.status!==status)throw new Error('The listing status could not be updated in Supabase. Please check the moderator permissions for listings.');
     if(error)throw error;
     const cachedListings=json(KEYS.sellerListings,[]);
     const cachedListing=cachedListings.find(x=>String(x.id)===String(id));

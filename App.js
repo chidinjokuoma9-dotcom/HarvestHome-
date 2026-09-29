@@ -507,3 +507,4 @@ async function del(id){
 if(sb){sb.auth.onAuthStateChange(async (event,session)=>{authUser=session?.user||null; if(authUser){await loadProfile();await syncListings();await syncFavourites();await syncNotifications();await syncRewards();await syncAdminRewards();} else {authProfile=null;state.rewardAdmin=[];} render(); if(event==='PASSWORD_RECOVERY') setTimeout(showReset,0);}); loadAuth();}else{render();}
 
 })();
+// HarvestHome responsive publish/moderation patch marker

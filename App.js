@@ -267,7 +267,7 @@ function card(l){
   const img=imgs[0]?.data;
   const thumbs=imgs.slice(1).map((x,i)=>`<img src="${esc(x.data)}" alt="${esc(l.title)} photo ${i+2}" style="width:72px;height:56px;object-fit:cover;border:2px solid #fff;border-radius:8px;box-shadow:0 1px 5px rgba(0,0,0,.18);background:#eee">`).join("");
   const mediaCount=imgs.length+(l.video?1:0);
-  return `<article class="listing-card" data-view-listing="\${esc(l.id)}">`
+  return `<article class="listing-card" data-view-listing="${esc(l.id)}">
     <div class="listing-image ${slug(l.category)}" style="padding:0;overflow:hidden;position:relative">
       ${img?`<img src="${esc(img)}" alt="${esc(l.title)}" style="width:100%;height:220px;object-fit:cover;display:block">`:`<span>${l.emoji||"📦"}</span>`}
       <button class="heart ${fav?"active":""}" data-fav="${l.id}">${fav?"♥":"♡"}</button>

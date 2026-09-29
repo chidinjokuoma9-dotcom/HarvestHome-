@@ -111,7 +111,7 @@ async function awardParticipation(points,reason){
 async function awardListingParticipation(listingId){
   if(!sb||!authUser||!listingId)return;
   try{
-    const {error}=await sb.rpc("award_listing_creation_reward",{p_listing_id:listingId});
+    const {error}=await sb.rpc("award_participation_points",{p_user_id:authUser.id,p_points:10,p_reason:"listing_created"});
     if(error)throw error;
     await syncRewards();
   }catch(e){console.warn("Listing participation reward could not be recorded:",e.message)}

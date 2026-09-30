@@ -21,7 +21,7 @@ drop policy if exists "Public can view active featured listings" on public.featu
 create policy "Public can view active featured listings"
 on public.featured_listings
 for select
-to authenticated
+to anon, authenticated
 using (ends_at > now());
 
 create or replace function public.set_listing_featured(

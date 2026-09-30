@@ -116,12 +116,15 @@ async function syncVerificationRequests(){
 }
 async function reviewVerification(requestId,decision){
   if(!sb||!authUser||!['Admin','Moderator'].includes(user()?.role))return;
+  // The dashboard buttons use "approve"/"reject"; the database function expects "approved"/"rejected".
+  const normalizedDecision=decision==='approve'?'approved':decision==='reject'?'rejected':decision;
+  if(!['approved','rejected'].includes(normalizedDecision)){toast('Invalid verification decision.',true);return}
   const row=state.verificationRequests.find(x=>String(x.id)===String(requestId));
   const sellerName=row?.profiles?.full_name||'Seller';
-  const note=prompt((decision==='approved'?'Approve':'Reject')+' Seller Verification for '+sellerName+'?\\n\\nOptional reviewer note:')||null;
-  if(decision==='rejected'&&note===null)return;
+  const note=prompt((normalizedDecision==='approved'?'Approve':'Reject')+' Seller Verification for '+sellerName+'?\\n\\nOptional reviewer note:')||null;
+  if(normalizedDecision==='rejected'&&note===null)return;
   try{
-    const {data,error}=await sb.rpc('review_seller_verification',{p_request_id:requestId,p_decision:decision,p_note:note});
+    const {data,error}=await sb.rpc('review_seller_verification',{p_request_id:requestId,p_decision:normalizedDecision,p_note:note});
     if(error)throw error;
     if(!data?.reviewed&&data?.status!=='approved'&&data?.status!=='rejected')throw new Error('Verification review could not be completed.');
     if(data.user_id){

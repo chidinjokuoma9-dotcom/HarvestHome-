@@ -630,6 +630,35 @@ if(images.length>C.MAX_IMAGE_FILES){toast("Please select no more than "+C.MAX_IM
 if(video&&video.size>C.MAX_VIDEO_MB*1024*1024){toast("Video must be "+C.MAX_VIDEO_MB+" MB or smaller.",true);return}
 try{
  if(!sb||!authUser)throw new Error("Seller listing service is unavailable. Please sign in again.");
+ const existingId=form.dataset.listingId||"";
+ if(!existingId){
+  const {data:similar,error:similarError}=await sb.from("listings")
+    .select("id,title,location,category,price,currency,mode,status,created_at")
+    .eq("seller_id",authUser.id)
+    .neq("status","deleted")
+    .order("created_at",{ascending:false})
+    .limit(50);
+  if(similarError)throw similarError;
+  const norm=v=>String(v||"").trim().toLowerCase().replace(/\\s+/g," ");
+  const same=(similar||[]).find(x=>
+    norm(x.title)===norm(d.title)&&
+    norm(x.location)===norm(d.location)&&
+    norm(x.category)===norm(d.category)&&
+    norm(x.mode)===norm(d.mode)&&
+    Number(x.price)===Number(d.price)&&
+    norm(x.currency)===norm(d.currency)
+  );
+  if(same){
+    const ok=window.confirm(
+      "We found a similar listing you already posted: \\n\\n"+
+      (same.title||"Untitled listing")+" — "+(same.location||"")+"\\n"+
+      "Status: "+(same.status||"unknown")+"\\n\\n"+
+      "This is only a warning. If you did not find a buyer and want to advertise the same property or product again, you can continue.\\n\\nContinue publishing this listing?"
+    );
+    if(!ok)return;
+  }
+}
+ if(!sb||!authUser)throw new Error("Seller listing service is unavailable. Please sign in again.");
  let row=null,existingId=form.dataset.listingId||"";
  if(existingId){
   const existing=await sb.from("listings").select("*").eq("id",existingId).eq("seller_id",authUser.id).maybeSingle();

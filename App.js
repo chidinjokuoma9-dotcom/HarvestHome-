@@ -104,10 +104,15 @@ async function syncVerificationRequests(){
   state.verificationRequests=[];
   if(!sb||!authUser||!['Admin','Moderator'].includes(user()?.role))return;
   try{
-    const {data,error}=await sb.from('seller_verification_requests').select('id,user_id,payment_id,status,submitted_at,reviewed_at,reviewer_note,profiles:user_id(full_name,email)').order('submitted_at',{ascending:false});
+    // Keep the staff queue independent of the profiles table relationship.
+    // This avoids a nested-profile RLS/relationship failure hiding paid requests.
+    const {data,error}=await sb.from('seller_verification_requests').select('id,user_id,payment_id,status,submitted_at,reviewed_at,reviewer_note').order('submitted_at',{ascending:false});
     if(error)throw error;
-    state.verificationRequests=data||[];
-  }catch(e){console.warn('Seller verification sync failed',e.message)}
+    state.verificationRequests=(data||[]).map(r=>({...r,profiles:{full_name:r.user_id}}));
+  }catch(e){
+    console.warn('Seller verification sync failed',e.message);
+    state.verificationRequests=[];
+  }
 }
 async function reviewVerification(requestId,decision){
   if(!sb||!authUser||!['Admin','Moderator'].includes(user()?.role))return;

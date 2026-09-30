@@ -82,6 +82,7 @@ serve(async(req)=>{
       reference:transaction.reference,
       amount:transactionAmount,
       currency:transaction.currency||payment.currency,
+      service:payment.service,
       listing_id:payment.listing_id||null
     }),{headers:cors});
   }catch(e){

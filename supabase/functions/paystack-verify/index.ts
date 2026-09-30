@@ -74,7 +74,31 @@ serve(async(req)=>{
       if(candidateError)throw candidateError;
       if((candidates||[]).length===1)payment=candidates[0];
     }
-    if(!payment)throw new Error('Payment record not found for this Paystack transaction. Please contact HarvestHome support with your Paystack reference: '+canonicalRef);
+    if(!payment){
+      const service=String(transaction.metadata?.service||'');
+      const metadataUserId=String(transaction.metadata?.user_id||'');
+      const metadataListingId=transaction.metadata?.listing_id?String(transaction.metadata.listing_id):null;
+      const fixedPrices:Record<string,number>={featured:200000,verification:500000,pro:1000000};
+      if(metadataUserId!==String(user.id))throw new Error('This payment is not linked to your HarvestHome account');
+      if(!fixedPrices[service]||fixedPrices[service]!==transactionAmount)throw new Error('This Paystack transaction does not match a valid HarvestHome service');
+      if(!metadataListingId)throw new Error('This payment is missing its HarvestHome listing reference');
+      const {data:listing,error:listingError}=await serviceClient.from('listings')
+        .select('id,seller_id,status,title').eq('id',metadataListingId).eq('seller_id',user.id).maybeSingle();
+      if(listingError)throw listingError;
+      if(!listing)throw new Error('The listing linked to this payment could not be verified');
+      const {data:created,error:insertError}=await serviceClient.from('payments').insert({
+        user_id:user.id,
+        listing_id:listing.id,
+        seller_id:listing.seller_id,
+        reference:canonicalRef,
+        service,
+        amount:transactionAmount,
+        currency:transactionCurrency,
+        status:'initialized'
+      }).select('id,user_id,listing_id,seller_id,service,amount,currency,reference,status,created_at').single();
+      if(insertError)throw insertError;
+      payment=created;
+    }
 
     const expectedAmount=Number(payment.amount||0);
     if(transactionAmount!==expectedAmount)throw new Error('Payment amount does not match the HarvestHome payment request');

@@ -14,7 +14,7 @@ const seed = [];
 
 const state={view:"marketplace",search:"",country:localStorage.getItem(KEYS.country)||C.DEFAULT_COUNTRY,location:"All locations",category:"All categories",mode:"All",dashboardTab:"overview",authMode:"login",payments:[],transactionFilterSeller:{status:"all",range:"all",search:""},transactionFilterAdmin:{status:"all",range:"all",search:""}};
 let chatTimer=null;
-state.rewardAdmin=[];state.sellerPerformance={listings:0,approved:0,pending:0,rejected:0,views:0,chats:0,uniqueBuyers:0,recommendations:0};state.listingPerformance=[];state.featuredListings=[];
+state.rewardAdmin=[];state.verificationRequests=[];state.sellerPerformance={listings:0,approved:0,pending:0,rejected:0,views:0,chats:0,uniqueBuyers:0,recommendations:0};state.listingPerformance=[];state.featuredListings=[];
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
 const json=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}};
 const put=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
@@ -99,6 +99,31 @@ async function syncAdminRewards(){
   if(!sb||!authUser||!['Admin','Moderator'].includes(user()?.role)){state.rewardAdmin=[];return}
   try{const {data,error}=await sb.rpc('get_reward_eligibility');if(error)throw error;state.rewardAdmin=data||[]}
   catch(e){console.warn('Admin reward eligibility sync failed',e.message);state.rewardAdmin=[]}
+}
+async function syncVerificationRequests(){
+  state.verificationRequests=[];
+  if(!sb||!authUser||!['Admin','Moderator'].includes(user()?.role))return;
+  try{
+    const {data,error}=await sb.from('seller_verification_requests').select('id,user_id,payment_id,status,submitted_at,reviewed_at,reviewer_note,profiles:user_id(full_name)').order('submitted_at',{ascending:false});
+    if(error)throw error;
+    state.verificationRequests=data||[];
+  }catch(e){console.warn('Seller verification sync failed',e.message)}
+}
+async function reviewVerification(requestId,decision){
+  if(!sb||!authUser||!['Admin','Moderator'].includes(user()?.role))return;
+  try{
+    const {data,error}=await sb.rpc('review_seller_verification',{p_request_id:requestId,p_decision:decision});
+    if(error)throw error;
+    if(!data?.reviewed&&data?.status!=='approved'&&data?.status!=='rejected')throw new Error('Verification review could not be completed.');
+    const row=state.verificationRequests.find(x=>String(x.id)===String(requestId));
+    if(row){row.status=data.status;row.reviewed_at=new Date().toISOString();}
+    if(data.user_id){
+      await createNotification(data.user_id,'verification','Seller verification '+(data.status==='approved'?'approved':'not approved'),
+        data.status==='approved'?'Your Seller Verification has been approved. Your profile now shows a Verified Seller badge.':'Your Seller Verification request was not approved. You may contact HarvestHome support for more information.');
+    }
+    await syncVerificationRequests();await syncListings();render();
+    toast(data.status==='approved'?'Seller verified successfully.':'Seller verification rejected.');
+  }catch(e){toast(e.message||'Seller verification review failed.',true)}
 }
 async function syncSellerPerformance(){
   state.sellerPerformance={listings:0,approved:0,pending:0,rejected:0,views:0,chats:0,uniqueBuyers:0,recommendations:0};
@@ -268,7 +293,7 @@ async function syncFavourites(){
   }catch(e){console.warn('Supabase favourites sync failed',e.message)}
 }
 async function loadProfile(){if(!sb||!authUser){authProfile=null;return}const {data}=await sb.from('profiles').select('*').eq('id',authUser.id).maybeSingle();authProfile=data||null}
-async function loadAuth(){if(!sb){render();return}const {data}=await sb.auth.getSession();authUser=data.session?.user||null;await loadProfile();await syncListings();await syncFeatured();await syncFavourites();await syncNotifications();await syncPayments();await syncRewards();await syncSellerPerformance();await syncListingPerformance();await syncAdminRewards();render();}
+async function loadAuth(){if(!sb){render();return}const {data}=await sb.auth.getSession();authUser=data.session?.user||null;await loadProfile();await syncListings();await syncFeatured();await syncFavourites();await syncNotifications();await syncPayments();await syncRewards();await syncSellerPerformance();await syncListingPerformance();await syncAdminRewards();await syncVerificationRequests();await syncVerificationRequests();render();}
 async function syncPayments(){
   if(!sb||!authUser)return;
   try{
@@ -327,6 +352,11 @@ function adminPanel(){
   '<div class="panel-heading"><div><span class="eyebrow">Listing moderation</span><h3>Seller listings</h3></div></div>'+
   '<div class="table-wrap"><table><thead><tr><th>Listing</th><th>Seller</th><th>Status</th><th>Action</th></tr></thead><tbody>'+(ls.length?ls.map(l=>'<tr><td><b>'+esc(l.title)+'</b><small>'+esc(l.country)+' · '+esc(l.location)+'</small></td><td>'+esc(l.seller||l.ownerEmail||'')+'</td><td><span class="status-pill '+slug(l.status||'approved')+'">'+esc(l.status||'approved')+'</span></td><td><button class="ghost-btn" data-mod="approve:'+esc(l.id)+'">Approve</button> <button class="ghost-btn" data-mod="reject:'+esc(l.id)+'">Reject</button> <button class="danger-text" data-mod="delete:'+esc(l.id)+'">Delete</button> <button class="ghost-btn" data-feature="'+esc(l.id)+'">⭐ Feature 7 days</button></td></tr>').join(''):'<tr><td colspan="4">No seller listings to moderate.</td></tr>')+'</tbody></table></div>'+
   '<div class="panel-heading"><div><span class="eyebrow">Automatic reward review</span><h3>Seller reward qualification</h3></div><span class="result-count">'+state.rewardAdmin.length+' sellers tracked</span></div><div class="table-wrap"><table><thead><tr><th>Seller</th><th>Total points</th><th>Participation</th><th>Unique buyers</th><th>Buyer points</th><th>Recommendations</th><th>Status</th></tr></thead><tbody>'+(state.rewardAdmin.length?state.rewardAdmin.map(r=>'<tr><td><b>'+esc(r.full_name||r.email||'Seller')+'</b><small>'+esc(r.email||'')+'</small></td><td><b>'+Number(r.points||0)+'</b></td><td>'+Number(r.participation_points||0)+'</td><td>'+Number(r.buyer_count||0)+'</td><td>'+Number(r.buyer_referral_points||0)+'</td><td>'+Number(r.recommendation_count||0)+'</td><td><span class="status-pill '+(r.reward_status==="Qualified"?"approved":"pending")+'">'+esc(r.reward_tier||"Standard")+' · '+esc(r.reward_status||"Building")+'</span></td></tr>').join(''):'<tr><td colspan="7">No reward records yet.</td></tr>')+'</tbody></table></div>'+
+  '<div class="panel-heading"><div><span class="eyebrow">Seller trust</span><h3>Seller Verification requests</h3></div><span class="result-count">'+state.verificationRequests.filter(r=>r.status==='pending').length+' pending</span></div>'+
+  '<div class="table-wrap"><table><thead><tr><th>Seller</th><th>Submitted</th><th>Payment</th><th>Status</th><th>Action</th></tr></thead><tbody>'+
+  (state.verificationRequests.length?state.verificationRequests.map(r=>'<tr><td><b>'+esc(r.profiles?.full_name||r.user_id||'Seller')+'</b></td><td>'+new Date(r.submitted_at).toLocaleString()+'</td><td><code>'+esc(r.payment_id||'—')+'</code></td><td><span class="status-pill '+slug(r.status)+'">'+esc(r.status)+'</span></td><td>'+(r.status==='pending'?'<button class="ghost-btn" data-verify-review="approve:'+esc(r.id)+'">✓ Approve</button> <button class="danger-text" data-verify-review="reject:'+esc(r.id)+'">Reject</button>':'Reviewed')+'</td></tr>').join(''):'<tr><td colspan="5">No Seller Verification requests yet.</td></tr>')+
+  '</tbody></table></div>'+
+  '<div class="dashboard-callout"><b>Verification reminder</b><p>Approval adds the Verified Seller badge to the seller profile. Verification does not guarantee ownership, title, value or the outcome of a buyer-seller transaction.</p></div>'+
   '<div class="panel-heading"><div><span class="eyebrow">Payment monitoring</span><h3>Transaction history</h3></div></div>'+
   '<div class="dashboard-callout"><b>Manage a large payment history</b><p>Filter by date, status or search. Clear filters only resets your current view; payment records remain safely stored for reconciliation and enquiries.</p></div>'+
   transactionFilters(f,"admin")+
@@ -483,7 +513,7 @@ async function paymentSubmit(e){
 function bind(){
 $$("[data-a]").forEach(e=>e.onclick=()=>act(e.dataset.a));$$("[data-terms]").forEach(e=>e.onclick=termsModal);$$("[data-pay-listing]").forEach(e=>e.onclick=()=>paymentModal(e.dataset.payListing));$$("[data-scroll]").forEach(e=>e.onclick=()=>document.getElementById(e.dataset.scroll)?.scrollIntoView({behavior:"smooth"}));
 $("#countryTop")?.addEventListener("change",e=>switchCountry(e.target.value));$("#profilePhotoInput")?.addEventListener("change",e=>uploadProfilePhoto(e.target.files[0]));$("#profileForm")?.addEventListener("submit",saveProfile);$("#countryFilter")?.addEventListener("change",e=>switchCountry(e.target.value));$("#locationFilter")?.addEventListener("change",e=>{state.location=e.target.value;render()});$("#categoryFilter")?.addEventListener("change",e=>{state.category=e.target.value;render()});$("#modeFilter")?.addEventListener("change",e=>{state.mode=e.target.value;render()});
-$("#searchInput")?.addEventListener("keydown",e=>{if(e.key==="Enter"){state.search=e.target.value;render()}});$$("[data-cat]").forEach(e=>e.onclick=()=>{state.category=e.dataset.cat;render()});$$("[data-view-listing]").forEach(e=>recordListingView(e.dataset.viewListing));$$("[data-country]").forEach(e=>e.onclick=()=>switchCountry(e.dataset.country));$$("[data-fav]").forEach(e=>e.onclick=x=>{x.stopPropagation();fav(e.dataset.fav)});$$("[data-contact]").forEach(e=>e.onclick=()=>contact(e.dataset.contact));$$("[data-recommend]").forEach(e=>e.onclick=()=>recommendSeller(e.dataset.recommend));$$("[data-chat]").forEach(e=>e.onclick=async()=>{const l=listings().find(x=>String(x.id)===String(e.dataset.listing));if(l)await openChat(e.dataset.chat,l)});$$("[data-tab]").forEach(e=>e.onclick=()=>{state.dashboardTab=e.dataset.tab;render()});$$("[data-notification]").forEach(e=>e.onclick=()=>markNotificationRead(e.dataset.notification));$$("[data-del]").forEach(e=>e.onclick=()=>del(e.dataset.del));$$("[data-mod]").forEach(e=>e.onclick=()=>moderate(e.dataset.mod));$$("[data-feature]").forEach(e=>e.onclick=()=>featureListing(e.dataset.feature));$$("[data-link-payment]").forEach(e=>e.onclick=()=>linkSuccessfulPayment(e.dataset.linkPayment));$("#sellerTransactionSearch")?.addEventListener("input",e=>{state.transactionFilterSeller.search=e.target.value;render()});$("#sellerTransactionStatus")?.addEventListener("change",e=>{state.transactionFilterSeller.status=e.target.value;render()});$("#sellerTransactionRange")?.addEventListener("change",e=>{state.transactionFilterSeller.range=e.target.value;render()});$("#adminTransactionSearch")?.addEventListener("input",e=>{state.transactionFilterAdmin.search=e.target.value;render()});$("#adminTransactionStatus")?.addEventListener("change",e=>{state.transactionFilterAdmin.status=e.target.value;render()});$("#adminTransactionRange")?.addEventListener("change",e=>{state.transactionFilterAdmin.range=e.target.value;render()})
+$("#searchInput")?.addEventListener("keydown",e=>{if(e.key==="Enter"){state.search=e.target.value;render()}});$$("[data-cat]").forEach(e=>e.onclick=()=>{state.category=e.dataset.cat;render()});$$("[data-view-listing]").forEach(e=>recordListingView(e.dataset.viewListing));$$("[data-country]").forEach(e=>e.onclick=()=>switchCountry(e.dataset.country));$$("[data-fav]").forEach(e=>e.onclick=x=>{x.stopPropagation();fav(e.dataset.fav)});$$("[data-contact]").forEach(e=>e.onclick=()=>contact(e.dataset.contact));$$("[data-recommend]").forEach(e=>e.onclick=()=>recommendSeller(e.dataset.recommend));$$("[data-chat]").forEach(e=>e.onclick=async()=>{const l=listings().find(x=>String(x.id)===String(e.dataset.listing));if(l)await openChat(e.dataset.chat,l)});$$("[data-tab]").forEach(e=>e.onclick=()=>{state.dashboardTab=e.dataset.tab;render()});$$("[data-notification]").forEach(e=>e.onclick=()=>markNotificationRead(e.dataset.notification));$$("[data-del]").forEach(e=>e.onclick=()=>del(e.dataset.del));$$("[data-mod]").forEach(e=>e.onclick=()=>moderate(e.dataset.mod));$("[data-feature]").forEach(e=>e.onclick=()=>featureListing(e.dataset.feature));$("[data-verify-review]").forEach(e=>{const [decision,id]=e.dataset.verifyReview.split(":");e.onclick=()=>reviewVerification(id,decision)});$$("[data-link-payment]").forEach(e=>e.onclick=()=>linkSuccessfulPayment(e.dataset.linkPayment));$("#sellerTransactionSearch")?.addEventListener("input",e=>{state.transactionFilterSeller.search=e.target.value;render()});$("#sellerTransactionStatus")?.addEventListener("change",e=>{state.transactionFilterSeller.status=e.target.value;render()});$("#sellerTransactionRange")?.addEventListener("change",e=>{state.transactionFilterSeller.range=e.target.value;render()});$("#adminTransactionSearch")?.addEventListener("input",e=>{state.transactionFilterAdmin.search=e.target.value;render()});$("#adminTransactionStatus")?.addEventListener("change",e=>{state.transactionFilterAdmin.status=e.target.value;render()});$("#adminTransactionRange")?.addEventListener("change",e=>{state.transactionFilterAdmin.range=e.target.value;render()})
 }
 function switchCountry(c){state.country=c;state.location="All locations";state.category="All categories";localStorage.setItem(KEYS.country,c);render()}
 async function act(a){if(a==="home"){state.view="marketplace";render();scrollTo(0,0)}if(a==="login")auth("login");if(a==="signup")auth("signup");if(a==="logout"){if(sb) await sb.auth.signOut();localStorage.removeItem(KEYS.session);authUser=null;authProfile=null;state.view="marketplace";render();toast("Logged out.")}if(a==="dashboard"){state.view="dashboard";render()}if(a==="admin"){state.view="dashboard";state.dashboardTab="moderation";render()}if(a==="search"){state.search=$("#searchInput")?.value||"";render()}if(a==="clear"){state.search="";state.location="All locations";state.category="All categories";state.mode="All";render()}if(a==="newListing")listingModal();if(a==="pay")paymentModal();if(a==="markAllNotifications")markAllNotificationsRead();if(a==="sellerClearTransactions"){state.transactionFilterSeller={status:"all",range:"all",search:""};render()}if(a==="adminClearTransactions"){state.transactionFilterAdmin={status:"all",range:"all",search:""};render()}}
@@ -610,7 +640,7 @@ async function del(id){
   render();
   toast("Listing deleted.")
 }
-if(sb){sb.auth.onAuthStateChange(async (event,session)=>{authUser=session?.user||null; if(authUser){await loadProfile();await syncListings();await syncFeatured();await syncFavourites();await syncNotifications();await syncRewards();await syncSellerPerformance();await syncListingPerformance();await syncAdminRewards();} else {authProfile=null;state.rewardAdmin=[];state.sellerPerformance={listings:0,approved:0,pending:0,rejected:0,views:0,chats:0,uniqueBuyers:0,recommendations:0};state.listingPerformance=[];state.featuredListings=[];} render(); if(event==='PASSWORD_RECOVERY') setTimeout(showReset,0);}); loadAuth();}else{render();}
+if(sb){sb.auth.onAuthStateChange(async (event,session)=>{authUser=session?.user||null; if(authUser){await loadProfile();await syncListings();await syncFeatured();await syncFavourites();await syncNotifications();await syncRewards();await syncSellerPerformance();await syncListingPerformance();await syncAdminRewards();await syncVerificationRequests();} else {authProfile=null;state.rewardAdmin=[];state.verificationRequests=[];state.sellerPerformance={listings:0,approved:0,pending:0,rejected:0,views:0,chats:0,uniqueBuyers:0,recommendations:0};state.listingPerformance=[];state.featuredListings=[];} render(); if(event==='PASSWORD_RECOVERY') setTimeout(showReset,0);}); loadAuth();}else{render();}
 
 })();
 // HarvestHome responsive publish/moderation patch marker

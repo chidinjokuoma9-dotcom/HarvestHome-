@@ -104,22 +104,24 @@ async function syncVerificationRequests(){
   state.verificationRequests=[];
   if(!sb||!authUser||!['Admin','Moderator'].includes(user()?.role))return;
   try{
-    const {data,error}=await sb.from('seller_verification_requests').select('id,user_id,payment_id,status,submitted_at,reviewed_at,reviewer_note,profiles:user_id(full_name)').order('submitted_at',{ascending:false});
+    const {data,error}=await sb.from('seller_verification_requests').select('id,user_id,payment_id,status,submitted_at,reviewed_at,reviewer_note,profiles:user_id(full_name,email)').order('submitted_at',{ascending:false});
     if(error)throw error;
     state.verificationRequests=data||[];
   }catch(e){console.warn('Seller verification sync failed',e.message)}
 }
 async function reviewVerification(requestId,decision){
   if(!sb||!authUser||!['Admin','Moderator'].includes(user()?.role))return;
+  const row=state.verificationRequests.find(x=>String(x.id)===String(requestId));
+  const sellerName=row?.profiles?.full_name||'Seller';
+  const note=prompt((decision==='approved'?'Approve':'Reject')+' Seller Verification for '+sellerName+'?\\n\\nOptional reviewer note:')||null;
+  if(decision==='rejected'&&note===null)return;
   try{
-    const {data,error}=await sb.rpc('review_seller_verification',{p_request_id:requestId,p_decision:decision});
+    const {data,error}=await sb.rpc('review_seller_verification',{p_request_id:requestId,p_decision:decision,p_note:note});
     if(error)throw error;
     if(!data?.reviewed&&data?.status!=='approved'&&data?.status!=='rejected')throw new Error('Verification review could not be completed.');
-    const row=state.verificationRequests.find(x=>String(x.id)===String(requestId));
-    if(row){row.status=data.status;row.reviewed_at=new Date().toISOString();}
     if(data.user_id){
       await createNotification(data.user_id,'verification','Seller verification '+(data.status==='approved'?'approved':'not approved'),
-        data.status==='approved'?'Your Seller Verification has been approved. Your profile now shows a Verified Seller badge.':'Your Seller Verification request was not approved. You may contact HarvestHome support for more information.');
+        data.status==='approved'?'Your Seller Verification has been approved. Your profile now shows a Verified Seller badge.':('Your Seller Verification request was not approved.'+(note?' Reviewer note: '+note:'')));
     }
     await syncVerificationRequests();await syncListings();render();
     toast(data.status==='approved'?'Seller verified successfully.':'Seller verification rejected.');

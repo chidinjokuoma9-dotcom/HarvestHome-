@@ -31,15 +31,8 @@ serve(async(req)=>{
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    const {data:payment,error:paymentError}=await serviceClient
-      .from('payments')
-      .select('id,user_id,listing_id,seller_id,service,amount,currency,reference,status')
-      .eq('reference',ref)
-      .eq('user_id',user.id)
-      .maybeSingle();
-    if(paymentError)throw paymentError;
-    if(!payment)throw new Error('Payment record not found');
-
+    // Verify with Paystack first. This lets us use Paystack's canonical
+    // transaction reference even if the browser returned trxref/reference differently.
     const response=await fetch(
       `https://api.paystack.co/transaction/verify/${encodeURIComponent(ref)}`,
       {headers:{Authorization:`Bearer ${secret}`}}
@@ -48,10 +41,44 @@ serve(async(req)=>{
     if(!response.ok||!result.status)throw new Error(result.message||'Verification failed');
 
     const transaction=result.data;
+    const canonicalRef=String(transaction.reference||ref);
     const transactionAmount=Number(transaction.amount||0);
+    const transactionCurrency=String(transaction.currency||'NGN').toUpperCase();
+
+    if(transaction.metadata?.user_id&&String(transaction.metadata.user_id)!==String(user.id)){
+      throw new Error('This payment belongs to a different HarvestHome account');
+    }
+
+    let {data:payment,error:paymentError}=await serviceClient
+      .from('payments')
+      .select('id,user_id,listing_id,seller_id,service,amount,currency,reference,status,created_at')
+      .eq('reference',canonicalRef)
+      .eq('user_id',user.id)
+      .maybeSingle();
+    if(paymentError)throw paymentError;
+
+    // If the callback reference was valid at Paystack but the local record
+    // used a different reference, safely recover only when there is exactly
+    // one recent matching initialized/success payment for this account.
+    if(!payment){
+      const {data:candidates,error:candidateError}=await serviceClient
+        .from('payments')
+        .select('id,user_id,listing_id,seller_id,service,amount,currency,reference,status,created_at')
+        .eq('user_id',user.id)
+        .in('status',['initialized','success'])
+        .eq('amount',transactionAmount)
+        .eq('currency',transactionCurrency)
+        .gte('created_at',new Date(Date.now()-24*60*60*1000).toISOString())
+        .order('created_at',{ascending:false})
+        .limit(2);
+      if(candidateError)throw candidateError;
+      if((candidates||[]).length===1)payment=candidates[0];
+    }
+    if(!payment)throw new Error('Payment record not found for this Paystack transaction. Please contact HarvestHome support with your Paystack reference: '+canonicalRef);
+
     const expectedAmount=Number(payment.amount||0);
     if(transactionAmount!==expectedAmount)throw new Error('Payment amount does not match the HarvestHome payment request');
-    if(String(transaction.currency||'').toUpperCase()!==String(payment.currency||'NGN').toUpperCase())throw new Error('Payment currency does not match the HarvestHome payment request');
+    if(transactionCurrency!==String(payment.currency||'NGN').toUpperCase())throw new Error('Payment currency does not match the HarvestHome payment request');
 
     const status=transaction.status||'failed';
     const paidAt=status==='success'?(transaction.paid_at||new Date().toISOString()):null;

@@ -228,7 +228,7 @@ async function fav(id){
 function esc(v=""){return String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
 function money(n,cur){try{return new Intl.NumberFormat("en",{style:"currency",currency:cur,maximumFractionDigits:0}).format(Number(n))}catch{return `${cur} ${n}`}}
 function slug(v){return String(v).toLowerCase().replace(/\s+/g,"-")}
-function toast(m,error=false){let t=$$("#toast");if(!t){t=document.createElement("div");t.id="toast";document.body.append(t)}t.textContent=m;t.className="toast "+(error?"error ":"");requestAnimationFrame(()=>t.classList.add("show"));setTimeout(()=>t.classList.remove("show"),2800)}
+function toast(m,error=false){let t=$("#toast");if(!t){t=document.createElement("div");t.id="toast";document.body.append(t)}t.textContent=m;t.className="toast "+(error?"error ":"");requestAnimationFrame(()=>t.classList.add("show"));setTimeout(()=>t.classList.remove("show"),2800)}
 function options(a,s){return a.map(x=>`<option ${x===s?"selected":""}>${esc(x)}</option>`).join("")}
 
 function render(){document.body.innerHTML=`<div id="app">${state.view==="marketplace"?marketplace():dashboard()}</div><div id="modalRoot"></div><div id="toast"></div>`;bind()}

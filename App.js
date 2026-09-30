@@ -620,7 +620,105 @@ async function checkListingMedia(form){
  if(p)p.textContent=allOk?"All selected media are compatible and ready to upload.":"Remove or replace any file marked ✕ before publishing.";
  return allOk;
 }
-async function listingSubmit(e){e.preventDefault();const form=e.target,fd=new FormData(form),d=Object.fromEntries(fd),images=[...form.querySelector('[name=images]').files],video=form.querySelector('[name=video]').files[0],submitBtn=$("#publishListingBtn"),statusRoot=$("#mediaUploadStatus");if(!(await checkListingMedia(form))){toast("Please replace the media marked ✕ before publishing.",true);return}if(images.length>C.MAX_IMAGE_FILES){toast("Please select no more than "+C.MAX_IMAGE_FILES+" photos.",true);return}if(video&&video.size>C.MAX_VIDEO_MB*1024*1024){toast("Video must be "+C.MAX_VIDEO_MB+" MB or smaller.",true);return}try{if(!sb||!authUser)throw new Error("Seller listing service is unavailable. Please sign in again.");const payload={seller_id:authUser.id,country:d.country,location:d.location,category:d.category,title:d.title,description:d.description,price:Number(d.price),currency:d.currency,mode:d.mode,status:"pending"};const {data:row,error}=await sb.from("listings").insert(payload).select().single();if(error)throw error;const cached=json(KEYS.sellerListings,[]).filter(x=>String(x.id)!==String(row.id));put(KEYS.sellerListings,[{...row,seller:authUser.user_metadata?.full_name||authUser.email||"HarvestHome Seller",images:[],video:null},...cached]);awardListingParticipation(row.id);if(statusRoot){statusRoot.style.display="block";statusRoot.innerHTML='<div class="dashboard-callout"><b>Listing created. Uploading your media…</b><p id="mediaProgressText">Preparing the first file…</p></div>'}if(submitBtn){submitBtn.disabled=true;submitBtn.textContent="Uploading media…"}let cover_url=null,video_url=null;const files=[...images.map((file,i)=>({file,type:"image",index:i,label:"Photo "+(i+1)})),...(video?[{file:video,type:"video",index:images.length,label:"Video"}]:[])];for(let i=0;i<files.length;i++){const item=files[i],safeName=item.file.name.replace(/[^a-zA-Z0-9._-]/g,"_"),mediaPath=authUser.id+"/"+row.id+"/"+(item.type==="image"?"images":"video")+"/"+Date.now()+"-"+safeName,pctText=$("#mediaProgressText"),previewIndex=item.type==="image"?item.index:images.length;if(pctText)pctText.textContent=item.label+" of "+files.length+" — 0% ("+item.file.name+")";try{await uploadListingMediaWithProgress("listing-media",mediaPath,item.file,p=>{if(pctText)pctText.textContent=item.label+" of "+files.length+" — "+p+"% ("+item.file.name+")";const bar=document.querySelector('[data-preview-bar="'+previewIndex+'"]'),label=document.querySelector('[data-preview-pct="'+previewIndex+'"]');if(bar)bar.style.width=p+"%";if(label)label.textContent=p+"%"});const pub=sb.storage.from("listing-media").getPublicUrl(mediaPath).data.publicUrl;if(item.type==="image"){if(i===0)cover_url=pub;const mr=await sb.from("listing_media").insert({listing_id:row.id,media_type:"image",storage_path:mediaPath});if(mr.error)throw mr.error}else{video_url=pub;const mr=await sb.from("listing_media").insert({listing_id:row.id,media_type:"video",storage_path:mediaPath});if(mr.error)throw mr.error}const bar=document.querySelector('[data-preview-bar="'+previewIndex+'"]'),label=document.querySelector('[data-preview-pct="'+previewIndex+'"]');if(bar)bar.style.width="100%";if(label)label.textContent="100% ✓";if(pctText)pctText.textContent=item.label+" — 100% complete. Starting the next file…"}catch(mediaErr){if(submitBtn){submitBtn.disabled=false;submitBtn.textContent="Retry / finish listing"}if(pctText)pctText.textContent=item.label+" upload failed: "+(mediaErr.message||"Please try again.");toast("Media upload stopped at "+item.label+". The listing is saved as pending; please retry.",true);console.warn("Listing media upload failed:",mediaErr.message);return}}if(cover_url||video_url){const ur=await sb.from("listings").update({cover_url,video_url}).eq("id",row.id);if(ur.error)throw ur.error}await syncListings();if(statusRoot)statusRoot.innerHTML='<div class="dashboard-callout"><b>All uploads complete — 100% ✓</b><p>Every selected photo and video has finished uploading. Your listing is now ready for moderator review.</p></div>';const saved=await createNotification(authUser.id,"listing_review","Listing submitted for review",'Your listing "'+d.title+'" has been submitted and is under review. It will appear publicly after a moderator approves it.',row.id);if(saved)await syncNotifications();close();state.view="dashboard";state.dashboardTab="listings";render();showListingSubmittedConfirmation(d.title,row.id);toast(files.length?"All listing media uploaded successfully.":"Listing submitted successfully.");return}catch(err){if(submitBtn){submitBtn.disabled=false;submitBtn.textContent="Publish listing"}toast(err.message||"The listing could not be saved.",true)}}
+async function listingSubmit(e){
+e.preventDefault();
+const form=e.target,fd=new FormData(form),d=Object.fromEntries(fd),
+images=[...form.querySelector('[name=images]').files],video=form.querySelector('[name=video]').files[0],
+submitBtn=$("#publishListingBtn"),statusRoot=$("#mediaUploadStatus");
+if(!(await checkListingMedia(form))){toast("Please replace the media marked ✕ before publishing.",true);return}
+if(images.length>C.MAX_IMAGE_FILES){toast("Please select no more than "+C.MAX_IMAGE_FILES+" photos.",true);return}
+if(video&&video.size>C.MAX_VIDEO_MB*1024*1024){toast("Video must be "+C.MAX_VIDEO_MB+" MB or smaller.",true);return}
+try{
+ if(!sb||!authUser)throw new Error("Seller listing service is unavailable. Please sign in again.");
+ let row=null,existingId=form.dataset.listingId||"";
+ if(existingId){
+  const existing=await sb.from("listings").select("*").eq("id",existingId).eq("seller_id",authUser.id).maybeSingle();
+  if(existing.error)throw existing.error;
+  if(!existing.data)throw new Error("The saved listing could not be found. Please start a new listing.");
+  row=existing.data;
+  if(row.status!=="pending")throw new Error("This listing is no longer pending and cannot be retried.");
+ }else{
+  const payload={seller_id:authUser.id,country:d.country,location:d.location,category:d.category,title:d.title,description:d.description,price:Number(d.price),currency:d.currency,mode:d.mode,status:"pending"};
+  const inserted=await sb.from("listings").insert(payload).select().single();
+  if(inserted.error)throw inserted.error;
+  row=inserted.data;
+  form.dataset.listingId=row.id;
+  const cached=json(KEYS.sellerListings,[]).filter(x=>String(x.id)!==String(row.id));
+  put(KEYS.sellerListings,[{...row,seller:authUser.user_metadata?.full_name||authUser.email||"HarvestHome Seller",images:[],video:null},...cached]);
+  awardListingParticipation(row.id);
+ }
+ if(statusRoot){
+  statusRoot.style.display="block";
+  statusRoot.innerHTML='<div class="dashboard-callout"><b>Listing created. Uploading your media…</b><p id="mediaProgressText">Preparing the first file…</p></div>';
+ }
+ if(submitBtn){submitBtn.disabled=true;submitBtn.textContent=existingId?"Resuming uploads…":"Uploading media…"}
+ let cover_url=row.cover_url||null,video_url=row.video_url||null;
+ const existingMedia=await sb.from("listing_media").select("media_type,storage_path").eq("listing_id",row.id);
+ if(existingMedia.error)throw existingMedia.error;
+ const uploadedPaths=new Set((existingMedia.data||[]).map(m=>String(m.storage_path||"")));
+ const files=[...images.map((file,i)=>({file,type:"image",index:i,label:"Photo "+(i+1)})),...(video?[{file:video,type:"video",index:images.length,label:"Video"}]:[])];
+ for(let i=0;i<files.length;i++){
+  const item=files[i],safeName=item.file.name.replace(/[^a-zA-Z0-9._-]/g,"_"),alreadyUploaded=[...uploadedPaths].some(p=>p.endsWith("-"+safeName));
+  const pctText=$("#mediaProgressText"),previewIndex=item.type==="image"?item.index:images.length;
+  if(alreadyUploaded){
+   const label=document.querySelector('[data-preview-pct="'+previewIndex+'"]'),bar=document.querySelector('[data-preview-bar="'+previewIndex+'"]');
+   if(label)label.textContent="Already uploaded ✓";
+   if(bar){bar.style.width="100%";bar.style.background="#16a34a"}
+   if(pctText)pctText.textContent=item.label+" already uploaded ✓";
+   continue;
+  }
+  const mediaPath=authUser.id+"/"+row.id+"/"+(item.type==="image"?"images":"video")+"/"+Date.now()+"-"+safeName;
+  if(pctText)pctText.textContent=item.label+" of "+files.length+" — 0% ("+item.file.name+")";
+  try{
+   await uploadListingMediaWithProgress("listing-media",mediaPath,item.file,p=>{
+    if(pctText)pctText.textContent=item.label+" of "+files.length+" — "+p+"% ("+item.file.name+")";
+    const bar=document.querySelector('[data-preview-bar="'+previewIndex+'"]'),label=document.querySelector('[data-preview-pct="'+previewIndex+'"]');
+    if(bar)bar.style.width=p+"%";
+    if(label)label.textContent=p+"%";
+   });
+   const pub=sb.storage.from("listing-media").getPublicUrl(mediaPath).data.publicUrl;
+   if(item.type==="image"){
+    if(!cover_url)cover_url=pub;
+    const mr=await sb.from("listing_media").insert({listing_id:row.id,media_type:"image",storage_path:mediaPath});
+    if(mr.error)throw mr.error;
+   }else{
+    video_url=pub;
+    const mr=await sb.from("listing_media").insert({listing_id:row.id,media_type:"video",storage_path:mediaPath});
+    if(mr.error)throw mr.error;
+   }
+   uploadedPaths.add(mediaPath);
+   const bar=document.querySelector('[data-preview-bar="'+previewIndex+'"]'),label=document.querySelector('[data-preview-pct="'+previewIndex+'"]');
+   if(bar){bar.style.width="100%";bar.style.background="#16a34a"}
+   if(label)label.textContent="100% ✓";
+   if(pctText)pctText.textContent=item.label+" — 100% complete. Starting the next file…";
+  }catch(mediaErr){
+   if(submitBtn){submitBtn.disabled=false;submitBtn.textContent="Retry / finish listing"}
+   if(pctText)pctText.textContent=item.label+" upload failed: "+(mediaErr.message||"Please try again.");
+   toast("Media upload stopped at "+item.label+". Your listing is saved; press Retry / finish listing to continue.",true);
+   console.warn("Listing media upload failed:",mediaErr.message);
+   return;
+  }
+ }
+ if(cover_url||video_url){
+  const ur=await sb.from("listings").update({cover_url,video_url}).eq("id",row.id);
+  if(ur.error)throw ur.error;
+ }
+ await syncListings();
+ if(statusRoot)statusRoot.innerHTML='<div class="dashboard-callout"><b>All uploads complete — 100% ✓</b><p>Every selected photo and video has finished uploading. Your listing is now ready for moderator review.</p></div>';
+ if(!existingId){
+  const saved=await createNotification(authUser.id,"listing_review","Listing submitted for review",'Your listing "'+d.title+'" has been submitted and is under review. It will appear publicly after a moderator approves it.',row.id);
+  if(saved)await syncNotifications();
+ }
+ close();
+ state.view="dashboard";state.dashboardTab="listings";render();
+ showListingSubmittedConfirmation(d.title||row.title,row.id);
+ toast(files.length?"All listing media uploaded successfully.":"Listing submitted successfully.");
+ return;
+}catch(err){
+ if(submitBtn){submitBtn.disabled=false;submitBtn.textContent="Publish listing"}
+ toast(err.message||"The listing could not be saved.",true);
+}
+}
 async function linkSuccessfulPayment(paymentId){
   const select=document.querySelector('[data-link-select="'+paymentId+'"]');
   const listingId=select?.value||'';

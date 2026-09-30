@@ -333,16 +333,48 @@ function marketplace(){let ls=filtered();return `${header()}<section class="hero
 function cat(i,t,d,v){return `<button class="category-card" data-cat="${esc(v)}"><span>${i}</span><div><h3>${t}</h3><p>${d}</p></div><b>→</b></button>`}
 function flag(c){return ({NG:"🇳🇬",GH:"🇬🇭",KE:"🇰🇪",ZA:"🇿🇦",GB:"🇬🇧",US:"🇺🇸",CA:"🇨🇦",AE:"🇦🇪"}[c]||"🌍")}
 function filtered(){let q=state.search.toLowerCase().trim();return listings().filter(l=>(l.status||"approved")==="approved"&&(l.country||"Nigeria")===state.country&&(!q||`${l.title} ${l.category} ${l.location} ${l.description} ${l.seller}`.toLowerCase().includes(q))&&(state.location==="All locations"||l.location===state.location)&&(state.category==="All categories"||l.category===state.category)&&(state.mode==="All"||l.mode===state.mode)).sort((a,b)=>Number(isFeatured(b))-Number(isFeatured(a)))}
+function openListingMediaViewer(listingId,index=0){
+  const l=listings().find(x=>String(x.id)===String(listingId));
+  if(!l)return;
+  const imgs=(l.images||[]).filter(x=>x&&x.data);
+  const media=[...imgs.map(x=>({type:"image",data:x.data})),...(l.video?.data?[{type:"video",data:l.video.data}]:[])];
+  if(!media.length)return;
+  let current=Math.max(0,Math.min(Number(index)||0,media.length-1));
+  const renderMedia=()=>{
+    const m=media[current];
+    return m.type==="video"
+      ? `<video controls autoplay playsinline src="${esc(m.data)}" style="max-width:100%;max-height:72vh;border-radius:12px;background:#000"></video>`
+      : `<img src="${esc(m.data)}" alt="${esc(l.title)} media ${current+1}" style="max-width:100%;max-height:72vh;object-fit:contain;border-radius:12px;background:#111">`;
+  };
+  $("#modalRoot").innerHTML=`<div class="modal-backdrop" style="z-index:1000"><div class="modal wide" style="max-width:1000px;background:#111;color:#fff;padding:16px">
+    <button class="modal-close" data-close style="color:#fff">×</button>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px"><div><b>${esc(l.title)}</b><small style="display:block;opacity:.75;margin-top:3px">${current+1} of ${media.length} · Tap the arrows to view all media</small></div></div>
+    <div id="listingMediaViewer" style="display:flex;align-items:center;justify-content:center;gap:10px;min-height:300px">
+      <button class="outline-btn" id="mediaPrev" style="color:#fff;border-color:#777">‹</button>
+      <div id="mediaViewerStage" style="flex:1;text-align:center">${renderMedia()}</div>
+      <button class="outline-btn" id="mediaNext" style="color:#fff;border-color:#777">›</button>
+    </div>
+    <div style="text-align:center;margin-top:10px;font-size:12px;opacity:.75">🔍 Clicked media is shown larger for clearer viewing.</div>
+  </div></div>`;
+  const update=()=>{
+    $("#mediaViewerStage").innerHTML=renderMedia();
+    const label=$("#listingMediaViewer")?.parentElement?.querySelector("small");
+    if(label)label.textContent=`${current+1} of ${media.length} · Tap the arrows to view all media`;
+  };
+  $("#mediaPrev")?.addEventListener("click",()=>{current=(current-1+media.length)%media.length;update()});
+  $("#mediaNext")?.addEventListener("click",()=>{current=(current+1)%media.length;update()});
+  $("[data-close]")?.addEventListener("click",close);
+}
 function card(l){
   let u=user(),f=json(KEYS.favourites,{}),fav=u&&(f[u.email]||[]).includes(l.id);
   const imgs=(l.images||[]).filter(x=>x&&x.data);
   const img=imgs[0]?.data;
-  const thumbs=imgs.slice(1).map((x,i)=>`<img src="${esc(x.data)}" alt="${esc(l.title)} photo ${i+2}" style="width:72px;height:56px;object-fit:cover;border:2px solid #fff;border-radius:8px;box-shadow:0 1px 5px rgba(0,0,0,.18);background:#eee">`).join("");
+  const thumbs=imgs.slice(1).map((x,i)=>`<button type="button" data-media-open="${esc(l.id)}" data-media-index="${i+1}" style="border:0;padding:0;background:none;cursor:zoom-in"><img src="${esc(x.data)}" alt="${esc(l.title)} photo ${i+2}" style="width:72px;height:56px;object-fit:cover;border:2px solid #fff;border-radius:8px;box-shadow:0 1px 5px rgba(0,0,0,.18);background:#eee"></button>`).join("");
   const mediaCount=imgs.length+(l.video?1:0);
   const fallbackIcon=l.emoji||({Houses:"🏠",Land:"🌍",Equipment:"🚜","Farm Produce":"🌾"}[l.category]||"📦");
   return `<article class="listing-card" data-view-listing="${esc(l.id)}">
     <div class="listing-image ${slug(l.category)}" style="padding:0;overflow:hidden;position:relative">
-      ${img?`<img src="${esc(img)}" alt="${esc(l.title)}" style="width:100%;height:220px;object-fit:cover;display:block">`:`<div style="height:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:linear-gradient(135deg,#f5f7f2,#e9efe6);color:#49634f;text-align:center"><span style="font-size:54px">${fallbackIcon}</span><b style="font-size:14px">Photo not available</b><small style="opacity:.75">Seller has not uploaded a photo yet</small></div>`}
+      ${img?`<button type="button" data-media-open="${esc(l.id)}" data-media-index="0" style="display:block;width:100%;padding:0;border:0;background:none;cursor:zoom-in"><img src="${esc(img)}" alt="${esc(l.title)}" style="width:100%;height:220px;object-fit:cover;display:block"></button>`:`<div style="height:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:linear-gradient(135deg,#f5f7f2,#e9efe6);color:#49634f;text-align:center"><span style="font-size:54px">${fallbackIcon}</span><b style="font-size:14px">Photo not available</b><small style="opacity:.75">Seller has not uploaded a photo yet</small></div>`}
       <button class="heart ${fav?"active":""}" data-fav="${l.id}">${fav?"♥":"♡"}</button>
       <span class="mode-pill">${esc(l.mode)}</span>${isFeatured(l.id)?`<span style="position:absolute;left:12px;top:12px;background:#fff;padding:6px 9px;border-radius:999px;font-size:12px;font-weight:800">⭐ Featured</span>`:""}
     </div>
@@ -354,11 +386,11 @@ function card(l){
       <p class="seller-line">👤 ${esc(l.seller||'HarvestHome Seller')}${l.sellerVerified?' · ✓ Verified seller':''}${l.professionalSeller?' · ⭐ Professional Seller':''}</p>
       <p class="description">${esc(l.description)}</p>
       <div class="listing-bottom"><strong>${money(l.price,l.currency||countryInfo().currency)}</strong><span>${l.views||0} views</span></div>
-      ${l.video?`<div style="margin:12px 0;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;background:#000">
-        <video controls playsinline preload="metadata" src="${esc(l.video.data)}" style="width:100%;max-height:260px;display:block"></video>
-        <div style="padding:7px 10px;background:#fff;font-size:12px;font-weight:600">🎥 Listing video</div>
-      </div>`:""}
-      ${mediaCount>1?`<small style="display:block;margin:6px 0;color:#667085">${imgs.length} photos${l.video?" + 1 video":""}</small>`:""}
+      ${l.video?`<button type="button" data-media-open="${esc(l.id)}" data-media-index="${imgs.length}" style="margin:12px 0;width:100%;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;background:#000;cursor:zoom-in;padding:0">
+        <video muted playsinline preload="metadata" src="${esc(l.video.data)}" style="width:100%;max-height:260px;display:block;pointer-events:none"></video>
+        <div style="padding:7px 10px;background:#fff;font-size:12px;font-weight:600;text-align:left">🎥 Listing video · Tap to view larger</div>
+      </button>`:""}
+      ${mediaCount>1?`<small style="display:block;margin:6px 0;color:#667085">${imgs.length} photos${l.video?" + 1 video":""} · Tap any media to view larger</small>`:""}
       <div class="listing-actions"><button class="outline-btn full" data-contact="${l.id}">Contact seller</button><button class="ghost-btn full" data-recommend="${l.id}">⭐ Recommend seller</button><div class="media-links"><a target="_blank" rel="noopener" href="${mapURL(l)}">📍 Map</a></div></div>
     </div>
   </article>`;
@@ -543,7 +575,7 @@ async function paymentSubmit(e){
 function bind(){
 $$("[data-a]").forEach(e=>e.onclick=()=>act(e.dataset.a));$$("[data-terms]").forEach(e=>e.onclick=termsModal);$$("[data-pay-listing]").forEach(e=>e.onclick=()=>paymentModal(e.dataset.payListing));$$("[data-scroll]").forEach(e=>e.onclick=()=>document.getElementById(e.dataset.scroll)?.scrollIntoView({behavior:"smooth"}));
 $("#countryTop")?.addEventListener("change",e=>switchCountry(e.target.value));$("#profilePhotoInput")?.addEventListener("change",e=>uploadProfilePhoto(e.target.files[0]));$("#profileForm")?.addEventListener("submit",saveProfile);$("#countryFilter")?.addEventListener("change",e=>switchCountry(e.target.value));$("#locationFilter")?.addEventListener("change",e=>{state.location=e.target.value;render()});$("#categoryFilter")?.addEventListener("change",e=>{state.category=e.target.value;render()});$("#modeFilter")?.addEventListener("change",e=>{state.mode=e.target.value;render()});
-$("#searchInput")?.addEventListener("keydown",e=>{if(e.key==="Enter"){state.search=e.target.value;render()}});$$("[data-cat]").forEach(e=>e.onclick=()=>{state.category=e.dataset.cat;render()});$$("[data-view-listing]").forEach(e=>recordListingView(e.dataset.viewListing));$$("[data-country]").forEach(e=>e.onclick=()=>switchCountry(e.dataset.country));$$("[data-fav]").forEach(e=>e.onclick=x=>{x.stopPropagation();fav(e.dataset.fav)});$$("[data-contact]").forEach(e=>e.onclick=()=>contact(e.dataset.contact));$$("[data-recommend]").forEach(e=>e.onclick=()=>recommendSeller(e.dataset.recommend));$$("[data-chat]").forEach(e=>e.onclick=async()=>{const l=listings().find(x=>String(x.id)===String(e.dataset.listing));if(l)await openChat(e.dataset.chat,l)});$$("[data-tab]").forEach(e=>e.onclick=()=>{state.dashboardTab=e.dataset.tab;render()});$$("[data-notification]").forEach(e=>e.onclick=()=>markNotificationRead(e.dataset.notification));$$("[data-del]").forEach(e=>e.onclick=()=>del(e.dataset.del));$$("[data-mod]").forEach(e=>e.onclick=()=>moderate(e.dataset.mod));$$("[data-feature]").forEach(e=>e.onclick=()=>featureListing(e.dataset.feature));$$("[data-verify-review]").forEach(e=>{const [decision,id]=e.dataset.verifyReview.split(":");e.onclick=()=>reviewVerification(id,decision)});$$("[data-link-payment]").forEach(e=>e.onclick=()=>linkSuccessfulPayment(e.dataset.linkPayment));$("#sellerTransactionSearch")?.addEventListener("input",e=>{state.transactionFilterSeller.search=e.target.value;render()});$("#sellerTransactionStatus")?.addEventListener("change",e=>{state.transactionFilterSeller.status=e.target.value;render()});$("#sellerTransactionRange")?.addEventListener("change",e=>{state.transactionFilterSeller.range=e.target.value;render()});$("#adminTransactionSearch")?.addEventListener("input",e=>{state.transactionFilterAdmin.search=e.target.value;render()});$("#adminTransactionStatus")?.addEventListener("change",e=>{state.transactionFilterAdmin.status=e.target.value;render()});$("#adminTransactionRange")?.addEventListener("change",e=>{state.transactionFilterAdmin.range=e.target.value;render()})
+$("#searchInput")?.addEventListener("keydown",e=>{if(e.key==="Enter"){state.search=e.target.value;render()}});$$("[data-cat]").forEach(e=>e.onclick=()=>{state.category=e.dataset.cat;render()});$("[data-view-listing]").forEach(e=>recordListingView(e.dataset.viewListing));$("[data-media-open]").forEach(e=>e.onclick=x=>{x.stopPropagation();openListingMediaViewer(e.dataset.mediaOpen,Number(e.dataset.mediaIndex||0))});$("[data-country]").forEach(e=>e.onclick=()=>switchCountry(e.dataset.country));$$("[data-fav]").forEach(e=>e.onclick=x=>{x.stopPropagation();fav(e.dataset.fav)});$$("[data-contact]").forEach(e=>e.onclick=()=>contact(e.dataset.contact));$$("[data-recommend]").forEach(e=>e.onclick=()=>recommendSeller(e.dataset.recommend));$$("[data-chat]").forEach(e=>e.onclick=async()=>{const l=listings().find(x=>String(x.id)===String(e.dataset.listing));if(l)await openChat(e.dataset.chat,l)});$$("[data-tab]").forEach(e=>e.onclick=()=>{state.dashboardTab=e.dataset.tab;render()});$$("[data-notification]").forEach(e=>e.onclick=()=>markNotificationRead(e.dataset.notification));$$("[data-del]").forEach(e=>e.onclick=()=>del(e.dataset.del));$$("[data-mod]").forEach(e=>e.onclick=()=>moderate(e.dataset.mod));$$("[data-feature]").forEach(e=>e.onclick=()=>featureListing(e.dataset.feature));$$("[data-verify-review]").forEach(e=>{const [decision,id]=e.dataset.verifyReview.split(":");e.onclick=()=>reviewVerification(id,decision)});$$("[data-link-payment]").forEach(e=>e.onclick=()=>linkSuccessfulPayment(e.dataset.linkPayment));$("#sellerTransactionSearch")?.addEventListener("input",e=>{state.transactionFilterSeller.search=e.target.value;render()});$("#sellerTransactionStatus")?.addEventListener("change",e=>{state.transactionFilterSeller.status=e.target.value;render()});$("#sellerTransactionRange")?.addEventListener("change",e=>{state.transactionFilterSeller.range=e.target.value;render()});$("#adminTransactionSearch")?.addEventListener("input",e=>{state.transactionFilterAdmin.search=e.target.value;render()});$("#adminTransactionStatus")?.addEventListener("change",e=>{state.transactionFilterAdmin.status=e.target.value;render()});$("#adminTransactionRange")?.addEventListener("change",e=>{state.transactionFilterAdmin.range=e.target.value;render()})
 }
 function switchCountry(c){state.country=c;state.location="All locations";state.category="All categories";localStorage.setItem(KEYS.country,c);render()}
 async function act(a){if(a==="home"){state.view="marketplace";render();scrollTo(0,0)}if(a==="login")auth("login");if(a==="signup")auth("signup");if(a==="logout"){if(sb) await sb.auth.signOut();localStorage.removeItem(KEYS.session);authUser=null;authProfile=null;state.view="marketplace";render();toast("Logged out.")}if(a==="dashboard"){state.view="dashboard";render()}if(a==="admin"){state.view="dashboard";state.dashboardTab="moderation";render()}if(a==="search"){state.search=$("#searchInput")?.value||"";render()}if(a==="clear"){state.search="";state.location="All locations";state.category="All categories";state.mode="All";render()}if(a==="newListing")listingModal();if(a==="pay")paymentModal();if(a==="markAllNotifications")markAllNotificationsRead();if(a==="sellerClearTransactions"){state.transactionFilterSeller={status:"all",range:"all",search:""};render()}if(a==="adminClearTransactions"){state.transactionFilterAdmin={status:"all",range:"all",search:""};render()}}

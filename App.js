@@ -119,6 +119,32 @@ async function syncSellerPerformance(){
     perf.recommendations=Number(r.recommendationCount)||0;
   }catch(e){console.warn('Seller performance sync failed',e.message)}
 }
+const isFeatured=id=>state.featuredListings.some(x=>String(x.listing_id)===String(id));
+
+async function syncFeatured(){
+  state.featuredListings=[];
+  if(!sb)return;
+  try{
+    const {data,error}=await sb.from("featured_listings").select("listing_id,starts_at,ends_at").gt("ends_at",new Date().toISOString());
+    if(error)throw error;
+    state.featuredListings=data||[];
+  }catch(e){console.warn("Featured listings sync failed",e.message)}
+}
+
+async function featureListing(id){
+  const u=user();
+  if(!u||!authUser){auth("login");toast("Log in to manage featured listings.",true);return}
+  if(!["Admin","Moderator"].includes(u.role)){toast("Only an Admin or Moderator can manage featured listings.",true);return}
+  const featured=isFeatured(id);
+  try{
+    const {error}=await sb.rpc("set_listing_featured",{p_listing_id:id,p_days:featured?0:7});
+    if(error)throw error;
+    await syncFeatured();
+    render();
+    toast(featured?"Featured promotion removed.":"Listing featured for 7 days.");
+  }catch(e){toast(e.message||"Featured listing could not be updated.",true)}
+}
+
 async function syncListingPerformance(){
   state.listingPerformance=[];
   if(!sb||!authUser)return;
@@ -456,7 +482,7 @@ async function paymentSubmit(e){
 function bind(){
 $$("[data-a]").forEach(e=>e.onclick=()=>act(e.dataset.a));$$("[data-terms]").forEach(e=>e.onclick=termsModal);$$("[data-pay-listing]").forEach(e=>e.onclick=()=>paymentModal(e.dataset.payListing));$$("[data-scroll]").forEach(e=>e.onclick=()=>document.getElementById(e.dataset.scroll)?.scrollIntoView({behavior:"smooth"}));
 $("#countryTop")?.addEventListener("change",e=>switchCountry(e.target.value));$("#profilePhotoInput")?.addEventListener("change",e=>uploadProfilePhoto(e.target.files[0]));$("#profileForm")?.addEventListener("submit",saveProfile);$("#countryFilter")?.addEventListener("change",e=>switchCountry(e.target.value));$("#locationFilter")?.addEventListener("change",e=>{state.location=e.target.value;render()});$("#categoryFilter")?.addEventListener("change",e=>{state.category=e.target.value;render()});$("#modeFilter")?.addEventListener("change",e=>{state.mode=e.target.value;render()});
-$("#searchInput")?.addEventListener("keydown",e=>{if(e.key==="Enter"){state.search=e.target.value;render()}});$$("[data-cat]").forEach(e=>e.onclick=()=>{state.category=e.dataset.cat;render()});$$("[data-view-listing]").forEach(e=>recordListingView(e.dataset.viewListing));$$("[data-country]").forEach(e=>e.onclick=()=>switchCountry(e.dataset.country));$$("[data-fav]").forEach(e=>e.onclick=x=>{x.stopPropagation();fav(e.dataset.fav)});$$("[data-contact]").forEach(e=>e.onclick=()=>contact(e.dataset.contact));$$("[data-recommend]").forEach(e=>e.onclick=()=>recommendSeller(e.dataset.recommend));$$("[data-chat]").forEach(e=>e.onclick=async()=>{const l=listings().find(x=>String(x.id)===String(e.dataset.listing));if(l)await openChat(e.dataset.chat,l)});$$("[data-tab]").forEach(e=>e.onclick=()=>{state.dashboardTab=e.dataset.tab;render()});$$("[data-notification]").forEach(e=>e.onclick=()=>markNotificationRead(e.dataset.notification));$$("[data-del]").forEach(e=>e.onclick=()=>del(e.dataset.del));$("[data-mod]").forEach(e=>e.onclick=()=>moderate(e.dataset.mod));$("[data-feature]").forEach(e=>e.onclick=()=>featureListing(e.dataset.feature));$$("[data-link-payment]").forEach(e=>e.onclick=()=>linkSuccessfulPayment(e.dataset.linkPayment));$("#sellerTransactionSearch")?.addEventListener("input",e=>{state.transactionFilterSeller.search=e.target.value;render()});$("#sellerTransactionStatus")?.addEventListener("change",e=>{state.transactionFilterSeller.status=e.target.value;render()});$("#sellerTransactionRange")?.addEventListener("change",e=>{state.transactionFilterSeller.range=e.target.value;render()});$("#adminTransactionSearch")?.addEventListener("input",e=>{state.transactionFilterAdmin.search=e.target.value;render()});$("#adminTransactionStatus")?.addEventListener("change",e=>{state.transactionFilterAdmin.status=e.target.value;render()});$("#adminTransactionRange")?.addEventListener("change",e=>{state.transactionFilterAdmin.range=e.target.value;render()})
+$("#searchInput")?.addEventListener("keydown",e=>{if(e.key==="Enter"){state.search=e.target.value;render()}});$$("[data-cat]").forEach(e=>e.onclick=()=>{state.category=e.dataset.cat;render()});$$("[data-view-listing]").forEach(e=>recordListingView(e.dataset.viewListing));$$("[data-country]").forEach(e=>e.onclick=()=>switchCountry(e.dataset.country));$$("[data-fav]").forEach(e=>e.onclick=x=>{x.stopPropagation();fav(e.dataset.fav)});$$("[data-contact]").forEach(e=>e.onclick=()=>contact(e.dataset.contact));$$("[data-recommend]").forEach(e=>e.onclick=()=>recommendSeller(e.dataset.recommend));$$("[data-chat]").forEach(e=>e.onclick=async()=>{const l=listings().find(x=>String(x.id)===String(e.dataset.listing));if(l)await openChat(e.dataset.chat,l)});$$("[data-tab]").forEach(e=>e.onclick=()=>{state.dashboardTab=e.dataset.tab;render()});$$("[data-notification]").forEach(e=>e.onclick=()=>markNotificationRead(e.dataset.notification));$$("[data-del]").forEach(e=>e.onclick=()=>del(e.dataset.del));$("[data-mod]").forEach(e=>e.onclick=()=>moderate(e.dataset.mod));$$("[data-feature]").forEach(e=>e.onclick=()=>featureListing(e.dataset.feature));$$("[data-link-payment]").forEach(e=>e.onclick=()=>linkSuccessfulPayment(e.dataset.linkPayment));$("#sellerTransactionSearch")?.addEventListener("input",e=>{state.transactionFilterSeller.search=e.target.value;render()});$("#sellerTransactionStatus")?.addEventListener("change",e=>{state.transactionFilterSeller.status=e.target.value;render()});$("#sellerTransactionRange")?.addEventListener("change",e=>{state.transactionFilterSeller.range=e.target.value;render()});$("#adminTransactionSearch")?.addEventListener("input",e=>{state.transactionFilterAdmin.search=e.target.value;render()});$("#adminTransactionStatus")?.addEventListener("change",e=>{state.transactionFilterAdmin.status=e.target.value;render()});$("#adminTransactionRange")?.addEventListener("change",e=>{state.transactionFilterAdmin.range=e.target.value;render()})
 }
 function switchCountry(c){state.country=c;state.location="All locations";state.category="All categories";localStorage.setItem(KEYS.country,c);render()}
 async function act(a){if(a==="home"){state.view="marketplace";render();scrollTo(0,0)}if(a==="login")auth("login");if(a==="signup")auth("signup");if(a==="logout"){if(sb) await sb.auth.signOut();localStorage.removeItem(KEYS.session);authUser=null;authProfile=null;state.view="marketplace";render();toast("Logged out.")}if(a==="dashboard"){state.view="dashboard";render()}if(a==="admin"){state.view="dashboard";state.dashboardTab="moderation";render()}if(a==="search"){state.search=$("#searchInput")?.value||"";render()}if(a==="clear"){state.search="";state.location="All locations";state.category="All categories";state.mode="All";render()}if(a==="newListing")listingModal();if(a==="pay")paymentModal();if(a==="markAllNotifications")markAllNotificationsRead();if(a==="sellerClearTransactions"){state.transactionFilterSeller={status:"all",range:"all",search:""};render()}if(a==="adminClearTransactions"){state.transactionFilterAdmin={status:"all",range:"all",search:""};render()}}

@@ -14,7 +14,7 @@ const seed = [];
 
 const state={view:"marketplace",search:"",country:localStorage.getItem(KEYS.country)||C.DEFAULT_COUNTRY,location:"All locations",category:"All categories",mode:"All",dashboardTab:"overview",authMode:"login",payments:[],transactionFilterSeller:{status:"all",range:"all",search:""},transactionFilterAdmin:{status:"all",range:"all",search:""}};
 let chatTimer=null;
-state.rewardAdmin=[];state.verificationRequests=[];state.sellerPerformance={listings:0,approved:0,pending:0,rejected:0,views:0,chats:0,uniqueBuyers:0,recommendations:0};state.listingPerformance=[];state.featuredListings=[];
+state.rewardAdmin=[];state.verificationRequests=[];state.sellerPerformance={listings:0,approved:0,pending:0,rejected:0,views:0,chats:0,uniqueBuyers:0,recommendations:0};state.listingPerformance=[];state.featuredListings=[];state.professionalSellers=[];
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
 const json=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}};
 const put=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
@@ -23,6 +23,16 @@ const session=()=>json(KEYS.session,null);
 const user=()=> authUser ? ({...authUser,...(authProfile||{}), email:authUser.email, id:authUser.id, name:(authProfile&&authProfile.full_name)||authUser.user_metadata?.full_name||authUser.email, role:(authProfile&&authProfile.role)||authUser.user_metadata?.role||"Buyer"}) : (session()?users().find(u=>u.email===session().email):null);
 const countryInfo=()=>C.SUPPORTED_COUNTRIES.find(x=>x.name===state.country)||C.SUPPORTED_COUNTRIES[0];
 const listings=()=>json(KEYS.sellerListings,[]).filter(l=>l&&l.seller_id&&l.status!=="deleted");
+async function syncProfessionalSellers(){
+  state.professionalSellers=[];
+  if(!sb)return;
+  try{
+    const {data,error}=await sb.from("professional_seller_subscriptions").select("user_id,starts_at,ends_at,status").eq("status","active").gt("ends_at",new Date().toISOString());
+    if(error)throw error;
+    state.professionalSellers=data||[];
+  }catch(e){console.warn("Professional Seller badge sync skipped:",e.message)}
+}
+function isProfessionalSeller(userId){return state.professionalSellers.some(x=>String(x.user_id)===String(userId)&&x.status==="active"&&new Date(x.ends_at)>new Date())}
 async function syncListings(){
   if(!sb)return;
   try{
@@ -33,7 +43,7 @@ async function syncListings(){
       ...l,id:l.id,
       ownerEmail:authUser?.id===l.seller_id?(authUser.email||''):undefined,
       seller:l.profiles?.full_name||l.seller_name||'HarvestHome Seller',
-      sellerVerified:!!l.profiles?.verified,
+      sellerVerified:!!l.profiles?.verified,professionalSeller:false,
       images:l.cover_url?[{data:l.cover_url}]:[],
       video:l.video_url?{data:l.video_url}:null,
       views:l.views||0
@@ -68,6 +78,7 @@ async function syncListings(){
       }
     }
 
+    base.forEach(l=>{l.professionalSeller=isProfessionalSeller(l.seller_id)});
     const cached=json(KEYS.sellerListings,[]);
     const remoteIds=new Set(base.map(x=>String(x.id)));
     const mineCached=cached.filter(x=>x&&x.seller_id===authUser?.id&&!remoteIds.has(String(x.id))&&x.status!=='deleted');
@@ -303,7 +314,7 @@ async function syncFavourites(){
   }catch(e){console.warn('Supabase favourites sync failed',e.message)}
 }
 async function loadProfile(){if(!sb||!authUser){authProfile=null;return}const {data}=await sb.from('profiles').select('*').eq('id',authUser.id).maybeSingle();authProfile=data||null}
-async function loadAuth(){if(!sb){render();return}const {data}=await sb.auth.getSession();authUser=data.session?.user||null;await loadProfile();await syncListings();await syncFeatured();await syncFavourites();await syncNotifications();await syncPayments();await syncRewards();await syncSellerPerformance();await syncListingPerformance();await syncAdminRewards();await syncVerificationRequests();await syncVerificationRequests();render();}
+async function loadAuth(){if(!sb){render();return}const {data}=await sb.auth.getSession();authUser=data.session?.user||null;await loadProfile();await syncListings();await syncFeatured();await syncFavourites();await syncNotifications();await syncPayments();await syncRewards();await syncProfessionalSellers();await syncSellerPerformance();await syncListingPerformance();await syncAdminRewards();await syncVerificationRequests();await syncVerificationRequests();render();}
 async function syncPayments(){
   if(!sb||!authUser)return;
   try{
@@ -340,7 +351,7 @@ function card(l){
       <span class="listing-category">${esc(l.category)}</span>
       <h3>${esc(l.title)}</h3>
       <p class="location">📍 ${esc(l.location)} · ${esc(l.country)}</p>
-      <p class="seller-line">👤 ${esc(l.seller||'HarvestHome Seller')}${l.sellerVerified?' · ✓ Verified seller':''}</p>
+      <p class="seller-line">👤 ${esc(l.seller||'HarvestHome Seller')}${l.sellerVerified?' · ✓ Verified seller':''}${l.professionalSeller?' · ⭐ Professional Seller':''}</p>
       <p class="description">${esc(l.description)}</p>
       <div class="listing-bottom"><strong>${money(l.price,l.currency||countryInfo().currency)}</strong><span>${l.views||0} views</span></div>
       ${l.video?`<div style="margin:12px 0;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;background:#000">

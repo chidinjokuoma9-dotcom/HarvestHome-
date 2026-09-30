@@ -691,7 +691,7 @@ try{
   }
 }
  if(!sb||!authUser)throw new Error("Seller listing service is unavailable. Please sign in again.");
- let row=null,existingId=form.dataset.listingId||"";
+ let row=null,resumeId=form.dataset.listingId||"";
  if(existingId){
   const existing=await sb.from("listings").select("*").eq("id",existingId).eq("seller_id",authUser.id).maybeSingle();
   if(existing.error)throw existing.error;
@@ -712,7 +712,7 @@ try{
   statusRoot.style.display="block";
   statusRoot.innerHTML='<div class="dashboard-callout"><b>Listing created. Uploading your media…</b><p id="mediaProgressText">Preparing the first file…</p></div>';
  }
- if(submitBtn){submitBtn.disabled=true;submitBtn.textContent=existingId?"Resuming uploads…":"Uploading media…"}
+ if(submitBtn){submitBtn.disabled=true;submitBtn.textContent=resumeId?"Resuming uploads…":"Uploading media…"}
  let cover_url=row.cover_url||null,video_url=row.video_url||null;
  const existingMedia=await sb.from("listing_media").select("media_type,storage_path").eq("listing_id",row.id);
  if(existingMedia.error)throw existingMedia.error;
@@ -766,7 +766,7 @@ try{
  }
  await syncListings();
  if(statusRoot)statusRoot.innerHTML='<div class="dashboard-callout"><b>All uploads complete — 100% ✓</b><p>Every selected photo and video has finished uploading. Your listing is now ready for moderator review.</p></div>';
- if(!existingId){
+ if(!resumeId){
   const saved=await createNotification(authUser.id,"listing_review","Listing submitted for review",'Your listing "'+d.title+'" has been submitted and is under review. It will appear publicly after a moderator approves it.',row.id);
   if(saved)await syncNotifications();
  }

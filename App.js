@@ -472,23 +472,58 @@ function transactionCutoff(range){const days=range==="7"?7:range==="30"?30:range
 function filterTransactions(rows,filter){const q=String(filter.search||"").trim().toLowerCase(),cut=transactionCutoff(filter.range);return rows.filter(p=>{const status=String(p.status||"initialized").toLowerCase();if(filter.status!=="all"&&status!==filter.status)return false;if(cut&&new Date(p.created_at||0).getTime()<cut)return false;if(q){const hay=[p.reference,p.service,p.listings?.title,p.profiles?.full_name,p.user_id].map(x=>String(x||"").toLowerCase()).join(" ");if(!hay.includes(q))return false}return true})}
 function transactionFilters(filter,prefix){return '<div class="filter-bar transaction-filters"><input id="'+prefix+'TransactionSearch" value="'+esc(filter.search||"")+'" placeholder="Search reference, listing or payer"><select id="'+prefix+'TransactionStatus"><option value="all" '+(filter.status==="all"?"selected":"")+' >All statuses</option><option value="success" '+(filter.status==="success"?"selected":"")+' >Successful</option><option value="initialized" '+(filter.status==="initialized"?"selected":"")+' >Pending</option><option value="failed" '+(filter.status==="failed"?"selected":"")+' >Failed</option><option value="reversed" '+(filter.status==="reversed"?"selected":"")+' >Reversed</option></select><select id="'+prefix+'TransactionRange"><option value="all" '+(filter.range==="all"?"selected":"")+' >All dates</option><option value="7" '+(filter.range==="7"?"selected":"")+' >Last 7 days</option><option value="30" '+(filter.range==="30"?"selected":"")+' >Last 30 days</option><option value="90" '+(filter.range==="90"?"selected":"")+' >Last 90 days</option></select><button class="clear-btn" data-a="'+prefix+'ClearTransactions">Clear filters</button></div>'}function paidFeaturesForCurrentUser(){
   if(!authUser)return [];
-  return (state.payments||[]).filter(p=>String(p.user_id||"")===String(authUser.id)&&p.status==="success").map(p=>({service:String(p.service||"Marketplace"),listing:p.listings?.title||null}));
+  const labels={featured:"Featured listing",verification:"Seller verification",pro:"Professional seller",verified_pro:"Verified Professional Seller"};
+  const paid=(state.payments||[]).filter(p=>String(p.user_id||"")===String(authUser.id)&&String(p.status||"").toLowerCase()==="success");
+  const unique=[];const seen=new Set();
+  paid.forEach(p=>{
+    const service=String(p.service||"Marketplace");
+    const label=labels[service]||service;
+    const listingId=p.listing_id||p.listings?.id||null;
+    const listingTitle=p.listings?.title||null;
+    const key=service+"|"+(listingId||listingTitle||"");
+    if(!seen.has(key)){seen.add(key);unique.push({service,label,listingId,listingTitle})}
+  });
+  return unique;
+}
+function paidFeatureShareText(feature){
+  const listingPart=feature.listingTitle?" — "+feature.listingTitle:"";
+  return "I’m using "+feature.label+listingPart+" on HarvestHome 🌿\\n\\nBuy, sell & lease what matters on HarvestHome.";
+}
+function openSocialShare(featureIndex){
+  const paid=paidFeaturesForCurrentUser(),feature=paid[Number(featureIndex)];
+  if(!feature){toast("That paid feature is no longer available to share.",true);return}
+  const text=paidFeatureShareText(feature);
+  const url=window.location.origin+"/";
+  const encText=encodeURIComponent(text),encUrl=encodeURIComponent(url);
+  const socials=[
+    {label:"🟢 WhatsApp",href:"https://wa.me/?text="+encodeURIComponent(text+"\\n"+url)},
+    {label:"🔵 Facebook",href:"https://www.facebook.com/sharer/sharer.php?u="+encUrl+"&quote="+encText},
+    {label:"𝕏 X",href:"https://twitter.com/intent/tweet?text="+encText+"&url="+encUrl},
+    {label:"🔷 Telegram",href:"https://t.me/share/url?url="+encUrl+"&text="+encText}
+  ];
+  const root=$("#modalRoot");
+  if(!root)return;
+  root.innerHTML='<div class="modal-backdrop"><div class="modal"><button class="modal-close" data-close>×</button><span class="eyebrow">Social sharing</span><h2>Share your paid feature</h2><p><b>'+esc(feature.label)+'</b>'+(feature.listingTitle?" — "+esc(feature.listingTitle):"")+'</p><div class="dashboard-callout"><p style="margin:0">'+esc(text)+'</p></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:14px">'+socials.map(x=>'<a class="outline-btn" target="_blank" rel="noopener noreferrer" href="'+x.href+'" style="text-align:center;text-decoration:none">'+x.label+'</a>').join("")+'<button class="outline-btn" data-copy-paid-share style="text-align:center">📋 Copy</button><button class="primary-btn" data-native-paid-share style="text-align:center">↗ More</button></div><small class="demo-note">Only the paid feature name and public HarvestHome promotion text are shared. Payment references, amounts and private account details are never shared.</small></div></div>';
+  $("[data-close]")?.addEventListener("click",close);
+  $("[data-copy-paid-share]")?.addEventListener("click",async()=>{
+    try{await navigator.clipboard.writeText(text+"\\n"+url);toast("Share message copied.");}
+    catch{window.prompt("Copy your HarvestHome share message:",text+"\\n"+url)}
+  });
+  $("[data-native-paid-share]")?.addEventListener("click",async()=>{
+    try{if(navigator.share){await navigator.share({title:"HarvestHome — "+feature.label,text,url});toast("Paid feature shared.");}else toast("Your browser does not provide the More share option. Use one of the social buttons.",true)}
+    catch(e){if(e?.name!=="AbortError")toast("Paid feature could not be shared.",true)}
+  });
 }
 async function sharePaidFeatures(){
   const u=user();
-  if(!u||!authUser){auth("login");toast("Log in to share your paid features.",true);return}
+  if(!u||!authUser){auth("login");toast("Log in to share a paid feature.",true);return}
   const paid=paidFeaturesForCurrentUser();
   if(!paid.length){toast("You do not have any successful paid features to share yet.",true);return}
-  const labels={featured:"Featured listing",verification:"Seller verification",pro:"Professional seller",verified_pro:"Verified Professional Seller"};
-  const unique=[];const seen=new Set();
-  paid.forEach(p=>{const label=labels[p.service]||p.service;const key=label+"|"+(p.listing||"");if(!seen.has(key)){seen.add(key);unique.push({label,listing:p.listing})}});
-  const lines=unique.map(x=>"• "+x.label+(x.listing?" — "+x.listing:""));
-  const shareText="My HarvestHome paid features\n\n"+lines.join("\n")+"\n\nView listings on HarvestHome.";
-  try{
-    if(navigator.share){await navigator.share({title:"My HarvestHome paid features",text:shareText});toast("Paid features shared.");return}
-    if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(shareText);toast("Paid features copied. You can paste and share them.");return}
-    window.prompt("Copy your HarvestHome paid features:",shareText);
-  }catch(e){if(e?.name!=="AbortError")toast("Paid features could not be shared.",true)}
+  const root=$("#modalRoot");
+  if(!root)return;
+  root.innerHTML='<div class="modal-backdrop"><div class="modal"><button class="modal-close" data-close>×</button><span class="eyebrow">Your paid features</span><h2>Share on social media</h2><p>Choose one of your successful paid HarvestHome features to share.</p><div style="display:grid;gap:10px;margin-top:14px">'+paid.map((p,i)=>'<div class="dashboard-callout" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><span><b>'+esc(p.label)+'</b>'+(p.listingTitle?" · "+esc(p.listingTitle):"")+'</span><button class="primary-btn small" data-paid-share-index="'+i+'">↗ Share</button></div>').join("")+'</div><small class="demo-note">Only successful paid features appear here. Unpaid, pending or failed payments cannot be shared.</small></div></div>';
+  $("[data-close]")?.addEventListener("click",close);
+  $$("[data-paid-share-index]").forEach(btn=>btn.addEventListener("click",()=>openSocialShare(btn.dataset.paidShareIndex)));
 }
 
 function dashTab(u,favs,mine,enq){
@@ -523,7 +558,8 @@ function dashTab(u,favs,mine,enq){
   if(state.dashboardTab==="payments"){
   const allPs=(state.payments||[]).filter(p=>!authUser||String(p.user_id||"")===String(authUser.id)),f=state.transactionFilterSeller,ps=filterTransactions(allPs,f);
   const successful=allPs.filter(p=>p.status==="success").length,pending=allPs.filter(p=>p.status==="initialized").length,failed=allPs.filter(p=>["failed","abandoned","reversed"].includes(String(p.status||"").toLowerCase())).length;
-  return '<div class="panel-heading"><div><span class="eyebrow">Billing & transactions</span><h2>Transaction history</h2></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="outline-btn" data-share-paid>↗ Share paid features</button><button class="primary-btn" data-a="pay">Make a payment</button></div></div>'+
+  const paidForShare=paidFeaturesForCurrentUser();
+  return '<div class="panel-heading"><div><span class="eyebrow">Billing & transactions</span><h2>Transaction history</h2></div><div style="display:flex;gap:8px;flex-wrap:wrap">'+(paidForShare.length?'<button class="outline-btn" data-share-paid>↗ Share my paid feature</button>':'')+'<button class="primary-btn" data-a="pay">Make a payment</button></div></div>'+
     '<div class="dashboard-callout"><b>Keep your history under control</b><p>Filter by date or status, or search a reference/listing. Clear filters only resets the view; it never deletes payment records.</p></div>'+
     '<div class="stat-grid"><div class="stat"><span>Total transactions</span><strong>'+allPs.length+'</strong></div><div class="stat"><span>Successful</span><strong>'+successful+'</strong></div><div class="stat"><span>Pending</span><strong>'+pending+'</strong></div><div class="stat"><span>Failed / reversed</span><strong>'+failed+'</strong></div></div>'+
     transactionFilters(f,"seller")+

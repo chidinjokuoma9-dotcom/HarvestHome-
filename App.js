@@ -501,11 +501,11 @@ function openSocialShare(featureIndex){
   const paid=paidFeaturesForCurrentUser(),feature=paid[Number(featureIndex)];
   if(!feature){toast("That paid feature is no longer available to share.",true);return}
   const text=paidFeatureShareText(feature);
-  const publicAppUrl=window.location.origin&&window.location.origin!=="null"?window.location.origin:((window.HARVESTHOME_CONFIG&&window.HARVESTHOME_CONFIG.PUBLIC_APP_URL)||"https://harvesthome.chidinjokuoma9.workers.dev");
-  const url=new URL("/?shared=1",publicAppUrl.replace(/\/$/,"")+"/").href;
+  const publicAppUrl=(window.HARVESTHOME_CONFIG&&window.HARVESTHOME_CONFIG.PUBLIC_APP_URL)||"https://harvesthome.chidinjokuoma9.workers.dev";
+  const url=new URL("/",publicAppUrl.replace(/\/$/,"")+"/").href;
   const encText=encodeURIComponent(text),encUrl=encodeURIComponent(url);
   const socials=[
-    {label:"🟢 WhatsApp",href:"https://wa.me/?text="+encodeURIComponent(text+"\\n"+url)},
+    {label:"🟢 WhatsApp",href:"https://wa.me/?text="+encodeURIComponent(text+"\n"+url)},
     {label:"🔵 Facebook",href:"https://www.facebook.com/sharer/sharer.php?u="+encUrl+"&quote="+encText},
     {label:"𝕏 X",href:"https://twitter.com/intent/tweet?text="+encText+"&url="+encUrl},
     {label:"🔷 Telegram",href:"https://t.me/share/url?url="+encUrl+"&text="+encText}
@@ -515,8 +515,8 @@ function openSocialShare(featureIndex){
   root.innerHTML='<div class="modal-backdrop"><div class="modal"><button class="modal-close" data-close>×</button><span class="eyebrow">Social sharing</span><h2>Share your paid feature</h2><p><b>'+esc(feature.label)+'</b>'+(feature.listingTitle?" — "+esc(feature.listingTitle):"")+'</p><div class="dashboard-callout"><p style="margin:0">'+esc(text)+'</p></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:14px">'+socials.map(x=>'<a class="outline-btn" target="_blank" rel="noopener noreferrer" href="'+x.href+'" style="text-align:center;text-decoration:none">'+x.label+'</a>').join("")+'<button class="outline-btn" data-copy-paid-share style="text-align:center">📋 Copy</button><button class="primary-btn" data-native-paid-share style="text-align:center">↗ More</button></div><small class="demo-note">Only the paid feature name and public HarvestHome promotion text are shared. Payment references, amounts and private account details are never shared.</small></div></div>';
   $("[data-close]")?.addEventListener("click",close);
   $("[data-copy-paid-share]")?.addEventListener("click",async()=>{
-    try{await navigator.clipboard.writeText(text+"\\n"+url);toast("Share message copied.");}
-    catch{window.prompt("Copy your HarvestHome share message:",text+"\\n"+url)}
+    try{await navigator.clipboard.writeText(text+"\n"+url);toast("Share message copied.");}
+    catch{window.prompt("Copy your HarvestHome share message:",text+"\n"+url)}
   });
   $("[data-native-paid-share]")?.addEventListener("click",async()=>{
     try{if(navigator.share){await navigator.share({title:"HarvestHome — "+feature.label,text,url});toast("Paid feature shared.");}else toast("Your browser does not provide the More share option. Use one of the social buttons.",true)}

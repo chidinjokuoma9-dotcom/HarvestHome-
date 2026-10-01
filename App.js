@@ -493,7 +493,7 @@ function openSocialShare(featureIndex){
   const paid=paidFeaturesForCurrentUser(),feature=paid[Number(featureIndex)];
   if(!feature){toast("That paid feature is no longer available to share.",true);return}
   const text=paidFeatureShareText(feature);
-  const publicAppUrl=(window.HARVESTHOME_CONFIG&&window.HARVESTHOME_CONFIG.PUBLIC_APP_URL)||"https://harvesthome.chidinjokuoma9.workers.dev";
+  const publicAppUrl=window.location.origin&&window.location.origin!=="null"?window.location.origin:((window.HARVESTHOME_CONFIG&&window.HARVESTHOME_CONFIG.PUBLIC_APP_URL)||"https://harvesthome.chidinjokuoma9.workers.dev");
   const url=publicAppUrl.replace(/\/$/,"")+"/index.html?shared=1";
   const encText=encodeURIComponent(text),encUrl=encodeURIComponent(url);
   const socials=[

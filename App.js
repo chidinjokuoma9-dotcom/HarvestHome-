@@ -328,7 +328,7 @@ async function syncFavourites(){
   }catch(e){console.warn('Supabase favourites sync failed',e.message)}
 }
 async function loadProfile(){if(!sb||!authUser){authProfile=null;return}const {data}=await sb.from('profiles').select('*').eq('id',authUser.id).maybeSingle();authProfile=data||null}
-async function loadAuth(){if(!sb){render();return}const {data}=await sb.auth.getSession();authUser=data.session?.user||null;await loadProfile();await syncListings();await syncFeatured();await syncFavourites();await syncNotifications();await syncPayments();await syncRewards();await syncProfessionalSellers();await syncSellerPerformance();await syncListingPerformance();await syncAdminRewards();await syncVerificationRequests();await syncVerificationRequests();render();}
+async function loadAuth(){if(!sb){render();return}const params=new URLSearchParams(window.location.search);const publicSharedLink=params.get("shared")==="1"||params.get("shared")==="listing"||!!params.get("listing");const {data}=await sb.auth.getSession();authUser=data.session?.user||null;await loadProfile();await syncListings();await syncFeatured();await syncFavourites();await syncNotifications();await syncPayments();await syncRewards();await syncProfessionalSellers();await syncSellerPerformance();await syncListingPerformance();await syncAdminRewards();await syncVerificationRequests();if(publicSharedLink)state.view="marketplace";render();}
 async function syncPayments(){
   if(!sb||!authUser)return;
   try{

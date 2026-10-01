@@ -36,14 +36,26 @@ function isProfessionalSeller(userId){return state.professionalSellers.some(x=>S
 async function syncListings(){
   if(!sb)return;
   try{
-    const {data,error}=await sb.from('listings').select('*, profiles: seller_id(full_name,verified)').order('created_at',{ascending:false});
-    if(error)throw error;
+    // Load listings first, with a profile join when available. If the nested
+    // profile relationship is unavailable, fall back to the listings table alone
+    // so a profile/RLS relationship problem cannot make the whole marketplace empty.
+    let data,error;
+    const joined=await sb.from('listings').select('*, profiles: seller_id(full_name,verified)').order('created_at',{ascending:false});
+    data=joined.data; error=joined.error;
+    let usedProfileJoin=!error;
+    if(error){
+      console.warn('Listings profile join failed; using listings fallback:',error.message);
+      const fallback=await sb.from('listings').select('*').order('created_at',{ascending:false});
+      if(fallback.error)throw fallback.error;
+      data=fallback.data||[];
+      usedProfileJoin=false;
+    }
 
     const base=(data||[]).filter(l=>l&&l.seller_id&&l.status!=='deleted').map(l=>({
       ...l,id:l.id,
       ownerEmail:authUser?.id===l.seller_id?(authUser.email||''):undefined,
-      seller:l.profiles?.full_name||l.seller_name||'HarvestHome Seller',
-      sellerVerified:!!l.profiles?.verified,professionalSeller:false,
+      seller:(usedProfileJoin?l.profiles?.full_name:null)||l.seller_name||'HarvestHome Seller',
+      sellerVerified:usedProfileJoin?!!l.profiles?.verified:false,professionalSeller:false,
       images:l.cover_url?[{data:l.cover_url}]:[],
       video:l.video_url?{data:l.video_url}:null,
       views:l.views||0

@@ -487,7 +487,7 @@ function transactionFilters(filter,prefix){return '<div class="filter-bar transa
 }
 function paidFeatureShareText(feature){
   const listingPart=feature.listingTitle?" — "+feature.listingTitle:"";
-  return "I’m using "+feature.label+listingPart+" on HarvestHome 🌿\\n\\nBuy, sell & lease what matters on HarvestHome.\\n\\nOpen HarvestHome: ";
+  return "I’m using "+feature.label+listingPart+" on HarvestHome 🌿\n\nBuy, sell & lease what matters on HarvestHome.\n\nOpen HarvestHome: ";
 }
 function openSocialShare(featureIndex){
   const paid=paidFeaturesForCurrentUser(),feature=paid[Number(featureIndex)];

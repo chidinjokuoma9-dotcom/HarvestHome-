@@ -582,7 +582,7 @@ function dashTab(u,favs,mine,enq){
   if(state.dashboardTab==="payments"){
   const allPs=(state.payments||[]).filter(p=>!authUser||String(p.user_id||"")===String(authUser.id)),f=state.transactionFilterSeller,ps=filterTransactions(allPs,f);
   const successful=allPs.filter(p=>p.status==="success").length,pending=allPs.filter(p=>p.status==="initialized").length,failed=allPs.filter(p=>["failed","abandoned","reversed"].includes(String(p.status||"").toLowerCase())).length;
-  return '<div class="panel-heading"><div><span class="eyebrow">Billing & transactions</span><h2>Transaction history</h2></div><div style="display:flex;gap:8px;flex-wrap:wrap">'+(paidForShare.length?'':'')+'<button class="primary-btn" data-a="pay">Make a payment</button></div></div>'+
+  return '<div class="panel-heading"><div><span class="eyebrow">Billing & transactions</span><h2>Transaction history</h2></div><div style="display:flex;gap:8px;flex-wrap:wrap">'+'<button class="primary-btn" data-a="pay">Make a payment</button></div></div>'+
     '<div class="dashboard-callout"><b>Keep your history under control</b><p>Filter by date or status, or search a reference/listing. Clear filters only resets the view; it never deletes payment records.</p></div>'+
     '<div class="stat-grid"><div class="stat"><span>Total transactions</span><strong>'+allPs.length+'</strong></div><div class="stat"><span>Successful</span><strong>'+successful+'</strong></div><div class="stat"><span>Pending</span><strong>'+pending+'</strong></div><div class="stat"><span>Failed / reversed</span><strong>'+failed+'</strong></div></div>'+
     transactionFilters(f,"seller")+

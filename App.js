@@ -487,13 +487,14 @@ function transactionFilters(filter,prefix){return '<div class="filter-bar transa
 }
 function paidFeatureShareText(feature){
   const listingPart=feature.listingTitle?" — "+feature.listingTitle:"";
-  return "I’m using "+feature.label+listingPart+" on HarvestHome 🌿\\n\\nBuy, sell & lease what matters on HarvestHome.";
+  return "I’m using "+feature.label+listingPart+" on HarvestHome 🌿\\n\\nBuy, sell & lease what matters on HarvestHome.\\n\\nOpen HarvestHome: ";
 }
 function openSocialShare(featureIndex){
   const paid=paidFeaturesForCurrentUser(),feature=paid[Number(featureIndex)];
   if(!feature){toast("That paid feature is no longer available to share.",true);return}
   const text=paidFeatureShareText(feature);
-  const url=window.location.origin+"/";
+  const publicAppUrl=(window.HARVESTHOME_CONFIG&&window.HARVESTHOME_CONFIG.PUBLIC_APP_URL)||"https://harvesthome.chidinjokuoma9.workers.dev";
+  const url=publicAppUrl.replace(/\/$/,"")+"/";
   const encText=encodeURIComponent(text),encUrl=encodeURIComponent(url);
   const socials=[
     {label:"🟢 WhatsApp",href:"https://wa.me/?text="+encodeURIComponent(text+"\\n"+url)},

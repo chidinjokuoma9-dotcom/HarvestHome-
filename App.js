@@ -515,6 +515,7 @@ function openSocialShare(featureIndex){
     catch(e){if(e?.name!=="AbortError")toast("Paid feature could not be shared.",true)}
   });
 }
+// Share bindings use $ because zero-or-more matching elements are expected.
 function shareListing(listingId){const l=listings().find(x=>String(x.id)===String(listingId));if(!l){toast("This listing is no longer available to share.",true);return}if(String(l.status||"approved")!=="approved"){toast("Only approved listings can be shared.",true);return}const url=new URL("/?listing="+encodeURIComponent(l.id)+"&shared=listing",window.location.origin).href;const text="Check out this HarvestHome listing: "+l.title+" — "+(l.location||l.country||"")+"\\n\\nBuy, sell & lease what matters on HarvestHome.\\n\\nOpen listing: "+url;if(navigator.share){navigator.share({title:"HarvestHome — "+l.title,text,url}).then(()=>toast("Listing shared.")).catch(e=>{if(e?.name!=="AbortError")toast("Listing could not be shared.",true)})}else{try{navigator.clipboard.writeText(text);toast("Listing share link copied.")}catch{window.prompt("Copy this HarvestHome listing link:",url)}}}
 async function sharePaidFeatures(){
   const u=user();

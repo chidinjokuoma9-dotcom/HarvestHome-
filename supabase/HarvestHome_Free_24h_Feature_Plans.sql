@@ -131,6 +131,26 @@ begin
         updated_at=now()
   where id=p_listing_id;
 
+  -- If the paid plan is Featured, start its paid promotion only after approval.
+  if left(v_plan,9)='featured_' then
+    insert into public.featured_listings(listing_id,starts_at,ends_at,created_by)
+    values(
+      p_listing_id,
+      now(),
+      now()+make_interval(days=>case
+        when v_plan='featured_7' then 7
+        when v_plan='featured_14' then 14
+        when v_plan='featured_30' then 30
+        else 7
+      end),
+      auth.uid()
+    )
+    on conflict(listing_id) do update
+      set starts_at=now(),
+          ends_at=excluded.ends_at,
+          created_by=auth.uid();
+  end if;
+
   return jsonb_build_object(
     'approved',true,
     'payment_found',true,

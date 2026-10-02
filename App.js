@@ -548,7 +548,7 @@ function paidFeatureShareText(feature){
 function openSocialShare(featureIndex){
   const paid=paidFeaturesForCurrentUser(),feature=paid[Number(featureIndex)];
   if(!feature){toast("That paid feature is no longer available to share.",true);return}
-  const publicAppUrl=(window.HARVESTHOME_CONFIG&&window.HARVESTHOME_CONFIG.PUBLIC_APP_URL)||"https://harvesthome.chidinjokuoma9.workers.dev";
+  const publicAppUrl=(window.HARVESTHOME_CONFIG&&window.HARVESTHOME_CONFIG.PUBLIC_APP_URL)||"https://harvesthome.ng";
   // For paid listing features, share the exact approved listing page.
   // For seller-wide paid services, keep the public HarvestHome page.
   const url=feature.listingId

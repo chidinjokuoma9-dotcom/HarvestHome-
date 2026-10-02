@@ -7,7 +7,7 @@ const cors={
   "Content-Type":"application/json"
 };
 
-const PRICES:Record<string,number>={featured:200000,verification:500000,pro:1000000};
+const PRICES:Record<string,number>={featured:200000,featured_7:200000,featured_14:400000,featured_30:800000,verification:500000,pro:1000000,verified_pro:25000000};
 
 serve(async(req)=>{
   if(req.method==='OPTIONS')return new Response('ok',{headers:cors});

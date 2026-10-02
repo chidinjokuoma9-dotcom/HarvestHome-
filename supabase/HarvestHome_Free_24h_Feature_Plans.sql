@@ -410,7 +410,6 @@ declare
   v_payment public.payments%rowtype;
   v_days integer;
   v_plan text;
-  v_ends timestamptz;
 begin
   if auth.uid() is null then
     raise exception 'Sign in required';
@@ -461,8 +460,7 @@ begin
 
   v_plan:='featured_'||v_days;
 
-  -- Paying for Featured converts the listing away from the free 24-hour plan.
-  -- Paid/Featured listings must go through moderator approval.
+  -- Paid/Featured listings require moderator approval.
   update public.listings
   set publication_plan=v_plan,
       publish_expires_at=null,
@@ -481,23 +479,7 @@ begin
     'service',v_payment.service,
     'days',v_days
   );
-
-  /*
-     Featured activation is completed by the moderator approval flow.
-     Payment is recorded above; approval will call approve_paid_listing.
-  */
-  if false then
-    v_ends:=now()+make_interval(days=>v_days);
-
-  insert into public.featured_listings(listing_id,starts_at,ends_at,created_by)
-  values(v_payment.listing_id,now(),v_ends,auth.uid())
-  on conflict(listing_id) do update
-    set starts_at=now(),
-        ends_at=excluded.ends_at,
-        created_by=auth.uid();
-
-  return jsonb_build_object('activated',false,'pending_approval',true);
 end;
-$;
+$$;
 
 grant execute on function public.activate_paid_featured_payment(text) to authenticated;

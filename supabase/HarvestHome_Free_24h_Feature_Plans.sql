@@ -56,9 +56,10 @@ using (
   )
 );
 
--- Approve a listing:
--- * new free listings are approved without a listing-payment requirement;
--- * legacy/paid plans still require a successful payment linked to that exact listing.
+-- Approval rules:
+-- * free listings are published immediately for 24 hours; no moderator approval is required;
+-- * paid/Featured listings require moderator approval after successful payment;
+-- * moderators can still access and delete free listings.
 create or replace function public.approve_paid_listing(p_listing_id uuid)
 returns jsonb
 language plpgsql
@@ -461,9 +462,11 @@ begin
   v_plan:='featured_'||v_days;
 
   -- Paying for Featured converts the listing away from the free 24-hour plan.
+  -- Paid/Featured listings must go through moderator approval.
   update public.listings
   set publication_plan=v_plan,
       publish_expires_at=null,
+      status='pending',
       updated_at=now()
   where id=v_payment.listing_id;
 
@@ -471,19 +474,20 @@ begin
   set activated_at=now()
   where id=v_payment.id;
 
-  if not exists (
-    select 1 from public.listings where id=v_payment.listing_id and status='approved'
-  ) then
-    return jsonb_build_object(
-      'activated',false,
-      'pending_approval',true,
-      'reference',p_reference,
-      'service',v_payment.service,
-      'days',v_days
-    );
-  end if;
+  return jsonb_build_object(
+    'activated',false,
+    'pending_approval',true,
+    'reference',p_reference,
+    'service',v_payment.service,
+    'days',v_days
+  );
 
-  v_ends:=now()+make_interval(days=>v_days);
+  /*
+     Featured activation is completed by the moderator approval flow.
+     Payment is recorded above; approval will call approve_paid_listing.
+  */
+  if false then
+    v_ends:=now()+make_interval(days=>v_days);
 
   insert into public.featured_listings(listing_id,starts_at,ends_at,created_by)
   values(v_payment.listing_id,now(),v_ends,auth.uid())
@@ -492,15 +496,8 @@ begin
         ends_at=excluded.ends_at,
         created_by=auth.uid();
 
-  return jsonb_build_object(
-    'activated',true,
-    'already_activated',false,
-    'reference',p_reference,
-    'service',v_payment.service,
-    'days',v_days,
-    'ends_at',v_ends
-  );
+  return jsonb_build_object('activated',false,'pending_approval',true);
 end;
-$$;
+$;
 
 grant execute on function public.activate_paid_featured_payment(text) to authenticated;

@@ -819,7 +819,7 @@ try{
   row=existing.data;
   if(row.status!=="pending")throw new Error("This listing is no longer pending and cannot be retried.");
  }else{
-  const payload={seller_id:authUser.id,country:d.country,location:d.location,category:d.category,title:d.title,description:d.description,price:Number(d.price),currency:d.currency,mode:d.mode,status:"approved",publication_plan:"free",publish_expires_at:null};
+  const payload={seller_id:authUser.id,country:d.country,location:d.location,category:d.category,title:d.title,description:d.description,price:Number(d.price),currency:d.currency,mode:d.mode,status:"pending",publication_plan:"free",publish_expires_at:null};
   const inserted=await sb.from("listings").insert(payload).select().single();
   if(inserted.error)throw inserted.error;
   row=inserted.data;
@@ -881,7 +881,8 @@ try{
   }
  }
  if(cover_url||video_url){
-  const ur=await sb.from("listings").update({cover_url,video_url}).eq("id",row.id);
+  const publishExpiresAt=new Date(Date.now()+24*60*60*1000).toISOString();
+  const ur=await sb.from("listings").update({cover_url,video_url,status:"approved",publication_plan:"free",publish_expires_at:publishExpiresAt}).eq("id",row.id).eq("seller_id",authUser.id);
   if(ur.error)throw ur.error;
  }
  await syncListings();

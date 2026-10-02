@@ -56,9 +56,9 @@ serve(async(req)=>{
         metadata:{
           service,
           user_id:user.id,
-          listing_id:listing.id,
-          seller_id:listing.seller_id,
-          listing_title:listing.title
+          listing_id:listing?.id||null,
+          seller_id:listing?.seller_id||null,
+          listing_title:listing?.title||null
         }
       })
     });
@@ -71,8 +71,8 @@ serve(async(req)=>{
     );
     const {error:paymentError}=await serviceClient.from('payments').insert({
       user_id:user.id,
-      listing_id:listing.id,
-      seller_id:listing.seller_id,
+      listing_id:listing?.id||null,
+      seller_id:listing?.seller_id||null,
       reference:j.data.reference,
       service,
       amount,

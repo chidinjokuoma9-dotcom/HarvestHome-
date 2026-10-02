@@ -709,7 +709,7 @@ function termsModal(){const email=SUPPORT_EMAIL;$('#modalRoot').innerHTML='<div 
 function close(){$("#modalRoot").innerHTML=""}
 async function authSubmit(e){e.preventDefault();let d=Object.fromEntries(new FormData(e.target));if(state.authMode==="signup"&&!d.terms){toast("Please accept the HarvestHome Terms & Conditions.",true);return}if(!sb){toast("Add your Supabase URL and anon key in Config.js first.",true);return}try{if(state.authMode==="signup"){const {data,error}=await sb.auth.signUp({email:d.email,password:d.password,options:{data:{full_name:d.name,role:d.role}}});if(error)throw error;close();toast(data.session?"Account created and signed in.":"Account created. Check your email to confirm.");if(data.session){await loadAuth();state.view="dashboard";render();}}else{const {data,error}=await sb.auth.signInWithPassword({email:d.email,password:d.password});if(error)throw error;authUser=data.user;await loadProfile();close();state.view="marketplace";render();toast("Welcome back.")}}catch(err){toast(err.message||"Authentication failed.",true)}}
 function listingModal(){if(!user()){auth("login");toast("Log in to create a listing.",true);return}
-$("#modalRoot").innerHTML=`<div class="modal-backdrop"><div class="modal wide"><button class="modal-close" data-close>×</button><span class="eyebrow">Seller workspace</span><h2>Create international listing</h2><form id="listingForm" class="form-grid"><div class="span-2 dashboard-callout"><b>Free 24-hour publication</b><p>Every new listing can be published free after moderator approval. A free listing stays public for 24 hours and shows a countdown in My Listings. To keep extra visibility, use Featured: 7 days ₦2,000, 14 days ₦4,000 or 1 month ₦8,000.</p></div><label>Title<input name="title" required></label><label>Country<select name="country">${options(C.SUPPORTED_COUNTRIES.map(x=>x.name),state.country)}</select></label><label>Category<select name="category">${options(C.CATEGORIES.slice(1),"Houses")}</select></label><label>Location<input name="location" placeholder="City / state / area" required></label><label>Currency<select name="currency">${options(C.SUPPORTED_COUNTRIES.map(x=>x.currency),countryInfo().currency)}</select></label><label>Price<input name="price" type="number" min="0" required></label><label>Type<select name="mode"><option>Sale</option><option>Lease</option></select></label><label class="span-2">Description<textarea name="description" rows="4" required></textarea></label><label class="span-2">Photos (up to ${V5.maxImages})<input name="images" type="file" accept="image/*" multiple></label><label class="span-2">Video (1 file, max ${V5.maxVideoMB} MB)<input name="video" type="file" accept="video/*"></label><div class="span-2" id="mediaUploadStatus" style="display:none"></div><button class="primary-btn span-2" id="publishListingBtn" type="submit">Publish listing</button></form><small class="demo-note">Your listing is saved securely in Supabase and stays pending until an Admin or Moderator approves it. Free publication lasts 24 hours after approval. Free listings do not earn HarvestHome reward points. Photos and video upload one at a time with a live 0–100% progress indicator, so you can confirm each file reaches 100% before the next one starts.</small></div></div>`;
+$("#modalRoot").innerHTML=`<div class="modal-backdrop"><div class="modal wide"><button class="modal-close" data-close>×</button><span class="eyebrow">Seller workspace</span><h2>Create international listing</h2><form id="listingForm" class="form-grid"><div class="span-2 dashboard-callout"><b>Free 24-hour publication</b><p>Every new listing can be published free after moderator approval. A free listing stays public for 24 hours and shows a countdown in My Listings. To keep extra visibility, use Featured: 7 days ₦2,000, 14 days ₦4,000 or 1 month ₦8,000.</p></div><label>Title<input name="title" required></label><label>Country<select name="country">${options(C.SUPPORTED_COUNTRIES.map(x=>x.name),state.country)}</select></label><label>Category<select name="category">${options(C.CATEGORIES.slice(1),"Houses")}</select></label><label>Location<input name="location" placeholder="City / state / area" required></label><label>Currency<select name="currency">${options(C.SUPPORTED_COUNTRIES.map(x=>x.currency),countryInfo().currency)}</select></label><label>Price<input name="price" type="number" min="0" required></label><label>Type<select name="mode"><option>Sale</option><option>Lease</option></select></label><label class="span-2">Description<textarea name="description" rows="4" required></textarea></label><label class="span-2">Photos (up to ${V5.maxImages})<input name="images" type="file" accept="image/*" multiple></label><label class="span-2">Video (1 file, max ${V5.maxVideoMB} MB)<input name="video" type="file" accept="video/*"></label><div class="span-2" id="mediaUploadStatus" style="display:none"></div><button class="primary-btn span-2" id="publishListingBtn" type="submit">Publish listing</button></form><small class="demo-note">Your free listing is published immediately for 24 hours. No moderator approval is required for free publication, but moderators can still review and remove listings that violate HarvestHome rules. Paid Featured promotions require moderator approval. Free listings do not earn HarvestHome reward points. Photos and video upload one at a time with a live 0–100% progress indicator, so you can confirm each file reaches 100% before the next one starts.</small></div></div>`;
 const imageInput=$("[name=images]"),videoInput=$("[name=video]");
 imageInput?.addEventListener("change",()=>checkListingMedia(document.querySelector("#listingForm")));
 videoInput?.addEventListener("change",()=>checkListingMedia(document.querySelector("#listingForm")));
@@ -717,11 +717,11 @@ bindModal()}
 function showListingSubmittedConfirmation(title,listingId){
   $("#modalRoot").innerHTML=`<div class="modal-backdrop"><div class="modal">
     <span class="eyebrow">Listing received</span>
-    <h2>Your listing has been submitted</h2>
-    <p><strong>${esc(title)}</strong> is now <b>Pending moderator approval</b>.</p>
+    <h2>Your listing is now published</h2>
+    <p><strong>${esc(title)}</strong> is now <b>public for 24 hours</b>.</p>
     <div class="dashboard-callout">
-      <b>Please wait for approval.</b>
-      <p>Your listing has reached the HarvestHome moderation team. It will not appear publicly until an Admin or Moderator approves it.</p>
+      <b>Your free listing is live.</b>
+      <p>Your free listing is publicly visible now. A moderator can still review and remove it if it is not suitable for HarvestHome.</p>
     </div>
     <p>You can safely log out now. We have also saved a notification in your account.</p>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
@@ -819,7 +819,7 @@ try{
   row=existing.data;
   if(row.status!=="pending")throw new Error("This listing is no longer pending and cannot be retried.");
  }else{
-  const payload={seller_id:authUser.id,country:d.country,location:d.location,category:d.category,title:d.title,description:d.description,price:Number(d.price),currency:d.currency,mode:d.mode,status:"pending",publication_plan:"free",publish_expires_at:null};
+  const payload={seller_id:authUser.id,country:d.country,location:d.location,category:d.category,title:d.title,description:d.description,price:Number(d.price),currency:d.currency,mode:d.mode,status:"approved",publication_plan:"free",publish_expires_at:null};
   const inserted=await sb.from("listings").insert(payload).select().single();
   if(inserted.error)throw inserted.error;
   row=inserted.data;
@@ -885,9 +885,9 @@ try{
   if(ur.error)throw ur.error;
  }
  await syncListings();
- if(statusRoot)statusRoot.innerHTML='<div class="dashboard-callout"><b>All uploads complete — 100% ✓</b><p>Every selected photo and video has finished uploading. Your listing is now ready for moderator review.</p></div>';
+ if(statusRoot)statusRoot.innerHTML='<div class="dashboard-callout"><b>All uploads complete — 100% ✓</b><p>Every selected photo and video has finished uploading. Your free listing is now public for 24 hours. Paid Featured promotions require moderator approval.</p></div>';
  if(!resumeId){
-  const saved=await createNotification(authUser.id,"listing_review","Listing submitted for review",'Your listing "'+d.title+'" has been submitted and is under review. It will appear publicly after a moderator approves it.',row.id);
+  const saved=await createNotification(authUser.id,"listing_review","Listing submitted for review",'Your free listing "'+d.title+'" is now public for 24 hours. A moderator may review or remove it if necessary.',row.id);
   if(saved)await syncNotifications();
  }
  close();

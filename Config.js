@@ -1,6 +1,6 @@
 window.HARVESTHOME_CONFIG = {
   APP_NAME: "HarvestHome",
-  PUBLIC_APP_URL: "https://harvesthome.chidinjokuoma9.workers.dev",
+  PUBLIC_APP_URL: "https://harvesthome.ng",
   VERSION: "V8",
   SECURITY: { TURNSTILE_ENABLED: false, MAX_LOGIN_ATTEMPTS_PER_SESSION: 5 },
   SUPABASE_URL: "https://dbariugnwgzbhxvtbcpz.supabase.co",

@@ -882,13 +882,13 @@ try{
  }
  if(cover_url||video_url){
   const publishExpiresAt=new Date(Date.now()+24*60*60*1000).toISOString();
-  const ur=await sb.from("listings").update({cover_url,video_url,status:"approved",publication_plan:"free",publish_expires_at:publishExpiresAt}).eq("id",row.id).eq("seller_id",authUser.id);
+  const ur=await sb.from("listings").update({cover_url,video_url,publication_plan:"free",publish_expires_at:publishExpiresAt}).eq("id",row.id).eq("seller_id",authUser.id);
   if(ur.error)throw ur.error;
  }
  await syncListings();
  if(statusRoot)statusRoot.innerHTML='<div class="dashboard-callout"><b>All uploads complete — 100% ✓</b><p>Every selected photo and video has finished uploading. Your free listing is now public for 24 hours. Paid Featured promotions require moderator approval.</p></div>';
  if(!resumeId){
-  const saved=await createNotification(authUser.id,"listing_review","Listing submitted for review",'Your free listing "'+d.title+'" is now public for 24 hours. A moderator may review or remove it if necessary.',row.id);
+  const saved=await createNotification(authUser.id,"listing_published","Listing published",'Your free listing "'+d.title+'" is now public for 24 hours. A moderator may block or remove it if necessary.',row.id);
   if(saved)await syncNotifications();
  }
  close();

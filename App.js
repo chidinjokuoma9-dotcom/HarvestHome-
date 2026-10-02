@@ -993,3 +993,4 @@ if(sb){const publicSharedLink=(()=>{const p=new URLSearchParams(window.location.
 
 })();
 // HarvestHome responsive publish/moderation patch marker
+// free countdown safety fix

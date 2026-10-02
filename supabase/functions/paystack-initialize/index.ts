@@ -27,17 +27,20 @@ serve(async(req)=>{
     if(!amount)throw new Error('Invalid HarvestHome service');
 
     const listingId=body.listing_id?String(body.listing_id):null;
-    if(!listingId)throw new Error('Select the exact listing this payment is for');
-
-    const {data:listing,error:listingError}=await userClient
-      .from('listings')
-      .select('id,title,seller_id,status,currency')
-      .eq('id',listingId)
-      .maybeSingle();
-    if(listingError)throw listingError;
-    if(!listing)throw new Error('Listing not found');
-    if(listing.seller_id!==user.id)throw new Error('You can only pay for your own listing');
-    if(listing.status==='deleted')throw new Error('This listing is no longer available');
+    let listing:any=null;
+    if(service.startsWith('featured')){
+      if(!listingId)throw new Error('Select the exact listing this Featured payment is for');
+      const {data,error:listingError}=await userClient
+        .from('listings')
+        .select('id,title,seller_id,status,currency')
+        .eq('id',listingId)
+        .maybeSingle();
+      if(listingError)throw listingError;
+      if(!data)throw new Error('Listing not found');
+      listing=data;
+      if(listing.seller_id!==user.id)throw new Error('You can only pay for your own listing');
+      if(listing.status==='deleted')throw new Error('This listing is no longer available');
+    }
 
     const secret=Deno.env.get('PAYSTACK_SECRET_KEY');
     if(!secret)throw new Error('PAYSTACK_SECRET_KEY is not configured');

@@ -733,7 +733,7 @@ async function forgotSubmit(e){
   const email=String(new FormData(e.target).get('email')||'').toLowerCase().trim();
   if(!sb){toast('Add your Supabase settings in Config.js first.',true);return}
   try{
-    const base=(C.PUBLIC_APP_URL||location.origin).replace(/\\/$/,'');
+    const base=(C.PUBLIC_APP_URL||location.origin).replace(/\/$/,'');
     const redirectTo=base+'/';
     const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo});
     if(error)throw error;

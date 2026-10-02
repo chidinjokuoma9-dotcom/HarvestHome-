@@ -36,46 +36,66 @@ function isProfessionalSeller(userId){return state.professionalSellers.some(x=>S
 async function syncListings(){
   if(!sb)return;
   try{
-    // Load listings first, with a profile join when available. If the nested
-    // profile relationship is unavailable, fall back to the listings table alone
-    // so a profile/RLS relationship problem cannot make the whole marketplace empty.
-    let data,error;
-    const joined=await sb.from('listings').select('*, profiles: seller_id(full_name,verified)').order('created_at',{ascending:false});
-    data=joined.data; error=joined.error;
-    let usedProfileJoin=!error;
-    if(error){
-      console.warn('Listings profile join failed; using listings fallback:',error.message);
-      const fallback=await sb.from('listings').select('*').order('created_at',{ascending:false});
-      if(fallback.error)throw fallback.error;
-      data=fallback.data||[];
-      usedProfileJoin=false;
+    // Keep the public marketplace read independent of profile relationships.
+    // A profile/RLS/relationship issue must never hide approved listings.
+    const primary=await sb.from("listings")
+      .select("*")
+      .order("created_at",{ascending:false});
+    if(primary.error)throw primary.error;
+
+    const rows=primary.data||[];
+    const approvedRows=rows.filter(l=>{
+      if(!l||!l.seller_id)return false;
+      if(String(l.status||"").trim().toLowerCase()==="deleted")return false;
+      return String(l.status||"approved").trim().toLowerCase()==="approved";
+    });
+
+    // Seller names and verification are optional enrichment only.
+    let profilesById={};
+    const sellerIds=[...new Set(approvedRows.map(l=>String(l.seller_id)).filter(Boolean))];
+    if(sellerIds.length){
+      try{
+        const profileResult=await sb.from("profiles")
+          .select("id,full_name,verified")
+          .in("id",sellerIds);
+        if(!profileResult.error){
+          (profileResult.data||[]).forEach(p=>{profilesById[String(p.id)]=p});
+        }
+      }catch(profileError){
+        console.warn("Listing seller profile enrichment skipped:",profileError.message);
+      }
     }
 
-    const base=(data||[]).filter(l=>l&&l.seller_id&&l.status!=='deleted').map(l=>({
-      ...l,id:l.id,
-      ownerEmail:authUser?.id===l.seller_id?(authUser.email||''):undefined,
-      seller:(usedProfileJoin?l.profiles?.full_name:null)||l.seller_name||'HarvestHome Seller',
-      sellerVerified:usedProfileJoin?!!l.profiles?.verified:false,professionalSeller:false,
-      images:l.cover_url?[{data:l.cover_url}]:[],
-      video:l.video_url?{data:l.video_url}:null,
-      views:l.views||0
-    }));
+    const base=approvedRows.map(l=>{
+      const p=profilesById[String(l.seller_id)];
+      return {
+        ...l,
+        id:l.id,
+        ownerEmail:authUser?.id===l.seller_id?(authUser.email||""):undefined,
+        seller:p?.full_name||l.seller_name||"HarvestHome Seller",
+        sellerVerified:!!p?.verified,
+        professionalSeller:false,
+        images:l.cover_url?[{data:l.cover_url}]:[],
+        video:l.video_url?{data:l.video_url}:null,
+        views:l.views||0
+      };
+    });
 
     if(base.length){
-      const mediaResult=await sb.from('listing_media')
-        .select('listing_id,media_type,storage_path')
-        .in('listing_id',base.map(l=>l.id));
+      const mediaResult=await sb.from("listing_media")
+        .select("listing_id,media_type,storage_path")
+        .in("listing_id",base.map(l=>l.id));
 
       if(!mediaResult.error){
         const byListing={};
         (mediaResult.data||[]).forEach(m=>{
           if(!byListing[m.listing_id])byListing[m.listing_id]={images:[],video:null};
-          const publicUrl=sb.storage.from('listing-media').getPublicUrl(m.storage_path).data.publicUrl;
-          if(m.media_type==='image'){
+          const publicUrl=sb.storage.from("listing-media").getPublicUrl(m.storage_path).data.publicUrl;
+          if(m.media_type==="image"){
             if(!byListing[m.listing_id].images.some(x=>x.data===publicUrl)){
               byListing[m.listing_id].images.push({data:publicUrl});
             }
-          }else if(m.media_type==='video'){
+          }else if(m.media_type==="video"){
             byListing[m.listing_id].video={data:publicUrl};
           }
         });
@@ -84,20 +104,31 @@ async function syncListings(){
           if(!media)return;
           const fallback=l.cover_url?[{data:l.cover_url}]:[];
           l.images=media.images.length?media.images:fallback;
-          if(l.cover_url&&!l.images.some(x=>x.data===l.cover_url))l.images=[{data:l.cover_url},...l.images];
+          if(l.cover_url&&!l.images.some(x=>x.data===l.cover_url))
+            l.images=[{data:l.cover_url},...l.images];
           if(media.video)l.video=media.video;
         });
+      }else{
+        console.warn("Listing media sync skipped:",mediaResult.error.message);
       }
     }
 
     base.forEach(l=>{l.professionalSeller=isProfessionalSeller(l.seller_id)});
     const cached=json(KEYS.sellerListings,[]);
     const remoteIds=new Set(base.map(x=>String(x.id)));
-    const mineCached=cached.filter(x=>x&&x.seller_id===authUser?.id&&!remoteIds.has(String(x.id))&&x.status!=='deleted');
+    const mineCached=cached.filter(
+      x=>x&&x.seller_id===authUser?.id&&!remoteIds.has(String(x.id))&&String(x.status||"").toLowerCase()!=="deleted"
+    );
     put(KEYS.sellerListings,[...base,...mineCached]);
-    const sharedId=new URLSearchParams(window.location.search).get('listing');
-    state.sharedListing=sharedId?base.find(x=>String(x.id)===String(sharedId)&&String(x.status||'')==='approved')||null:null;
-  }catch(e){console.warn('Supabase listings sync failed',e.message);state.sharedListing=null}
+
+    const sharedId=new URLSearchParams(window.location.search).get("listing");
+    state.sharedListing=sharedId
+      ?base.find(x=>String(x.id)===String(sharedId))||null
+      :null;
+  }catch(e){
+    console.warn("Supabase listings sync failed",e.message);
+    state.sharedListing=null;
+  }
 }
 function rewardDefaults(){return {points:0,participation:0,recommendations:0,referralPoints:0,buyers:0}}
 function localReward(email,field,points=0){

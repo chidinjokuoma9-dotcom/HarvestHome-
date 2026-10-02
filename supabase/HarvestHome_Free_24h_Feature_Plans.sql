@@ -17,6 +17,51 @@ alter table public.listings
 
 create index if not exists listings_publication_expiry_idx
   on public.listings(publication_plan, publish_expires_at);
+  
+-- Automatically give every NEW free listing its 24-hour public period.
+-- This protects the rule even if the client does not send publish_expires_at.
+create or replace function public.set_free_listing_publication()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $
+begin
+  if tg_op='INSERT'
+     and lower(coalesce(new.publication_plan,'free'))='free' then
+    new.publication_plan := 'free';
+    new.status := 'approved';
+    new.publish_expires_at := coalesce(
+      new.publish_expires_at,
+      now()+interval '24 hours'
+    );
+  elsif tg_op='UPDATE'
+        and lower(coalesce(new.publication_plan,''))='free'
+        and lower(coalesce(old.publication_plan,'')) is distinct from 'free' then
+    new.status := 'approved';
+    new.publish_expires_at := coalesce(
+      new.publish_expires_at,
+      now()+interval '24 hours'
+    );
+  end if;
+
+  return new;
+end;
+$;
+
+drop trigger if exists trg_set_free_listing_publication on public.listings;
+create trigger trg_set_free_listing_publication
+before insert or update of publication_plan, publish_expires_at
+on public.listings
+for each row
+execute function public.set_free_listing_publication();
+
+-- Any already-created free listing without an expiry gets one now.
+update public.listings
+set publish_expires_at=now()+interval '24 hours'
+where publication_plan='free'
+  and publish_expires_at is null;
+
 
 -- Public users can see approved listings only while a free publication is active.
 -- Paid/legacy listings have no 24-hour expiry.
@@ -29,8 +74,11 @@ using (
     status='approved'
     and (
       coalesce(publication_plan,'legacy_paid') <> 'free'
-      or publish_expires_at is null
-      or publish_expires_at > now()
+      or (
+        publication_plan = 'free'
+        and publish_expires_at is not null
+        and publish_expires_at > now()
+      )
     )
   )
   or seller_id=auth.uid()
@@ -50,8 +98,11 @@ using (
       and l.status='approved'
       and (
         coalesce(l.publication_plan,'legacy_paid') <> 'free'
-        or l.publish_expires_at is null
-        or l.publish_expires_at > now()
+        or (
+        l.publication_plan = 'free'
+        and l.publish_expires_at is not null
+        and l.publish_expires_at > now()
+      )
       )
   )
 );

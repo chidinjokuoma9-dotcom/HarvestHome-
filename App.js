@@ -22,7 +22,7 @@ const users=()=>{let us=json(KEYS.users,[]);if(!us.some(u=>u.email===DEMO_ADMIN.
 const session=()=>json(KEYS.session,null);
 const user=()=> authUser ? ({...authUser,...(authProfile||{}), email:authUser.email, id:authUser.id, name:(authProfile&&authProfile.full_name)||authUser.user_metadata?.full_name||authUser.email, role:(authProfile&&authProfile.role)||authUser.user_metadata?.role||"Buyer"}) : (session()?users().find(u=>u.email===session().email):null);
 const countryInfo=()=>C.SUPPORTED_COUNTRIES.find(x=>x.name===state.country)||C.SUPPORTED_COUNTRIES[0];
-const listings=()=>json(KEYS.sellerListings,[]).filter(l=>l&&l.seller_id&&l.status!=="deleted");
+const listings=()=>json(KEYS.sellerListings,[]).filter(l=>l&&l.seller_id&&String(l.status||"").toLowerCase()==="approved"&&!freeListingExpired(l));
 function isFreeListing(l){return String(l?.publication_plan||"free").toLowerCase()==="free"}
 function freeListingExpired(l){return isFreeListing(l)&&l?.publish_expires_at&&new Date(l.publish_expires_at).getTime()<=Date.now()}
 function freeListingRemainingMs(l){if(!isFreeListing(l)||!l?.publish_expires_at)return null;return Math.max(0,new Date(l.publish_expires_at).getTime()-Date.now())}

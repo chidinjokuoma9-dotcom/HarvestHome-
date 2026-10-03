@@ -495,22 +495,26 @@ function adminPanel(){
 }
 function professionalStatus(){
   if(!authUser)return {active:false,expiresAt:null,verified:false};
-  const rows=(state.payments||[]).filter(p=>String(p.user_id||"")===String(authUser.id)&&p.service==="pro"&&p.status==="success");
-  let latest=null;
-  rows.forEach(p=>{const d=new Date(p.paid_at||p.created_at||0);if(!isNaN(d)&&(!latest||d>latest))latest=d;});
-  const expires=latest?new Date(latest.getTime()+30*24*60*60*1000):null;
-  // A normal Professional Seller subscription is temporary. Only the
-  // permanent Verified Professional Seller subscription is shown as Verified Pro.
-  const verifiedPaymentIds=new Set((state.payments||[])
-    .filter(p=>String(p.user_id||"")===String(authUser.id)&&p.service==="verified_pro"&&p.status==="success")
-    .map(p=>String(p.id)));
-  const verified=state.professionalSellers.some(x=>
-    String(x.user_id)===String(authUser.id)&&
-    x.status==="active"&&
-    new Date(x.ends_at)>=new Date("9999-01-01T00:00:00Z")&&
-    verifiedPaymentIds.has(String(x.payment_id))
+  const paid=(state.payments||[]).filter(p=>
+    String(p.user_id||"")===String(authUser.id)&&
+    String(p.status||"").toLowerCase()==="success"
   );
-  return {active:!!expires&&expires.getTime()>Date.now()&&!verified,expiresAt:expires,verified};
+  // The permanent service is identified by its own successful payment.
+  // It must never be inferred from an ordinary 30-day Professional Seller
+  // subscription.
+  const verified=paid.some(p=>p.service==="verified_pro");
+  const proRows=paid.filter(p=>p.service==="pro");
+  let latest=null;
+  proRows.forEach(p=>{
+    const d=new Date(p.paid_at||p.created_at||0);
+    if(!isNaN(d)&&(!latest||d>latest))latest=d;
+  });
+  const expires=latest?new Date(latest.getTime()+30*24*60*60*1000):null;
+  return {
+    active:!!expires&&expires.getTime()>Date.now()&&!verified,
+    expiresAt:expires,
+    verified
+  };
 }
 function dashboard(){let u=user(),pro=professionalStatus();if(!u){state.view="marketplace";return marketplace()}let favs=json(KEYS.favourites,{})[u.email]||[], mine=json(KEYS.sellerListings,[]).filter(x=>authUser&&String(x.seller_id)===String(authUser.id)), enq=json(KEYS.enquiries,[]).filter(x=>x.buyerEmail===u.email), notifications=authUser?notificationFeed(mine):[], unread=notifications.filter(n=>!n.is_read).length;return `${header()}<section class="dashboard-hero"><div class="container"><button class="back-btn" data-a="home">← Marketplace</button><span class="eyebrow">My account</span><h1>Welcome, ${esc(u.name.split(" ")[0])}.</h1><p>Manage your favourites, enquiries and seller listings across your selected market.</p>${pro.verified?`<div class="dashboard-callout"><b>🏆 Verified Professional Seller</b><p>Your Verified Professional Seller status is active permanently on HarvestHome.</p></div>`:""}${pro.active?`<div class="dashboard-callout"><b>⭐ Professional Seller active</b><p>Your Professional Seller access is active until ${pro.expiresAt.toLocaleDateString()}.</p></div>`:""}</div></section><section class="dashboard-section"><div class="container dashboard-layout"><aside class="dashboard-nav"><button class="${state.dashboardTab==="overview"?"active":""}" data-tab="overview">Overview</button><button class="${state.dashboardTab==="profile"?"active":""}" data-tab="profile">Profile</button><button class="${state.dashboardTab==="favourites"?"active":""}" data-tab="favourites">Favourites (${favs.length})</button><button class="${state.dashboardTab==="listings"?"active":""}" data-tab="listings">My listings (${mine.length})</button><button class="${state.dashboardTab==="listingPerformance"?"active":""}" data-tab="listingPerformance">📊 Listing performance</button><button class="${state.dashboardTab==="rewards"?"active":""}" data-tab="rewards">🏆 Rewards</button><button class="${state.dashboardTab==="notifications"?"active":""}" data-tab="notifications">🔔 Notifications${unread?` (${unread})`:``}</button><button class="${state.dashboardTab==="enquiries"?"active":""}" data-tab="enquiries">Enquiries (${enq.length})</button><button class="${state.dashboardTab==="chats"?"active":""}" data-tab="chats">💬 Chats</button>${(u.role==="Admin"||u.role==="Moderator")?`<button class="${state.dashboardTab==="moderation"?"active":""}" data-tab="moderation">Moderation</button>`:""}<button class="${state.dashboardTab==="payments"?"active":""}" data-tab="payments">Payments</button><button data-a="logout">Logout</button></aside><div class="dashboard-content">${dashTab(u,favs,mine,enq)}</div></div></section>${footer()}`}
 function notificationFeed(mine=[]){
@@ -529,16 +533,23 @@ function notificationFeed(mine=[]){
 
 function profileTab(u){
   const avatar=u.avatar_url||"";
-  return "<div class=\"panel-heading\"><div><span class=\"eyebrow\">Account</span><h2>My profile</h2></div></div>"+
-    "<div class=\"profile-card\"><div class=\"profile-avatar-wrap\">"+
-    (avatar?"<img class=\"profile-avatar\" src=\""+esc(avatar)+"\" alt=\"Profile photo\">":"<div class=\"profile-avatar profile-placeholder\">"+esc((u.name||u.email||"U").charAt(0).toUpperCase())+"</div>")+
-    "<label class=\"outline-btn profile-upload\">Change photo<input id=\"profilePhotoInput\" type=\"file\" accept=\"image/*\" hidden></label>"+
-    "</div><div class=\"profile-details\"><form id=\"profileForm\">"+
-    "<label>Full name<input name=\"full_name\" value=\""+esc(u.name||"")+"\" required maxlength=\"100\"></label>"+
-    "<label>Email<input value=\""+esc(u.email||"")+" \" disabled></label>"+
-    "<label>Account type<input value=\""+esc(u.role||"Buyer")+" \" disabled></label>"+
-    "<button class=\"primary-btn\" type=\"submit\">Save profile</button></form>"+
-    "<p class=\"demo-note\">Your profile photo and name are used across your HarvestHome account.</p></div></div>";
+  const pro=professionalStatus();
+  const statusBlock=pro.verified
+    ?"<div class="dashboard-callout" style="margin-top:16px"><b>🏆 Verified Professional Seller</b><p>Your Verified Professional Seller status is permanent on HarvestHome.</p></div>"
+    :pro.active
+      ?"<div class="dashboard-callout" style="margin-top:16px"><b>⭐ Professional Seller</b><p>Your Professional Seller status is active until "+pro.expiresAt.toLocaleDateString()+".</p></div>"
+      :"";
+  return "<div class="panel-heading"><div><span class="eyebrow">Account</span><h2>My profile</h2></div>"+
+    "<div class="profile-card"><div class="profile-avatar-wrap">"+
+    (avatar?"<img class="profile-avatar" src=""+esc(avatar)+"" alt="Profile photo">":"<div class="profile-avatar profile-placeholder">"+esc((u.name||u.email||"U").charAt(0).toUpperCase())+"</div>")+
+    "<label class="outline-btn profile-upload">Change photo<input id="profilePhotoInput" type="file" accept="image/*" hidden></label>"+
+    "</div><div class="profile-details"><form id="profileForm">"+
+    "<label>Full name<input name="full_name" value=""+esc(u.name||"")+" " required maxlength="100"></label>"+
+    "<label>Email<input value=""+esc(u.email||"")+" " disabled></label>"+
+    "<label>Account type<input value=""+esc(u.role||"Buyer")+" " disabled></label>"+
+    "<button class="primary-btn" type="submit">Save profile</button></form>"+
+    statusBlock+
+    "<p class="demo-note">Your profile photo and name are used across your HarvestHome account.</p></div></div>";
 }
 async function saveProfile(e){
   e.preventDefault();

@@ -3,7 +3,7 @@
 const C = window.HARVESTHOME_CONFIG || { APP_NAME:"HarvestHome", VERSION:"V8", SUPPORTED_COUNTRIES:[{name:"Nigeria",code:"NG",currency:"NGN",symbol:"₦"}], CATEGORIES:["All categories","Houses","Land","Equipment","Farm Produce"], MODES:["All","Sale","Lease"], LOCATIONS:{Nigeria:["All locations"]}, DEFAULT_COUNTRY:"Nigeria", DEFAULT_CURRENCY:"NGN", MAX_IMAGE_FILES:6, MAX_VIDEO_MB:25 };
 const SUPPORT_EMAIL = "harvesthcn@gmail.com";
 const sb = (window.supabase && C.SUPABASE_URL && C.SUPABASE_ANON_KEY && C.SUPABASE_URL.startsWith("http")) ? window.supabase.createClient(C.SUPABASE_URL, C.SUPABASE_ANON_KEY,{auth:{flowType:"implicit",detectSessionInUrl:true,persistSession:true,autoRefreshToken:true}}) : null;
-let authUser = null, authProfile = null, passwordRecoveryPending = sessionStorage.getItem("hh_password_reset_pending")==="1" || new URLSearchParams(window.location.search).get("reset")==="1" || /type=recovery/i.test(window.location.search+" "+window.location.hash);
+let authUser = null, authProfile = null, passwordRecoveryPending = sessionStorage.getItem("hh_password_reset_pending")==="1" || new URLSearchParams(window.location.search).get("reset")==="1" || window.location.pathname==="/update-password" || /type=recovery/i.test(window.location.search+" "+window.location.hash);
 const KEYS = {users:"hh_v4_users",session:"hh_v4_session",favourites:"hh_v4_favourites",enquiries:"hh_v4_enquiries",sellerListings:"hh_v4_seller_listings",country:"hh_v4_country",currency:"hh_v4_currency",reset:"hh_v6_reset_tokens",payments:"hh_v6_payments",notifications:"hh_v8_notifications",notificationReads:"hh_v8_notification_reads",rewards:"hh_v9_rewards",recommendations:"hh_v9_recommendations"};
 const DEMO_ADMIN={email:"admin@harvesthome.app",name:"HarvestHome Admin",password:"Admin123!",role:"Admin"};
 const V5 = {maxImages:6,maxVideoMB:25};
@@ -385,7 +385,7 @@ async function syncFavourites(){
   }catch(e){console.warn('Supabase favourites sync failed',e.message)}
 }
 async function loadProfile(){if(!sb||!authUser){authProfile=null;return}const {data}=await sb.from('profiles').select('*').eq('id',authUser.id).maybeSingle();authProfile=data||null}
-async function loadAuth(){if(!sb){render();return}const params=new URLSearchParams(window.location.search);const publicSharedLink=params.get("shared")==="1"||params.get("shared")==="listing"||params.get("public")==="1"||!!params.get("listing");const recoveryUrl=params.get("reset")==="1"||/type=recovery/i.test(window.location.search+" "+window.location.hash);if(recoveryUrl)passwordRecoveryPending=true;const {data}=await sb.auth.getSession();authUser=data.session?.user||null;await loadProfile();await syncListings();await syncFeatured();await syncFavourites();await syncNotifications();await syncPayments();await syncRewards();await syncProfessionalSellers();await syncSellerPerformance();await syncListingPerformance();await syncAdminRewards();await syncVerificationRequests();if(passwordRecoveryPending){state.view="marketplace";render();return}if(publicSharedLink)state.view="marketplace";render();}
+async function loadAuth(){if(!sb){render();return}const params=new URLSearchParams(window.location.search);const publicSharedLink=params.get("shared")==="1"||params.get("shared")==="listing"||params.get("public")==="1"||!!params.get("listing");const recoveryUrl=params.get("reset")==="1"||window.location.pathname==="/update-password"||/type=recovery/i.test(window.location.search+" "+window.location.hash);if(recoveryUrl)passwordRecoveryPending=true;const {data}=await sb.auth.getSession();authUser=data.session?.user||null;await loadProfile();await syncListings();await syncFeatured();await syncFavourites();await syncNotifications();await syncPayments();await syncRewards();await syncProfessionalSellers();await syncSellerPerformance();await syncListingPerformance();await syncAdminRewards();await syncVerificationRequests();if(passwordRecoveryPending){state.view="marketplace";render();return}if(publicSharedLink)state.view="marketplace";render();}
 async function syncPayments(){
   if(!sb||!authUser)return;
   try{
@@ -734,7 +734,7 @@ async function forgotSubmit(e){
   if(!sb){toast('Add your Supabase settings in Config.js first.',true);return}
   try{
     const base=(C.PUBLIC_APP_URL||location.origin).replace(/\/$/,'');
-    const redirectTo=base+"/?reset=1";
+    const redirectTo=base+"/update-password";
     const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo});
     if(error)throw error;
     sessionStorage.setItem("hh_password_reset_pending","1");
@@ -753,7 +753,7 @@ async function resetSubmit(e){
     if(error)throw error;
     sessionStorage.removeItem("hh_password_reset_pending");
     passwordRecoveryPending=false;
-    history.replaceState({},document.title,location.pathname);
+    history.replaceState({},document.title,"/");
     state.view="marketplace";
     render();
     toast('Password updated successfully. You can now log in.');

@@ -535,21 +535,21 @@ function profileTab(u){
   const avatar=u.avatar_url||"";
   const pro=professionalStatus();
   const statusBlock=pro.verified
-    ?"<div class="dashboard-callout" style="margin-top:16px"><b>🏆 Verified Professional Seller</b><p>Your Verified Professional Seller status is permanent on HarvestHome.</p></div>"
+    ?`<div class="dashboard-callout" style="margin-top:16px"><b>🏆 Verified Professional Seller</b><p>Your Verified Professional Seller status is permanent on HarvestHome.</p></div>`
     :pro.active
-      ?"<div class="dashboard-callout" style="margin-top:16px"><b>⭐ Professional Seller</b><p>Your Professional Seller status is active until "+pro.expiresAt.toLocaleDateString()+".</p></div>"
+      ?`<div class="dashboard-callout" style="margin-top:16px"><b>⭐ Professional Seller</b><p>Your Professional Seller status is active until ${pro.expiresAt.toLocaleDateString()}.</p></div>`
       :"";
-  return "<div class="panel-heading"><div><span class="eyebrow">Account</span><h2>My profile</h2></div>"+
-    "<div class="profile-card"><div class="profile-avatar-wrap">"+
-    (avatar?"<img class="profile-avatar" src=""+esc(avatar)+"" alt="Profile photo">":"<div class="profile-avatar profile-placeholder">"+esc((u.name||u.email||"U").charAt(0).toUpperCase())+"</div>")+
-    "<label class="outline-btn profile-upload">Change photo<input id="profilePhotoInput" type="file" accept="image/*" hidden></label>"+
-    "</div><div class="profile-details"><form id="profileForm">"+
-    "<label>Full name<input name="full_name" value=""+esc(u.name||"")+" " required maxlength="100"></label>"+
-    "<label>Email<input value=""+esc(u.email||"")+" " disabled></label>"+
-    "<label>Account type<input value=""+esc(u.role||"Buyer")+" " disabled></label>"+
-    "<button class="primary-btn" type="submit">Save profile</button></form>"+
-    statusBlock+
-    "<p class="demo-note">Your profile photo and name are used across your HarvestHome account.</p></div></div>";
+  return `<div class="panel-heading"><div><span class="eyebrow">Account</span><h2>My profile</h2></div>
+    <div class="profile-card"><div class="profile-avatar-wrap">
+    ${avatar?`<img class="profile-avatar" src="${esc(avatar)}" alt="Profile photo">`:`<div class="profile-avatar profile-placeholder">${esc((u.name||u.email||"U").charAt(0).toUpperCase())}</div>`}
+    <label class="outline-btn profile-upload">Change photo<input id="profilePhotoInput" type="file" accept="image/*" hidden></label>
+    </div><div class="profile-details"><form id="profileForm">
+    <label>Full name<input name="full_name" value="${esc(u.name||"")}" required maxlength="100"></label>
+    <label>Email<input value="${esc(u.email||"")}" disabled></label>
+    <label>Account type<input value="${esc(u.role||"Buyer")}" disabled></label>
+    <button class="primary-btn" type="submit">Save profile</button></form>
+    ${statusBlock}
+    <p class="demo-note">Your profile photo and name are used across your HarvestHome account.</p></div></div>`;
 }
 async function saveProfile(e){
   e.preventDefault();

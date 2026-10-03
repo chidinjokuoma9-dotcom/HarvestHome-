@@ -113,7 +113,35 @@ serve(async(req)=>{
       .eq('id',payment.id);
     if(updateError)throw updateError;
 
+    let activation:any=null;
+    let activationError:string|null=null;
     if(status==='success'){
+      // Complete the paid-service activation on the server as part of verification.
+      // This prevents a successful Paystack payment from being left as an unactivated record
+      // when the browser callback is interrupted, closed, or opened in another tab.
+      try{
+        if(String(payment.service||'').startsWith('featured')){
+          const a=await userClient.rpc('activate_paid_featured_payment',{p_reference:canonicalRef});
+          if(a.error)throw a.error;
+          activation=a.data;
+        }else if(payment.service==='pro'){
+          const a=await userClient.rpc('activate_paid_professional_seller',{p_reference:canonicalRef});
+          if(a.error)throw a.error;
+          activation=a.data;
+        }else if(payment.service==='verified_pro'){
+          const a=await userClient.rpc('activate_paid_verified_professional_seller',{p_reference:canonicalRef});
+          if(a.error)throw a.error;
+          activation=a.data;
+        }else if(payment.service==='verification'){
+          const a=await userClient.rpc('submit_paid_seller_verification',{p_reference:canonicalRef});
+          if(a.error)throw a.error;
+          activation=a.data;
+        }
+      }catch(e){
+        activationError=e instanceof Error?e.message:String(e);
+        console.warn('Paid service activation retry failed:',activationError);
+      }
+
       const listingTitle=transaction.metadata?.listing_title||null;
       const listingText=listingTitle?` for "${listingTitle}"`:'';
       const message=`Payment successful${listingText}. Amount: ${transactionAmount/100} ${transaction.currency||payment.currency||'NGN'}. Reference: ${transaction.reference}.`;
@@ -134,7 +162,9 @@ serve(async(req)=>{
       amount:transactionAmount,
       currency:transaction.currency||payment.currency,
       service:payment.service,
-      listing_id:payment.listing_id||null
+      listing_id:payment.listing_id||null,
+      activation,
+      activation_error:activationError
     }),{headers:cors});
   }catch(e){
     return new Response(JSON.stringify({error:e instanceof Error?e.message:'Verification failed'}),{status:400,headers:cors});

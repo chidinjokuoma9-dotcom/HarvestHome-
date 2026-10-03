@@ -511,7 +511,7 @@ function professionalStatus(){
   });
   const expires=latest?new Date(latest.getTime()+30*24*60*60*1000):null;
   return {
-    active:!!expires&&expires.getTime()>Date.now()&&!verified,
+    active:!!expires&&expires.getTime()>Date.now(),
     expiresAt:expires,
     verified
   };
@@ -534,11 +534,8 @@ function notificationFeed(mine=[]){
 function profileTab(u){
   const avatar=u.avatar_url||"";
   const pro=professionalStatus();
-  const statusBlock=pro.verified
-    ?`<div class="dashboard-callout" style="margin-top:16px"><b>🏆 Verified Professional Seller</b><p>Your Verified Professional Seller status is permanent on HarvestHome.</p></div>`
-    :pro.active
-      ?`<div class="dashboard-callout" style="margin-top:16px"><b>⭐ Professional Seller</b><p>Your Professional Seller status is active until ${pro.expiresAt.toLocaleDateString()}.</p></div>`
-      :"";
+  const statusBlock=(pro.verified?\`<div class="dashboard-callout" style="margin-top:16px"><b>🏆 Verified Professional Seller</b><p>Your Verified Professional Seller status is permanent on HarvestHome.</p></div>\`:"")+
+    (pro.active?\`<div class="dashboard-callout" style="margin-top:16px"><b>⭐ Professional Seller</b><p>Your Professional Seller status is active until ${pro.expiresAt.toLocaleDateString()}.</p></div>\`:"");
   return `<div class="panel-heading"><div><span class="eyebrow">Account</span><h2>My profile</h2></div>
     <div class="profile-card"><div class="profile-avatar-wrap">
     ${avatar?`<img class="profile-avatar" src="${esc(avatar)}" alt="Profile photo">`:`<div class="profile-avatar profile-placeholder">${esc((u.name||u.email||"U").charAt(0).toUpperCase())}</div>`}

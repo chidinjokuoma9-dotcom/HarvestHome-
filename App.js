@@ -14,7 +14,7 @@ const seed = [];
 
 const state={view:"marketplace",search:"",country:localStorage.getItem(KEYS.country)||C.DEFAULT_COUNTRY,location:"All locations",category:"All categories",mode:"All",dashboardTab:"overview",authMode:"login",payments:[],transactionFilterSeller:{status:"all",range:"all",search:""},transactionFilterAdmin:{status:"all",range:"all",search:""},sharedListing:null};
 let chatTimer=null;
-state.rewardAdmin=[];state.verificationRequests=[];state.sellerPerformance={listings:0,approved:0,pending:0,rejected:0,views:0,chats:0,uniqueBuyers:0,recommendations:0};state.listingPerformance=[];state.featuredListings=[];state.professionalSellers=[];state.advertisingRequests=[];state.advertisingCampaigns=[];
+state.rewardAdmin=[];state.verificationRequests=[];state.sellerPerformance={listings:0,approved:0,pending:0,rejected:0,views:0,chats:0,uniqueBuyers:0,recommendations:0};state.listingPerformance=[];state.featuredListings=[];state.professionalSellers=[];state.advertisingRequests=[];state.advertisingCampaigns=[];state.advertisingReport=[];
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
 const json=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}};
 const put=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
@@ -477,17 +477,30 @@ function empty(){return `<div class="empty-state"><div>🔎</div><h3>No matching
 function footer(){return `<footer><div class="container footer-grid"><div><div class="footer-brand">🌿 HarvestHome</div><p>The international marketplace for property, products and farm produce.</p></div><div><b>Markets</b>${C.SUPPORTED_COUNTRIES.slice(0,4).map(x=>`<button data-country="${esc(x.name)}">${flag(x.code)} ${esc(x.name)}</button>`).join("")}</div><div><b>HarvestHome</b><a href="/about.html">About & rewards</a><button data-scroll="how">How it works</button><a href="/advertise.html">Advertise With Us</a><a href="/terms.html">Terms & Conditions</a><a href="/privacy.html">Privacy Policy</a><a href="/content-safety.html">Content & Safety Policy</a></div><div><b>Support</b><a href="mailto:${SUPPORT_EMAIL}?subject=HarvestHome%20Complaint%20or%20Enquiry">Complaints & enquiries</a><small>${esc(SUPPORT_EMAIL)}</small></div><div><b>Account</b><button data-a="login">Login</button><button data-a="signup">Create account</button></div></div><div class="container footer-bottom">© ${new Date().getFullYear()} HarvestHome · International marketplace · <a href="mailto:${SUPPORT_EMAIL}?subject=HarvestHome%20Complaint%20or%20Enquiry">Complaints & enquiries</a></div></footer>`}
 
 async function syncAdvertising(){
+  state.advertisingReport=[];
   if(!sb)return;
   try{
-    const {data,error}=await sb.from("advertising_campaigns").select("*").eq("status","approved").lte("starts_at",new Date().toISOString()).gt("ends_at",new Date().toISOString()).order("created_at",{ascending:false});
+    const now=new Date().toISOString();
+    const {data,error}=await sb.from("advertising_campaigns").select("*").eq("status","approved").lte("starts_at",now).gt("ends_at",now).order("created_at",{ascending:false});
     if(error)throw error;
     state.advertisingCampaigns=data||[];
     if(authUser&&["Admin","Moderator"].includes(user()?.role)){
       const stats=await sb.rpc("get_advertising_campaign_stats");
-      if(!stats.error){
-        const map=Object.fromEntries((stats.data||[]).map(x=>[String(x.campaign_id),x]));
-        state.advertisingCampaigns=state.advertisingCampaigns.map(c=>({...c,impressions:Number(map[String(c.id)]?.impressions||0),clicks:Number(map[String(c.id)]?.clicks||0)}));
-      }
+      const map=stats.error?{}:Object.fromEntries((stats.data||[]).map(x=>[String(x.campaign_id),x]));
+      state.advertisingCampaigns=state.advertisingCampaigns.map(c=>({...c,impressions:Number(map[String(c.id)]?.impressions||0),clicks:Number(map[String(c.id)]?.clicks||0)}));
+      try{
+        const all=await sb.from("advertising_campaigns").select("*").order("created_at",{ascending:false});
+        if(!all.error){
+          state.advertisingReport=(all.data||[]).map(c=>{
+            const impressions=Number(map[String(c.id)]?.impressions||0);
+            const clicks=Number(map[String(c.id)]?.clicks||0);
+            const start=new Date(c.starts_at).getTime(),end=new Date(c.ends_at).getTime(),time=Date.now();
+            const campaignStatus=time<start?"Scheduled":time>=end?"Expired":"Live";
+            const ctr=impressions?((clicks/impressions)*100):0;
+            return {...c,impressions,clicks,ctr,campaignStatus};
+          });
+        }
+      }catch(e){console.warn("Advertising report sync skipped:",e.message)}
     }
   }catch(e){console.warn("Advertising campaigns sync failed",e.message)}
   if(authUser){

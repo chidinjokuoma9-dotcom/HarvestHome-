@@ -63,6 +63,15 @@ a{color:#176b43}
 </form>
 </div>
 <div class="card">
+<h2>📊 Check your campaign performance</h2>
+<p class="note">After HarvestHome creates your campaign, your team can use the Campaign ID and the advertiser email submitted for that campaign to view its current performance.</p>
+<label>Campaign ID<input id="campaignId" placeholder="Paste campaign ID"></label>
+<label>Advertiser email<input id="campaignEmail" type="email" placeholder="business@example.com"></label>
+<button type="button" id="checkCampaign">View campaign report</button>
+<p id="campaignResult" class="note"></p>
+<div id="campaignReport" style="display:none"></div>
+</div>
+<div class="card">
 <h2>Questions?</h2>
 <p>Email <a href="mailto:harvesthcn@gmail.com">harvesthcn@gmail.com</a> and mention “HarvestHome Advertising”.</p>
 <p><a href="/">← Back to HarvestHome</a></p>
@@ -72,6 +81,22 @@ a{color:#176b43}
 const SUPABASE_URL="https://dbariugnwgzbhxvtbcpz.supabase.co";
 const SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRiYXJpdWdud2d6Ymh4dnRiY3B6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAxOTAxNjUsImV4cCI6MjEwNTc2NjE2NX0.LtnUyH6WHZ1hLNhrAN42DvzW9-Y1TyXYlj6b5gj2v6s";
 const form=document.getElementById("advertisingForm"),result=document.getElementById("result");
+const campaignButton=document.getElementById("checkCampaign"),campaignResult=document.getElementById("campaignResult"),campaignReport=document.getElementById("campaignReport");
+campaignButton.addEventListener("click",async()=>{
+ const campaignId=document.getElementById("campaignId").value.trim(),email=document.getElementById("campaignEmail").value.trim();
+ campaignResult.textContent="Loading campaign report…";campaignReport.style.display="none";campaignReport.innerHTML="";
+ if(!campaignId||!email){campaignResult.textContent="Enter both the Campaign ID and advertiser email.";return}
+ try{
+  const res=await fetch(SUPABASE_URL+"/rest/v1/rpc/get_advertiser_campaign_report",{method:"POST",headers:{"apikey":SUPABASE_ANON_KEY,"Authorization":"Bearer "+SUPABASE_ANON_KEY,"Content-Type":"application/json"},body:JSON.stringify({p_campaign_id:campaignId,p_email:email})});
+  const rows=await res.json();
+  if(!res.ok)throw new Error(Array.isArray(rows)?JSON.stringify(rows):rows.message||"Campaign report could not be loaded.");
+  if(!rows.length){campaignResult.textContent="No matching campaign was found. Check the Campaign ID and advertiser email.";return}
+  const c=rows[0],impressions=Number(c.impressions||0),clicks=Number(c.clicks||0),ctr=Number(c.ctr||0),now=Date.now(),start=new Date(c.starts_at).getTime(),end=new Date(c.ends_at).getTime(),status=now<start?"Scheduled":now>=end?"Expired":"Live";
+  campaignResult.textContent="Campaign report loaded.";
+  campaignReport.style.display="block";
+  campaignReport.innerHTML='<div class="grid"><div class="package"><h3>Status</h3><b>'+status+'</b></div><div class="package"><h3>Impressions</h3><b>'+impressions+'</b></div><div class="package"><h3>Clicks</h3><b>'+clicks+'</b></div><div class="package"><h3>CTR</h3><b>'+ctr.toFixed(2)+'%</b></div></div><p class="note"><b>'+c.business_name+'</b> · '+c.headline+'<br>Placement: '+c.placement+'<br>Campaign: '+new Date(c.starts_at).toLocaleString()+' → '+new Date(c.ends_at).toLocaleString()+'</p>';
+ }catch(err){campaignResult.textContent="We could not load the campaign report right now. Please check the details or email harvesthcn@gmail.com."}
+});
 form.addEventListener("submit",async e=>{
  e.preventDefault();result.textContent="Sending your request…";
  const d=Object.fromEntries(new FormData(form));

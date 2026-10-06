@@ -524,16 +524,33 @@ async function reviewAdvertisingRequest(id,status){
     await syncAdvertising();render();toast("Advertising request marked "+status+".");
   }catch(e){toast(e.message||"Advertising request could not be updated.",true)}
 }
+async function uploadAdvertisingImage(file){
+  if(!sb||!authUser||!file)return null;
+  if(!file.type.startsWith("image/"))throw new Error("Please choose an image file.");
+  if(file.size>5*1024*1024)throw new Error("Advertising image must be 5 MB or smaller.");
+  const ext=(file.name.split(".").pop()||"jpg").replace(/[^a-zA-Z0-9]/g,"").toLowerCase()||"jpg";
+  const path=authUser.id+"/advertising/"+Date.now()+"-"+Math.random().toString(36).slice(2,8)+"."+ext;
+  const up=await sb.storage.from("listing-media").upload(path,file,{upsert:false,contentType:file.type});
+  if(up.error)throw up.error;
+  return sb.storage.from("listing-media").getPublicUrl(path).data.publicUrl;
+}
 async function createAdvertisingCampaign(e){
   e.preventDefault();
   if(!sb||!authUser||!['Admin','Moderator'].includes(user()?.role))return;
-  const d=Object.fromEntries(new FormData(e.target));
+  const form=e.target,d=Object.fromEntries(new FormData(form)),imageFile=form.querySelector('[name="image_file"]')?.files?.[0]||null;
+  const submit=form.querySelector('button[type="submit"]');
   try{
+    if(submit){submit.disabled=true;submit.textContent="Publishing…";}
+    let imageUrl=String(d.image_url||"").trim()||null;
+    if(imageFile){
+      if(submit)submit.textContent="Uploading image…";
+      imageUrl=await uploadAdvertisingImage(imageFile);
+    }
     const {error}=await sb.from("advertising_campaigns").insert({
       business_name:String(d.business_name||"").trim(),
       headline:String(d.headline||"").trim(),
       description:String(d.description||"").trim()||null,
-      image_url:String(d.image_url||"").trim()||null,
+      image_url:imageUrl,
       target_url:String(d.target_url||"").trim()||null,
       placement:String(d.placement||"homepage"),
       starts_at:new Date(d.starts_at).toISOString(),
@@ -544,6 +561,9 @@ async function createAdvertisingCampaign(e){
     if(error)throw error;
     await syncAdvertising();render();toast("Advertising campaign is now live.");
   }catch(err){toast(err.message||"Campaign could not be created.",true)}
+  finally{
+    if(submit){submit.disabled=false;submit.textContent="Publish advert";}
+  }
 }
 function adminPanel(){
   if(!user()||!['Admin','Moderator'].includes(user().role))return '<div class="empty-state"><h3>Access denied</h3></div>';
@@ -570,7 +590,7 @@ function adminPanel(){
   '<div class="panel-heading"><div><span class="eyebrow">Campaign publishing</span><h3>Publish an approved advert</h3></div></div>'+
   '<form id="advertisingCampaignForm" class="form-grid dashboard-callout">'+
   '<label>Business name<input name="business_name" required maxlength="150"></label><label>Headline<input name="headline" required maxlength="180"></label>'+
-  '<label>Image URL<input name="image_url" type="url" placeholder="https://..."></label><label>Target URL<input name="target_url" type="url" placeholder="https://..."></label>'+
+  '<label>Image URL<input name="image_url" type="url" placeholder="https://..."><small class="demo-note">Keep this option for companies that already have a hosted image or logo.</small></label><label>Upload company image (optional)<input name="image_file" type="file" accept="image/*"><small class="demo-note">Or upload an image directly from your device. Maximum 5 MB.</small></label><label>Target URL<input name="target_url" type="url" placeholder="https://..."></label>'+
   '<label>Placement<select name="placement"><option value="homepage">Homepage</option><option value="marketplace">Marketplace</option><option value="category">Category</option></select></label>'+
   '<label>Start<input name="starts_at" type="datetime-local" required></label><label>End<input name="ends_at" type="datetime-local" required></label>'+
   '<label class="span-2">Description<textarea name="description" rows="3" maxlength="1000"></textarea></label>'+

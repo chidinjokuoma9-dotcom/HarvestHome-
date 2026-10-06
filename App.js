@@ -498,7 +498,7 @@ async function syncAdvertising(){
     }catch(e){console.warn("Advertising requests sync failed",e.message)}
   }else state.advertisingRequests=[];
 }
-function recordAdvertisingEvent(campaignId,eventType){
+async function recordAdvertisingEvent(campaignId,eventType){
   if(!sb||!campaignId)return;
   try{
     const {error}=await sb.rpc("record_advertising_event",{p_campaign_id:campaignId,p_event_type:eventType});

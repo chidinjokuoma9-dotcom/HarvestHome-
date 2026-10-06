@@ -565,6 +565,7 @@ async function createAdvertisingCampaign(e){
       description:String(d.description||"").trim()||null,
       image_url:imageUrl,
       target_url:String(d.target_url||"").trim()||null,
+      advertiser_email:String(d.advertiser_email||"").trim().toLowerCase()||null,
       placement:String(d.placement||"homepage"),
       starts_at:new Date(d.starts_at).toISOString(),
       ends_at:new Date(d.ends_at).toISOString(),
@@ -572,7 +573,7 @@ async function createAdvertisingCampaign(e){
       created_by:authUser.id
     });
     if(error)throw error;
-    await syncAdvertising();render();toast("Advertising campaign is now live.");
+    await syncAdvertising();render();toast("Advertising campaign created. Campaign ID: "+(data?.id||"")+" — give this ID to the advertiser for campaign reporting.");
   }catch(err){toast(err.message||"Campaign could not be created.",true)}
   finally{
     if(submit){submit.disabled=false;submit.textContent="Publish advert";}
@@ -603,7 +604,7 @@ function adminPanel(){
   '</tbody></table></div>'+
   '<div class="panel-heading"><div><span class="eyebrow">Campaign publishing</span><h3>Publish an approved advert</h3></div></div>'+
   '<form id="advertisingCampaignForm" class="form-grid dashboard-callout">'+
-  '<label>Business name<input name="business_name" required maxlength="150"></label><label>Headline<input name="headline" required maxlength="180"></label>'+
+  '<label>Business name<input name="business_name" required maxlength="150"></label><label>Advertiser email<input name="advertiser_email" type="email" required maxlength="200" placeholder="business@example.com"><small class="demo-note">This email is used to give the business access to its campaign report.</small></label><label>Headline<input name="headline" required maxlength="180"></label>'+
   '<label>Image URL<input name="image_url" type="url" placeholder="https://..."><small class="demo-note">Keep this option for companies that already have a hosted image or logo.</small></label><label>Upload company image (optional)<input name="image_file" type="file" accept="image/*"><small class="demo-note">Or upload an image directly from your device. Maximum 5 MB.</small></label><label>Target URL<input name="target_url" type="url" placeholder="https://..."></label>'+
   '<label>Placement<select name="placement"><option value="homepage">Homepage</option><option value="marketplace">Marketplace</option><option value="category">Category</option></select></label>'+
   '<label>Start<input name="starts_at" type="datetime-local" required></label><label>End<input name="ends_at" type="datetime-local" required></label>'+

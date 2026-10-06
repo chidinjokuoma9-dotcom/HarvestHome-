@@ -559,7 +559,7 @@ async function createAdvertisingCampaign(e){
       if(submit)submit.textContent="Uploading image…";
       imageUrl=await uploadAdvertisingImage(imageFile);
     }
-    const {error}=await sb.from("advertising_campaigns").insert({
+    const {data,error}=await sb.from("advertising_campaigns").insert({
       business_name:String(d.business_name||"").trim(),
       headline:String(d.headline||"").trim(),
       description:String(d.description||"").trim()||null,
@@ -571,7 +571,7 @@ async function createAdvertisingCampaign(e){
       ends_at:new Date(d.ends_at).toISOString(),
       status:"approved",
       created_by:authUser.id
-    });
+    }).select("id").single();
     if(error)throw error;
     await syncAdvertising();render();toast("Advertising campaign created. Campaign ID: "+(data?.id||"")+" — give this ID to the advertiser for campaign reporting.");
   }catch(err){toast(err.message||"Campaign could not be created.",true)}

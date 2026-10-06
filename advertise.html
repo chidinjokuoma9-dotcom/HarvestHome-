@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Advertise your business on HarvestHome and reach buyers, sellers and businesses across our growing marketplace.">
+<meta name="robots" content="index,follow">
+<link rel="canonical" href="https://harvesthome.ng/advertise.html">
+<title>Advertise With HarvestHome</title>
+<style>
+body{margin:0;font-family:Arial,sans-serif;background:#f6f8f7;color:#17352a;line-height:1.6}
+.wrap{max-width:900px;margin:auto;padding:28px 18px}
+.card{background:#fff;border:1px solid #dce7e1;border-radius:18px;padding:24px;margin:18px 0;box-shadow:0 6px 24px rgba(0,0,0,.05)}
+h1{margin:8px 0}.brand{font-weight:800;color:#176b43;font-size:22px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.package{border:1px solid #dce7e1;border-radius:14px;padding:18px}.package h3{margin-top:0}
+label{display:block;font-weight:700;margin-top:12px}input,select,textarea{width:100%;box-sizing:border-box;padding:12px;border:1px solid #ccd9d2;border-radius:10px;margin-top:6px;font:inherit}
+button{margin-top:16px;padding:12px 18px;border:0;border-radius:10px;background:#176b43;color:white;font-weight:700;cursor:pointer}
+a{color:#176b43}
+.note{font-size:14px;color:#5d6d65}
+</style>
+</head>
+<body>
+<div class="wrap">
+<a href="/" class="brand">🌿 HarvestHome</a>
+<div class="card">
+<span>Business advertising</span>
+<h1>Advertise With HarvestHome</h1>
+<p>Put your business in front of people discovering houses, land, products and farm produce on HarvestHome.</p>
+<p class="note">Our advertising service is being introduced during the HarvestHome soft launch. Submit your interest and our team will contact you with placement, pricing and campaign details.</p>
+</div>
+<div class="card">
+<h2>Advertising options</h2>
+<div class="grid">
+<div class="package"><h3>Starter</h3><p>Short promotional campaign for businesses testing HarvestHome.</p><b>From ₦15,000</b></div>
+<div class="package"><h3>Business</h3><p>Extended visibility for a business, service or promotion.</p><b>From ₦50,000</b></div>
+<div class="package"><h3>Premium</h3><p>High-visibility placement for established campaigns.</p><b>From ₦100,000</b></div>
+<div class="package"><h3>Custom</h3><p>Tell us your goals and we can discuss a campaign designed for your business.</p><b>Let's discuss</b></div>
+</div>
+<p class="note">Prices are indicative starting points and may vary by placement, campaign duration and creative requirements. Payment is only requested after campaign details are confirmed.</p>
+</div>
+<div class="card">
+<h2>Request advertising information</h2>
+<form id="advertisingForm">
+<label>Business name<input name="business_name" maxlength="150" required></label>
+<label>Contact name<input name="contact_name" maxlength="150" required></label>
+<label>Email<input name="email" type="email" maxlength="200" required></label>
+<label>Phone / WhatsApp<input name="phone" maxlength="50"></label>
+<label>Preferred package<select name="package"><option>Starter</option><option>Business</option><option>Premium</option><option>Custom</option></select></label>
+<label>Business website (optional)<input name="website_url" type="url" maxlength="500" placeholder="https://"></label>
+<label>What would you like to advertise?<textarea name="message" rows="5" maxlength="2000" placeholder="Tell us about your business, preferred placement and campaign goals."></textarea></label>
+<button type="submit">Send Advertising Request</button>
+<p id="result" class="note"></p>
+</form>
+</div>
+<div class="card">
+<h2>Questions?</h2>
+<p>Email <a href="mailto:harvesthcn@gmail.com">harvesthcn@gmail.com</a> and mention “HarvestHome Advertising”.</p>
+<p><a href="/">← Back to HarvestHome</a></p>
+</div>
+</div>
+<script>
+const SUPABASE_URL="https://dbariugnwgzbhxvtbcpz.supabase.co";
+const SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRiYXJpdWdud2d6Ymh4dnRiY3B6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAxOTAxNjUsImV4cCI6MjEwNTc2NjE2NX0.LtnUyH6WHZ1hLNhrAN42DvzW9-Y1TyXYlj6b5gj2v6s";
+const form=document.getElementById("advertisingForm"),result=document.getElementById("result");
+form.addEventListener("submit",async e=>{
+ e.preventDefault();result.textContent="Sending your request…";
+ const d=Object.fromEntries(new FormData(form));
+ try{
+  const res=await fetch(SUPABASE_URL+"/rest/v1/advertising_requests",{method:"POST",headers:{"apikey":SUPABASE_ANON_KEY,"Authorization":"Bearer "+SUPABASE_ANON_KEY,"Content-Type":"application/json","Prefer":"return=minimal"},body:JSON.stringify(d)});
+  if(!res.ok){const t=await res.text();throw new Error(t||"Request could not be sent.")}
+  form.reset();result.textContent="Thank you. Your advertising request has been received. HarvestHome will contact you with the next steps.";
+ }catch(err){result.textContent="We could not send the request right now. Please email harvesthcn@gmail.com instead."}
+});
+</script>
+</body>
+</html>

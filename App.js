@@ -500,7 +500,12 @@ async function syncAdvertising(){
 }
 function recordAdvertisingEvent(campaignId,eventType){
   if(!sb||!campaignId)return;
-  sb.rpc("record_advertising_event",{p_campaign_id:campaignId,p_event_type:eventType}).catch(e=>console.warn("Advertising event could not be recorded:",e.message));
+  try{
+    const {error}=await sb.rpc("record_advertising_event",{p_campaign_id:campaignId,p_event_type:eventType});
+    if(error)console.warn("Advertising event could not be recorded:",error.message);
+  }catch(e){
+    console.warn("Advertising event could not be recorded:",e.message);
+  }
 }
 function recordAdvertisingImpressions(){
   const key="hh_ad_impressions_"+new Date().toISOString().slice(0,10);

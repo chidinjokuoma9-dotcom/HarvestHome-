@@ -209,18 +209,15 @@ form.addEventListener("submit",async e=>{
  e.preventDefault();result.textContent="Sending your request…";
  const d=Object.fromEntries(new FormData(form));
  try{
-  const res=await fetch(SUPABASE_URL+"/rest/v1/advertising_requests",{method:"POST",headers:{"apikey":SUPABASE_ANON_KEY,"Authorization":"Bearer "+SUPABASE_ANON_KEY,"Content-Type":"application/json","Prefer":"return=representation"},body:JSON.stringify(d)});
-  const created=await res.json().catch(()=>null);
-  if(!res.ok){const t=typeof created==="string"?created:(created?.message||"Request could not be sent.");throw new Error(t)}
-  const requestId=Array.isArray(created)?created[0]?.id:created?.id;
+  const requestId=(crypto.randomUUID?crypto.randomUUID():Date.now()+"-"+Math.random().toString(36).slice(2));
+  d.id=requestId;
+  const res=await fetch(SUPABASE_URL+"/rest/v1/advertising_requests",{method:"POST",headers:{"apikey":SUPABASE_ANON_KEY,"Authorization":"Bearer "+SUPABASE_ANON_KEY,"Content-Type":"application/json","Prefer":"return=minimal"},body:JSON.stringify(d)});
+  const textBody=await res.text();
+  if(!res.ok){throw new Error(textBody||"Request could not be sent.")}
   form.reset();
-  if(requestId){
-    result.innerHTML="Thank you. Your advertising request has been received.<br><b>Request ID:</b> <code>"+esc(requestId)+"</code><br>Please save this ID. Once HarvestHome approves the request and sets the amount, use it in the payment box below.";
-    document.getElementById("adPaymentRequestId").value=requestId;
-    document.getElementById("adPaymentEmail").value=d.email||"";
-  }else{
-    result.textContent="Thank you. Your advertising request has been received. HarvestHome will contact you with the next steps.";
-  }
+  result.innerHTML="Thank you. Your advertising request has been received.<br><b>Request ID:</b> <code>"+esc(requestId)+"</code><br>Please save this ID. Once HarvestHome approves the request and sets the amount, use it in the payment box below.";
+  document.getElementById("adPaymentRequestId").value=requestId;
+  document.getElementById("adPaymentEmail").value=d.email||"";
  }catch(err){result.textContent="We could not send the request right now. Please email harvesthcn@gmail.com instead."}
 });
 </script>

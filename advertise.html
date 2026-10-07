@@ -70,6 +70,14 @@ a{color:#176b43}.note{font-size:14px;color:#5d6d65}.table-wrap{overflow:auto;mar
 <p id="adPaymentResult" class="note"></p>
 </div>
 <div class="card">
+<h2>🔎 Check advertising request & payment status</h2>
+<p class="note">Use the Request ID and the same advertiser email to see whether your request is pending review, approved, awaiting payment, or paid successfully.</p>
+<label>Advertising Request ID<input id="adStatusRequestId" maxlength="80" placeholder="Paste your Request ID"></label>
+<label>Advertiser email<input id="adStatusEmail" type="email" maxlength="200" placeholder="business@example.com"></label>
+<button type="button" id="adStatusButton">Check request status</button>
+<div id="adStatusResult" class="detail-card" style="display:none"></div>
+</div>
+<div class="card">
 <h2>📊 Advertiser campaign history</h2>
 <p class="note">Enter the advertiser email used when your campaigns were created. You will see all matching campaigns, their status and current performance in one place.</p>
 <label>Advertiser email<input id="campaignEmail" type="email" maxlength="200" placeholder="business@example.com"></label>
@@ -204,6 +212,35 @@ document.getElementById("adPayButton")?.addEventListener("click",async()=>{
   out.textContent="Redirecting to secure Paystack checkout…";
   window.location.href=data.authorization_url;
  }catch(err){out.textContent=err.message||"Advertising payment could not be started.";button.disabled=false;button.textContent="Pay advertising fee";}
+});
+document.getElementById("adStatusButton")?.addEventListener("click",async()=>{
+ const requestId=document.getElementById("adStatusRequestId").value.trim();
+ const email=document.getElementById("adStatusEmail").value.trim();
+ const out=document.getElementById("adStatusResult");
+ if(!requestId||!email){out.style.display="block";out.innerHTML='<p class="note">Enter your Request ID and advertiser email.</p>';return}
+ const button=document.getElementById("adStatusButton");
+ button.disabled=true;button.textContent="Checking…";out.style.display="block";out.innerHTML='<p class="note">Checking your advertising request…</p>';
+ try{
+  const res=await fetch(SUPABASE_URL+"/rest/v1/rpc/get_advertiser_request_status",{method:"POST",headers:{"apikey":SUPABASE_ANON_KEY,"Authorization":"Bearer "+SUPABASE_ANON_KEY,"Content-Type":"application/json"},body:JSON.stringify({p_request_id:requestId,p_email:email})});
+  const rows=await res.json();
+  if(!res.ok)throw new Error(Array.isArray(rows)?JSON.stringify(rows):rows?.message||"Status could not be checked.");
+  if(!Array.isArray(rows)||!rows.length){out.innerHTML='<p class="note">No matching advertising request was found. Check the Request ID and email address.</p>';return}
+  const d=rows[0];
+  const requestStatus=String(d.request_status||"").toLowerCase();
+  const paymentStatus=String(d.payment_status||"").toLowerCase();
+  const requestLabel=requestStatus==="approved"?"Approved":requestStatus==="rejected"?"Rejected":"Pending review";
+  const paymentLabel=paymentStatus==="success"?"Paid successfully":paymentStatus==="pending"||paymentStatus==="initialized"?"Payment processing":"Payment not yet made";
+  out.innerHTML='<h3 style="margin-top:0">Advertising request status</h3><div class="detail-grid">'+
+   '<div class="detail-item"><small>Business</small><b>'+esc(d.business_name)+'</b></div>'+
+   '<div class="detail-item"><small>Package</small><b>'+esc(d.package)+'</b></div>'+
+   '<div class="detail-item"><small>Request status</small><b>'+requestLabel+'</b></div>'+
+   '<div class="detail-item"><small>Agreed amount</small><b>'+((d.agreed_amount&&Number(d.agreed_amount)>0)?("₦"+Number(d.agreed_amount).toLocaleString()):"Not set yet")+'</b></div>'+
+   '<div class="detail-item"><small>Payment status</small><b>'+paymentLabel+'</b></div>'+
+   (d.payment_reference?'<div class="detail-item"><small>Payment reference</small><b>'+esc(d.payment_reference)+'</b></div>':'')+
+   (d.campaign_id?'<div class="detail-item"><small>Campaign</small><b>Created and linked</b></div>':'')+
+   '</div><p class="note">A successful payment is confirmed on the server before the campaign can be published. Keep your Request ID for future reference.</p>';
+ }catch(err){out.innerHTML='<p class="note">We could not check the request right now. Please try again.</p>'}
+ finally{button.disabled=false;button.textContent="Check request status";}
 });
 form.addEventListener("submit",async e=>{
  e.preventDefault();result.textContent="Sending your request…";

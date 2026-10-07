@@ -532,9 +532,34 @@ function recordAdvertisingImpressions(){
 async function reviewAdvertisingRequest(id,status){
   if(!sb||!authUser||!['Admin','Moderator'].includes(user()?.role))return;
   try{
-    const {error}=await sb.from("advertising_requests").update({status,reviewed_at:new Date().toISOString(),reviewed_by:authUser.id}).eq("id",id);
+    const request=state.advertisingRequests.find(x=>String(x.id)===String(id));
+    if(status==="approved"){
+      const defaults={Starter:15000,Business:50000,Premium:100000};
+      const suggested=defaults[request?.package]||"";
+      const raw=prompt("Set the approved advertising amount in NGN.\n\nPackage: "+(request?.package||"Custom")+(suggested?"\nSuggested starting amount: ₦"+suggested.toLocaleString():""),suggested?String(suggested):"");
+      if(raw===null)return;
+      const amount=Math.round(Number(String(raw).replace(/,/g,"").replace(/₦/g,"").trim()));
+      if(!Number.isFinite(amount)||amount<=0){toast("Please enter a valid advertising amount.",true);return}
+      const {error}=await sb.from("advertising_requests").update({
+        status:"approved",
+        approved_amount:amount,
+        approved_at:new Date().toISOString(),
+        payment_status:"unpaid",
+        reviewed_at:new Date().toISOString(),
+        reviewed_by:authUser.id
+      }).eq("id",id);
+      if(error)throw error;
+      await syncAdvertising();render();toast("Advertising request approved at ₦"+amount.toLocaleString()+". The advertiser can now pay.");
+      return;
+    }
+    const {error}=await sb.from("advertising_requests").update({
+      status:"rejected",
+      payment_status:"failed",
+      reviewed_at:new Date().toISOString(),
+      reviewed_by:authUser.id
+    }).eq("id",id);
     if(error)throw error;
-    await syncAdvertising();render();toast("Advertising request marked "+status+".");
+    await syncAdvertising();render();toast("Advertising request marked rejected.");
   }catch(e){toast(e.message||"Advertising request could not be updated.",true)}
 }
 async function uploadAdvertisingImage(file){
@@ -553,6 +578,20 @@ async function createAdvertisingCampaign(e){
   const form=e.target,d=Object.fromEntries(new FormData(form)),imageFile=form.querySelector('[name="image_file"]')?.files?.[0]||null;
   const submit=form.querySelector('button[type="submit"]');
   try{
+    const requestId=String(d.advertising_request_id||"").trim();
+    if(!requestId)throw new Error("Select a paid advertising request before publishing.");
+    const {data:request,error:requestError}=await sb.from("advertising_requests").select("id,business_name,email,status,payment_status").eq("id",requestId).maybeSingle();
+    if(requestError)throw requestError;
+    if(!request)throw new Error("Advertising request not found.");
+    if(request.status!=="approved"||request.payment_status!=="success")throw new Error("This advertising request has not been successfully paid.");
+    const {data:payment,error:paymentError}=await sb.from("advertising_payments").select("id,status").eq("request_id",requestId).eq("status","success").order("paid_at",{ascending:false}).limit(1).maybeSingle();
+    if(paymentError)throw paymentError;
+    if(!payment)throw new Error("Successful advertising payment record not found.");
+    const businessName=String(d.business_name||request.business_name||"").trim();
+    const advertiserEmail=String(d.advertiser_email||request.email||"").trim().toLowerCase();
+    if(businessName!==String(request.business_name||"").trim()||advertiserEmail!==String(request.email||"").trim().toLowerCase())throw new Error("Business name or advertiser email does not match the paid request.");
+    const start=new Date(d.starts_at),end=new Date(d.ends_at);
+    if(!(start<end))throw new Error("Campaign end must be after campaign start.");
     if(submit){submit.disabled=true;submit.textContent="Publishing…";}
     let imageUrl=String(d.image_url||"").trim()||null;
     if(imageFile){
@@ -560,20 +599,22 @@ async function createAdvertisingCampaign(e){
       imageUrl=await uploadAdvertisingImage(imageFile);
     }
     const {data,error}=await sb.from("advertising_campaigns").insert({
-      business_name:String(d.business_name||"").trim(),
+      business_name:businessName,
       headline:String(d.headline||"").trim(),
       description:String(d.description||"").trim()||null,
       image_url:imageUrl,
       target_url:String(d.target_url||"").trim()||null,
-      advertiser_email:String(d.advertiser_email||"").trim().toLowerCase()||null,
+      advertiser_email:advertiserEmail,
       placement:String(d.placement||"homepage"),
-      starts_at:new Date(d.starts_at).toISOString(),
-      ends_at:new Date(d.ends_at).toISOString(),
+      starts_at:start.toISOString(),
+      ends_at:end.toISOString(),
       status:"approved",
-      created_by:authUser.id
+      created_by:authUser.id,
+      advertising_request_id:requestId,
+      advertising_payment_id:payment.id
     }).select("id").single();
     if(error)throw error;
-    await syncAdvertising();render();toast("Advertising campaign created. Campaign ID: "+(data?.id||"")+" — give this ID to the advertiser for campaign reporting.");
+    await syncAdvertising();render();toast("Paid advertising campaign created. Campaign ID: "+(data?.id||"")+" — give this ID to the advertiser for campaign reporting.");
   }catch(err){toast(err.message||"Campaign could not be created.",true)}
   finally{
     if(submit){submit.disabled=false;submit.textContent="Publish advert";}
@@ -614,13 +655,14 @@ function adminPanel(){
   '</tbody></table></div>'+
   '<div class="dashboard-callout"><b>Verification reminder</b><p>Approval adds the Verified Seller badge to the seller profile. Verification does not guarantee ownership, title, value or the outcome of a buyer-seller transaction.</p></div>'+
   '<div class="panel-heading"><div><span class="eyebrow">Business advertising</span><h3>Advertising requests</h3></div><span class="result-count">'+state.advertisingRequests.filter(r=>r.status==="pending").length+' pending</span></div>'+
-  '<div class="dashboard-callout"><b>Direct business advertising</b><p>Review incoming business enquiries here. Approving an enquiry does not charge the business; agree the campaign and payment separately before publishing.</p></div>'+
-  '<div class="table-wrap"><table><thead><tr><th>Business</th><th>Contact</th><th>Package</th><th>Submitted</th><th>Status</th><th>Action</th></tr></thead><tbody>'+
-  (state.advertisingRequests.length?state.advertisingRequests.map(r=>'<tr><td><b>'+esc(r.business_name)+'</b><small>'+esc(r.email)+'</small></td><td>'+esc(r.contact_name)+'<small>'+esc(r.phone||'')+'</small></td><td>'+esc(r.package)+'</td><td>'+new Date(r.created_at).toLocaleString()+'</td><td><span class="status-pill '+slug(r.status)+'">'+esc(r.status)+'</span></td><td>'+(r.status==="pending"?'<button class="ghost-btn" data-ad-request="approved:'+esc(r.id)+'">Approve</button> <button class="danger-text" data-ad-request="rejected:'+esc(r.id)+'">Reject</button>':'Reviewed')+'</td></tr>').join(''):'<tr><td colspan="6">No advertising requests yet.</td></tr>')+
+  '<div class="dashboard-callout"><b>Paid advertising workflow</b><p>Approve the request and set the agreed amount first. The advertiser then pays through Paystack. Only requests with a verified successful advertising payment can be published as campaigns.</p></div>'+
+  '<div class="table-wrap"><table><thead><tr><th>Request ID</th><th>Business</th><th>Package</th><th>Amount</th><th>Payment</th><th>Status</th><th>Action</th></tr></thead><tbody>'+
+  (state.advertisingRequests.length?state.advertisingRequests.map(r=>'<tr><td><code>'+esc(r.id)+'</code></td><td><b>'+esc(r.business_name)+'</b><small>'+esc(r.email)+'</small></td><td>'+esc(r.package)+'</td><td>'+(r.approved_amount?'₦'+Number(r.approved_amount).toLocaleString():'—')+'</td><td><span class="status-pill '+slug(r.payment_status||"unpaid")+'">'+esc(r.payment_status||"unpaid")+'</span></td><td><span class="status-pill '+slug(r.status)+'">'+esc(r.status)+'</span></td><td>'+(r.status==="pending"?'<button class="ghost-btn" data-ad-request="approved:'+esc(r.id)+'">Approve & Set Amount</button> <button class="danger-text" data-ad-request="rejected:'+esc(r.id)+'">Reject</button>':r.status==="approved"&&r.payment_status==="success"?"Paid & ready":r.status==="approved"?"Waiting for payment":"Reviewed")+'</td></tr>').join(''):'<tr><td colspan="7">No advertising requests yet.</td></tr>')+
   '</tbody></table></div>'+
   '<div class="panel-heading"><div><span class="eyebrow">Campaign publishing</span><h3>Publish an approved advert</h3></div></div>'+
   '<form id="advertisingCampaignForm" class="form-grid dashboard-callout">'+
-  '<label>Business name<input name="business_name" required maxlength="150"></label><label>Advertiser email<input name="advertiser_email" type="email" required maxlength="200" placeholder="business@example.com"><small class="demo-note">This email is used to give the business access to its campaign report.</small></label><label>Headline<input name="headline" required maxlength="180"></label>'+
+  '<label>Paid advertising request ID<input name="advertising_request_id" required maxlength="80" placeholder="Paste the approved request ID"><small class="demo-note">The request must show Payment = success before publishing.</small></label>'+
+  '<label>Business name<input name="business_name" required maxlength="150"></label><label>Advertiser email<input name="advertiser_email" type="email" required maxlength="200" placeholder="business@example.com"><small class="demo-note">This email must match the paid advertising request.</small></label><label>Headline<input name="headline" required maxlength="180"></label>'+
   '<label>Image URL<input name="image_url" type="url" placeholder="https://..."><small class="demo-note">Keep this option for companies that already have a hosted image or logo.</small></label><label>Upload company image (optional)<input name="image_file" type="file" accept="image/*"><small class="demo-note">Or upload an image directly from your device. Maximum 5 MB.</small></label><label>Target URL<input name="target_url" type="url" placeholder="https://..."></label>'+
   '<label>Placement<select name="placement"><option value="homepage">Homepage</option><option value="marketplace">Marketplace</option><option value="category">Category</option></select></label>'+
   '<label>Start<input name="starts_at" type="datetime-local" required></label><label>End<input name="ends_at" type="datetime-local" required></label>'+

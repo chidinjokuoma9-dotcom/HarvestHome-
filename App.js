@@ -470,7 +470,7 @@ function card(l){
         <div style="padding:7px 10px;background:#fff;font-size:12px;font-weight:600;text-align:left">🎥 Listing video · Tap to view larger</div>
       </button>`:""}
       ${mediaCount>1?`<small style="display:block;margin:6px 0;color:#667085">${imgs.length} photos${l.video?" + 1 video":""} · Tap any media to view larger</small>`:""}
-      <div class="listing-actions"><button class="outline-btn full" data-contact="\${l.id}">Chat seller</button><button class="ghost-btn full" data-recommend="\${l.id}">⭐ Recommend seller</button><button class="ghost-btn full" data-share-social="\${esc(l.id)}">↗ Share listing</button><div class="media-links"><a target="_blank" rel="noopener" href="\${mapURL(l)}">📍 Map</a></div></div>
+      <div class="listing-actions"><button class="outline-btn full" data-contact="${esc(l.id)}">Chat seller</button><button class="ghost-btn full" data-recommend="${esc(l.id)}">⭐ Recommend seller</button><button class="ghost-btn full" data-share-social="${esc(l.id)}">↗ Share listing</button><div class="media-links"><a target="_blank" rel="noopener" href="${mapURL(l)}">📍 Map</a></div></div>
     </div>
   </article>`;
 }

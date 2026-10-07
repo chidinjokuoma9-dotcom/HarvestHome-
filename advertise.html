@@ -65,7 +65,7 @@ a{color:#176b43}.note{font-size:14px;color:#5d6d65}.table-wrap{overflow:auto;mar
 <h2>📊 Advertiser campaign history</h2>
 <p class="note">Enter the advertiser email used when your campaigns were created. You will see all matching campaigns, their status and current performance in one place.</p>
 <label>Advertiser email<input id="campaignEmail" type="email" maxlength="200" placeholder="business@example.com"></label>
-<button type="button" id="checkCampaign">View campaign history</button>
+<button type="button" id="checkCampaign" onclick="loadCampaignHistory()">View campaign history</button>
 <p id="campaignResult" class="note"></p>
 <div id="campaignSummary" class="summary-grid" style="display:none"></div><div id="campaignReport" style="display:none"></div><div id="performanceReport" style="display:none"></div><div id="professionalReport" style="display:none"></div>
 </div>
@@ -85,7 +85,7 @@ function campaignState(start,end){
  const now=Date.now(),s=new Date(start).getTime(),e=new Date(end).getTime();
  return now<s?"Scheduled":now>=e?"Expired":"Live";
 }
-campaignButton.addEventListener("click",async()=>{
+window.loadCampaignHistory=async function(){
  const email=document.getElementById("campaignEmail").value.trim();
  campaignResult.textContent="Loading campaign history…";campaignReport.style.display="none";campaignReport.innerHTML="";campaignSummary.style.display="none";campaignSummary.innerHTML="";performanceReport.style.display="none";performanceReport.innerHTML="";professionalReport.style.display="none";professionalReport.innerHTML="";
  if(!email){campaignResult.textContent="Enter the advertiser email used for your campaign.";return}
@@ -181,7 +181,7 @@ campaignButton.addEventListener("click",async()=>{
    }catch(err){detail.innerHTML='<p class="note">We could not load this campaign detail right now. Please try again.</p>'}
   }));
  }catch(err){campaignResult.textContent="We could not load the campaign history right now. Please check the email or contact harvesthcn@gmail.com."}
-});
+};
 form.addEventListener("submit",async e=>{
  e.preventDefault();result.textContent="Sending your request…";
  const d=Object.fromEntries(new FormData(form));

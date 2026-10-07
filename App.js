@@ -721,6 +721,11 @@ function notificationFeed(mine=[]){
 function profileTab(u){
   const avatar=u.avatar_url||"";
   const pro=professionalStatus();
+  const perf=state.sellerPerformance||{};
+  const reward=getReward(u.email);
+  const trustPoints=(pro.verified?40:pro.active?25:0)+(Number(perf.approved||0)>0?20:0)+(Number(perf.recommendations||0)>0?15:0)+(Number(perf.chats||0)>0?10:0)+(Number(reward.buyers||0)>0?15:0);
+  const trustLevel=trustPoints>=70?"Strong trust":trustPoints>=40?"Building trust":"New seller";
+  const trustMessage=trustLevel==="Strong trust"?"Your account is showing strong seller activity and buyer engagement.":trustLevel==="Building trust"?"Keep publishing quality listings and responding to buyers to strengthen your seller profile.":"Complete your profile, publish quality listings and engage with buyers to build trust.";
   const statusBlock=(pro.verified?`<div class="dashboard-callout" style="margin-top:16px"><b>🏆 Verified Professional Seller</b><p>Your Verified Professional Seller status is permanent on HarvestHome.</p></div>`:"")+
     (pro.active?`<div class="dashboard-callout" style="margin-top:16px"><b>⭐ Professional Seller</b><p>Your Professional Seller status is active until ${pro.expiresAt.toLocaleDateString()}.</p></div>`:"");
   return `<div class="panel-heading"><div><span class="eyebrow">Account</span><h2>My profile</h2></div>
@@ -733,7 +738,8 @@ function profileTab(u){
     <label>Account type<input value="${esc(u.role||"Buyer")}" disabled></label>
     <button class="primary-btn" type="submit">Save profile</button></form>
     ${statusBlock}
-    <p class="demo-note">Your profile photo and name are used across your HarvestHome account.</p></div></div>`;
+    <p class="demo-note">Your profile photo and name are used across your HarvestHome account.</p></div></div>
+    <div class="dashboard-callout" style="margin-top:16px"><b>🛡️ Seller trust profile</b><p><strong>${trustLevel}</strong> — ${trustMessage}</p><p>📋 ${Number(perf.approved||0)} approved listings · 💬 ${Number(perf.chats||0)} buyer conversations · ⭐ ${Number(perf.recommendations||0)} recommendations · 🏆 ${Number(reward.points||0)} reward points</p></div>`;
 }
 async function saveProfile(e){
   e.preventDefault();

@@ -21,3 +21,29 @@
 .profile-details label{display:grid;gap:7px;font-weight:600}
 .profile-details input{width:100%;box-sizing:border-box}
 @media(max-width:700px){.profile-card{grid-template-columns:1fr}.profile-avatar-wrap{align-items:flex-start}}
+
+/* Mobile usability improvements — isolated, existing layouts preserved */
+@media(max-width:620px){
+  .filter-bar{display:grid;grid-template-columns:1fr;gap:9px;padding:12px 0}
+  .filter-bar select,.filter-bar .clear-btn{width:100%;min-width:0;min-height:44px;font-size:14px}
+  .hero-search input{min-height:46px;font-size:16px}
+  .listing-card{border-radius:15px}
+  .listing-image{height:190px}
+  .listing-body{padding:15px}
+  .listing-body h3{font-size:16px;overflow-wrap:anywhere}
+  .listing-bottom{gap:10px;align-items:flex-start;flex-wrap:wrap}
+  .listing-bottom strong{font-size:14px;overflow-wrap:anywhere}
+  .listing-actions{display:grid;grid-template-columns:1fr;gap:8px}
+  .listing-actions button,.listing-actions a{width:100%;min-height:44px}
+  .dashboard-nav{padding-bottom:4px}
+  .dashboard-nav button{min-height:44px}
+  .panel-heading{align-items:flex-start;flex-direction:column;gap:8px}
+  .panel-heading h2{font-size:26px}
+  .dashboard-callout{overflow-wrap:anywhere}
+  .table-wrap{max-width:100%;-webkit-overflow-scrolling:touch}
+  .table-wrap table{min-width:650px}
+  .chat-row{grid-template-columns:40px 1fr auto;padding:12px}
+  .chat-row b{overflow-wrap:anywhere}
+  .notification-item{padding:12px}
+  .footer-grid{gap:20px}
+}

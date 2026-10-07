@@ -462,7 +462,7 @@ function card(l){
       <span class="listing-category">${esc(displayCategory(l.category))}</span>
       <h3>${esc(l.title)}</h3>
       <p class="location">📍 ${esc(l.location)} · ${esc(l.country)}</p>
-      <p class="seller-line">👤 ${esc(l.seller||'HarvestHome Seller')}${l.sellerVerified?' · ✓ Verified seller':''}${l.professionalSeller?' · 🏆 Verified Professional Seller':''}</p>
+      <div class="seller-trust-row"><p class="seller-line">👤 ${esc(l.seller||'HarvestHome Seller')}</p>${l.sellerVerified?`<span class="trust-badge verified">✓ Verified seller</span>`:""}${l.professionalSeller?`<span class="trust-badge pro">🏆 Verified Professional</span>`:""}</div>
       <p class="description">${esc(l.description)}</p>
       <div class="listing-bottom"><strong>${money(l.price,l.currency||countryInfo().currency)}</strong><span>${l.views||0} views</span></div>
       ${l.video?`<button type="button" data-media-open="${esc(l.id)}" data-media-index="${imgs.length}" style="margin:12px 0;width:100%;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;background:#000;cursor:zoom-in;padding:0">

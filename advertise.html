@@ -62,6 +62,14 @@ a{color:#176b43}.note{font-size:14px;color:#5d6d65}.table-wrap{overflow:auto;mar
 </form>
 </div>
 <div class="card">
+<h2>💳 Pay for an approved advertising request</h2>
+<p class="note">After HarvestHome approves your advertising request and sets the amount, enter the Request ID and the same advertiser email to continue securely to Paystack.</p>
+<label>Advertising Request ID<input id="adPaymentRequestId" maxlength="80" placeholder="Paste your Request ID"></label>
+<label>Advertiser email<input id="adPaymentEmail" type="email" maxlength="200" placeholder="business@example.com"></label>
+<button type="button" id="adPayButton">Pay advertising fee</button>
+<p id="adPaymentResult" class="note"></p>
+</div>
+<div class="card">
 <h2>📊 Advertiser campaign history</h2>
 <p class="note">Enter the advertiser email used when your campaigns were created. You will see all matching campaigns, their status and current performance in one place.</p>
 <label>Advertiser email<input id="campaignEmail" type="email" maxlength="200" placeholder="business@example.com"></label>
@@ -182,13 +190,37 @@ window.loadCampaignHistory=async function(){
   }));
  }catch(err){campaignResult.textContent="We could not load the campaign history right now. Please check the email or contact harvesthcn@gmail.com."}
 };
+document.getElementById("adPayButton")?.addEventListener("click",async()=>{
+ const requestId=document.getElementById("adPaymentRequestId").value.trim();
+ const email=document.getElementById("adPaymentEmail").value.trim();
+ const out=document.getElementById("adPaymentResult");
+ if(!requestId||!email){out.textContent="Enter your Request ID and advertiser email.";return}
+ const button=document.getElementById("adPayButton");
+ button.disabled=true;button.textContent="Connecting to Paystack…";out.textContent="";
+ try{
+  const res=await fetch(SUPABASE_URL+"/functions/v1/paystack-advertising-initialize",{method:"POST",headers:{"Content-Type":"application/json","apikey":SUPABASE_ANON_KEY},body:JSON.stringify({request_id:requestId,email,callback_url:window.location.origin+"/advertise.html"})});
+  const data=await res.json().catch(()=>null);
+  if(!res.ok||!data?.authorization_url)throw new Error(data?.error||"Advertising payment could not be started.");
+  out.textContent="Redirecting to secure Paystack checkout…";
+  window.location.href=data.authorization_url;
+ }catch(err){out.textContent=err.message||"Advertising payment could not be started.";button.disabled=false;button.textContent="Pay advertising fee";}
+});
 form.addEventListener("submit",async e=>{
  e.preventDefault();result.textContent="Sending your request…";
  const d=Object.fromEntries(new FormData(form));
  try{
-  const res=await fetch(SUPABASE_URL+"/rest/v1/advertising_requests",{method:"POST",headers:{"apikey":SUPABASE_ANON_KEY,"Authorization":"Bearer "+SUPABASE_ANON_KEY,"Content-Type":"application/json","Prefer":"return=minimal"},body:JSON.stringify(d)});
-  if(!res.ok){const t=await res.text();throw new Error(t||"Request could not be sent.")}
-  form.reset();result.textContent="Thank you. Your advertising request has been received. HarvestHome will contact you with the next steps.";
+  const res=await fetch(SUPABASE_URL+"/rest/v1/advertising_requests",{method:"POST",headers:{"apikey":SUPABASE_ANON_KEY,"Authorization":"Bearer "+SUPABASE_ANON_KEY,"Content-Type":"application/json","Prefer":"return=representation"},body:JSON.stringify(d)});
+  const created=await res.json().catch(()=>null);
+  if(!res.ok){const t=typeof created==="string"?created:(created?.message||"Request could not be sent.");throw new Error(t)}
+  const requestId=Array.isArray(created)?created[0]?.id:created?.id;
+  form.reset();
+  if(requestId){
+    result.innerHTML="Thank you. Your advertising request has been received.<br><b>Request ID:</b> <code>"+esc(requestId)+"</code><br>Please save this ID. Once HarvestHome approves the request and sets the amount, use it in the payment box below.";
+    document.getElementById("adPaymentRequestId").value=requestId;
+    document.getElementById("adPaymentEmail").value=d.email||"";
+  }else{
+    result.textContent="Thank you. Your advertising request has been received. HarvestHome will contact you with the next steps.";
+  }
  }catch(err){result.textContent="We could not send the request right now. Please email harvesthcn@gmail.com instead."}
 });
 </script>

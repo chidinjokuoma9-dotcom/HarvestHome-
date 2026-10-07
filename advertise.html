@@ -102,24 +102,32 @@ campaignButton.addEventListener("click",async()=>{
       return '<tr><td><code>'+esc(c.campaign_id)+'</code></td><td><b>'+esc(c.business_name)+'</b></td><td>'+esc(c.headline)+'</td><td><span class="status '+cls+'">'+status+'</span></td><td>'+Number(c.impressions||0)+'</td><td>'+Number(c.clicks||0)+'</td><td>'+Number(c.ctr||0).toFixed(2)+'%</td><td>'+new Date(c.starts_at).toLocaleString()+'</td><td>'+new Date(c.ends_at).toLocaleString()+'</td><td><button type="button" class="detail-btn" data-campaign-detail="'+esc(c.campaign_id)+'">View campaign</button></td></tr>';
     }).join("")+
     '</tbody></table></div><div id="campaignDetail" class="detail-card" style="display:none"></div><p class="note">CTR = clicks ÷ impressions. Scheduled and expired campaigns remain available here for reporting.</p>';
- campaignReport.querySelectorAll("[data-campaign-detail]").forEach(btn=>btn.addEventListener("click",()=>{
+ campaignReport.querySelectorAll("[data-campaign-detail]").forEach(btn=>btn.addEventListener("click",async()=>{
    const c=rows.find(x=>String(x.campaign_id)===String(btn.dataset.campaignDetail));
    if(!c)return;
-   const detail=document.getElementById("campaignDetail"),status=campaignState(c.starts_at,c.ends_at);
+   const detail=document.getElementById("campaignDetail");
    detail.style.display="block";
-   detail.innerHTML='<h3 style="margin-top:0">Campaign details</h3><div class="detail-grid">'+
-    '<div class="detail-item"><small>Campaign ID</small><b>'+esc(c.campaign_id)+'</b></div>'+
-    '<div class="detail-item"><small>Business</small><b>'+esc(c.business_name)+'</b></div>'+
-    '<div class="detail-item"><small>Headline</small><b>'+esc(c.headline)+'</b></div>'+
-    '<div class="detail-item"><small>Placement</small><b>'+esc(c.placement)+'</b></div>'+
-    '<div class="detail-item"><small>Status</small><b>'+status+'</b></div>'+
-    '<div class="detail-item"><small>Impressions</small><b>'+Number(c.impressions||0)+'</b></div>'+
-    '<div class="detail-item"><small>Clicks</small><b>'+Number(c.clicks||0)+'</b></div>'+
-    '<div class="detail-item"><small>CTR</small><b>'+Number(c.ctr||0).toFixed(2)+'%</b></div>'+
-    '<div class="detail-item"><small>Start date</small><b>'+new Date(c.starts_at).toLocaleString()+'</b></div>'+
-    '<div class="detail-item"><small>End date</small><b>'+new Date(c.ends_at).toLocaleString()+'</b></div>'+
-    '</div>';
-   detail.scrollIntoView({behavior:"smooth",block:"nearest"});
+   detail.innerHTML='<p class="note">Loading campaign details…</p>';
+   try{
+    const email=document.getElementById("campaignEmail").value.trim();
+    const res=await fetch(SUPABASE_URL+"/rest/v1/rpc/get_advertiser_campaign_detail",{method:"POST",headers:{"apikey":SUPABASE_ANON_KEY,"Authorization":"Bearer "+SUPABASE_ANON_KEY,"Content-Type":"application/json"},body:JSON.stringify({p_campaign_id:c.campaign_id,p_email:email})});
+    const details=await res.json();
+    if(!res.ok||!Array.isArray(details)||!details.length)throw new Error("Campaign details unavailable.");
+    const d=details[0],status=campaignState(d.starts_at,d.ends_at);
+    detail.innerHTML='<h3 style="margin-top:0">Campaign details</h3><div class="detail-grid">'+
+     '<div class="detail-item"><small>Campaign ID</small><b>'+esc(d.campaign_id)+'</b></div>'+
+     '<div class="detail-item"><small>Business</small><b>'+esc(d.business_name)+'</b></div>'+
+     '<div class="detail-item"><small>Headline</small><b>'+esc(d.headline)+'</b></div>'+
+     '<div class="detail-item"><small>Description</small><b>'+esc(d.description)+'</b></div>'+
+     '<div class="detail-item"><small>Placement</small><b>'+esc(d.placement)+'</b></div>'+
+     '<div class="detail-item"><small>Status</small><b>'+status+'</b></div>'+
+     '<div class="detail-item"><small>Start date</small><b>'+new Date(d.starts_at).toLocaleString()+'</b></div>'+
+     '<div class="detail-item"><small>End date</small><b>'+new Date(d.ends_at).toLocaleString()+'</b></div>'+
+     (d.image_url?'<div class="detail-item"><small>Advert image</small><b><a href="'+esc(d.image_url)+'" target="_blank" rel="noopener">Open advert image</a></b></div>':'')+
+     (d.target_url?'<div class="detail-item"><small>Destination</small><b><a href="'+esc(d.target_url)+'" target="_blank" rel="noopener">Open destination</a></b></div>':'')+
+     '</div>';
+    detail.scrollIntoView({behavior:"smooth",block:"nearest"});
+   }catch(err){detail.innerHTML='<p class="note">We could not load this campaign detail right now. Please try again.</p>'}
   }));
  }catch(err){campaignResult.textContent="We could not load the campaign history right now. Please check the email or contact harvesthcn@gmail.com."}
 });

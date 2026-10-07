@@ -587,6 +587,9 @@ async function createAdvertisingCampaign(e){
     const {data:payment,error:paymentError}=await sb.from("advertising_payments").select("id,status").eq("request_id",requestId).eq("status","success").order("paid_at",{ascending:false}).limit(1).maybeSingle();
     if(paymentError)throw paymentError;
     if(!payment)throw new Error("Successful advertising payment record not found.");
+    const {data:existingCampaign,error:existingCampaignError}=await sb.from("advertising_campaigns").select("id").eq("advertising_request_id",requestId).limit(1).maybeSingle();
+    if(existingCampaignError)throw existingCampaignError;
+    if(existingCampaign)throw new Error("A campaign has already been created for this paid advertising request.");
     const businessName=String(d.business_name||request.business_name||"").trim();
     const advertiserEmail=String(d.advertiser_email||request.email||"").trim().toLowerCase();
     if(businessName!==String(request.business_name||"").trim()||advertiserEmail!==String(request.email||"").trim().toLowerCase())throw new Error("Business name or advertiser email does not match the paid request.");

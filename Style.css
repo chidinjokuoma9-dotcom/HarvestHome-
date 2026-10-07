@@ -55,3 +55,17 @@
 /* Seller trust indicators — isolated */
 .seller-trust-row{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:0 0 8px}.seller-trust-row .seller-line{margin:0}.trust-badge{display:inline-flex;align-items:center;border-radius:999px;padding:4px 8px;font-size:10px;font-weight:850;white-space:nowrap}.trust-badge.verified{background:#e8f7ed;color:#176b3b;border:1px solid #cde8d4}.trust-badge.pro{background:#fff6db;color:#7a5b00;border:1px solid #f0df9f}
 @media(max-width:620px){.seller-trust-row{align-items:flex-start}.trust-badge{font-size:9px}}
+
+/* Mobile account access fix — keep seller dashboard accessible on normal phone view */
+@media(max-width:620px){
+  .nav-wrap{gap:6px}
+  .brand{gap:6px;min-width:0;flex:1}
+  .brand-mark{width:34px;height:34px;flex:0 0 34px;font-size:18px}
+  .brand strong{font-size:14px;white-space:nowrap}
+  .brand small{display:none}
+  .nav-actions{gap:4px;margin-left:0;flex:0 0 auto}
+  .nav-actions select{max-width:82px;padding:7px 18px 7px 7px;font-size:10px}
+  .nav-actions .account-btn{display:inline-flex;padding:8px 8px;font-size:11px;white-space:nowrap}
+  .nav-actions .account-btn .status-pill{display:none}
+  .nav-actions .primary-btn.small{padding:8px 8px;font-size:11px;white-space:nowrap}
+}

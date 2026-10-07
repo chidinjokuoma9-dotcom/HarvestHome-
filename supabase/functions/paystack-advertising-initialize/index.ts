@@ -32,7 +32,7 @@ Deno.serve(async (req)=>{
     if(request.payment_status==="success") throw new Error("This advertising request has already been paid.");
 
     const amountKobo=Math.round(Number(request.approved_amount)*100);
-    const reference="hh_ad_"+request.id.replaceAll("-","").slice(0,16)+"_"+Date.now();
+    const reference="hh-ad-"+request.id.replaceAll("-","").slice(0,16)+"-"+Date.now();
 
     const paystack=await fetch("https://api.paystack.co/transaction/initialize",{
       method:"POST",

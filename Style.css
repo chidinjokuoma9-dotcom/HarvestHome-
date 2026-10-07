@@ -47,3 +47,7 @@
   .notification-item{padding:12px}
   .footer-grid{gap:20px}
 }
+
+/* Search price inputs — isolated styling */
+.filter-bar input[type="number"]{border:1px solid #d6dfd8;background:#fff;border-radius:10px;padding:10px 12px;color:#334139;min-width:130px;box-sizing:border-box}
+@media(max-width:620px){.filter-bar input[type="number"]{width:100%;min-width:0;min-height:44px;font-size:14px}}

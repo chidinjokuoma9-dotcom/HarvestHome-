@@ -15,8 +15,7 @@ h1{margin:8px 0}.brand{font-weight:800;color:#176b43;font-size:22px}.grid{displa
 .package{border:1px solid #dce7e1;border-radius:14px;padding:18px}.package h3{margin-top:0}
 label{display:block;font-weight:700;margin-top:12px}input,select,textarea{width:100%;box-sizing:border-box;padding:12px;border:1px solid #ccd9d2;border-radius:10px;margin-top:6px;font:inherit}
 button{margin-top:16px;padding:12px 18px;border:0;border-radius:10px;background:#176b43;color:white;font-weight:700;cursor:pointer}
-a{color:#176b43}
-.note{font-size:14px;color:#5d6d65}
+a{color:#176b43}.note{font-size:14px;color:#5d6d65}.table-wrap{overflow:auto;margin-top:16px}table{width:100%;border-collapse:collapse;min-width:760px}th,td{text-align:left;padding:11px;border-bottom:1px solid #e5ece8;vertical-align:top}th{font-size:13px;color:#52635b;background:#f8faf9}code{font-size:12px;word-break:break-all}.status{display:inline-block;padding:4px 9px;border-radius:999px;font-size:12px;font-weight:800;background:#eef4f0}.status.live{background:#e2f4e8;color:#176b43}.status.scheduled{background:#fff4d8;color:#8a5a00}.status.expired{background:#f0f1f1;color:#59615d}
 </style>
 </head>
 <body>
@@ -36,7 +35,7 @@ a{color:#176b43}
 <div class="package"><h3>Premium</h3><p>High-visibility placement for established campaigns.</p><b>From ₦100,000</b><p class="note">For larger campaigns seeking prominent visibility.</p></div>
 <div class="package"><h3>Custom</h3><p>Tell us your goals and we can discuss a campaign designed for your business.</p><b>Let's discuss</b><p class="note">Placement, duration and creative requirements are agreed before payment.</p></div>
 </div>
-<p class="note">These are indicative starting prices. Final pricing can vary by placement, campaign duration, audience, creative requirements and agreed campaign scope. <b>Do not send payment until HarvestHome confirms the campaign details.</b></p>
+<p class="note">These are indicative starting prices. Final pricing can vary by placement, duration, audience, creative requirements and agreed campaign scope. <b>Do not send payment until HarvestHome confirms the campaign details.</b></p>
 </div>
 <div class="card">
 <h2>Business promotion opportunities</h2>
@@ -44,7 +43,7 @@ a{color:#176b43}
 <div class="package"><h3>🌿 Business Spotlight</h3><p>Promote your business to marketplace visitors through an approved campaign placement.</p></div>
 <div class="package"><h3>📣 Product & service promotion</h3><p>Promote a business, service, product or special offer relevant to the HarvestHome audience.</p></div>
 <div class="package"><h3>🎯 Campaign placement</h3><p>Discuss homepage or marketplace placement, campaign dates and the creative you want displayed.</p></div>
-<div class="package"><h3>📊 Campaign reporting</h3><p>HarvestHome can provide agreed campaign information and performance details as the advertising system develops.</p></div>
+<div class="package"><h3>📊 Campaign reporting</h3><p>View your campaign history and performance using the advertiser email attached to your campaigns.</p></div>
 </div>
 <p class="note">Every campaign is subject to HarvestHome review and approval. Advertising does not imply endorsement, ownership verification or a guarantee of sales.</p>
 </div>
@@ -63,11 +62,10 @@ a{color:#176b43}
 </form>
 </div>
 <div class="card">
-<h2>📊 Check your campaign performance</h2>
-<p class="note">After HarvestHome creates your campaign, your team can use the Campaign ID and the advertiser email submitted for that campaign to view its current performance.</p>
-<label>Campaign ID<input id="campaignId" placeholder="Paste campaign ID"></label>
-<label>Advertiser email<input id="campaignEmail" type="email" placeholder="business@example.com"></label>
-<button type="button" id="checkCampaign">View campaign report</button>
+<h2>📊 Advertiser campaign history</h2>
+<p class="note">Enter the advertiser email used when your campaigns were created. You will see all matching campaigns, their status and current performance in one place.</p>
+<label>Advertiser email<input id="campaignEmail" type="email" maxlength="200" placeholder="business@example.com"></label>
+<button type="button" id="checkCampaign">View campaign history</button>
 <p id="campaignResult" class="note"></p>
 <div id="campaignReport" style="display:none"></div>
 </div>
@@ -79,25 +77,32 @@ a{color:#176b43}
 </div>
 <script>
 const SUPABASE_URL="https://dbariugnwgzbhxvtbcpz.supabase.co";
-const SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRiYXJpdWdud2d6Ymh4dnRiY3B6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAxOTAxNjUsImV4cCI6MjEwNTc2NjE2NX0.LtnUyH6WHZ1hLNhrAN42DvzW9-Y1TyXYlj6b5gj2v6s";
+const SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSI6ImRiYXJpdWdud2d6Ymh4dnRiY3B6Iiwicm9sZSI6IkJ1eWFuIiwiZXhwIjoxMTAwMDAwMDAwfQ";
 const form=document.getElementById("advertisingForm"),result=document.getElementById("result");
 const campaignButton=document.getElementById("checkCampaign"),campaignResult=document.getElementById("campaignResult"),campaignReport=document.getElementById("campaignReport");
+const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
+function campaignState(start,end){
+ const now=Date.now(),s=new Date(start).getTime(),e=new Date(end).getTime();
+ return now<s?"Scheduled":now>=e?"Expired":"Live";
+}
 campaignButton.addEventListener("click",async()=>{
- const campaignId=document.getElementById("campaignId").value.trim(),email=document.getElementById("campaignEmail").value.trim();
- campaignResult.textContent="Loading campaign report…";campaignReport.style.display="none";campaignReport.innerHTML="";
- if(!campaignId||!email){campaignResult.textContent="Enter both the Campaign ID and advertiser email.";return}
+ const email=document.getElementById("campaignEmail").value.trim();
+ campaignResult.textContent="Loading campaign history…";campaignReport.style.display="none";campaignReport.innerHTML="";
+ if(!email){campaignResult.textContent="Enter the advertiser email used for your campaign.";return}
  try{
-  const res=await fetch(SUPABASE_URL+"/rest/v1/rpc/get_advertiser_campaign_report",{method:"POST",headers:{"apikey":SUPABASE_ANON_KEY,"Authorization":"Bearer "+SUPABASE_ANON_KEY,"Content-Type":"application/json"},body:JSON.stringify({p_campaign_id:campaignId,p_email:email})});
+  const res=await fetch(SUPABASE_URL+"/rest/v1/rpc/get_advertiser_campaign_history",{method:"POST",headers:{"apikey":SUPABASE_ANON_KEY,"Authorization":"Bearer "+SUPABASE_ANON_KEY,"Content-Type":"application/json"},body:JSON.stringify({p_email:email})});
   const rows=await res.json();
-  if(!res.ok)throw new Error(Array.isArray(rows)?JSON.stringify(rows):rows.message||"Campaign report could not be loaded.");
-  if(!rows.length){campaignResult.textContent="No matching campaign was found. Check the Campaign ID and advertiser email.";return}
-  const c=rows[0],impressions=Number(c.impressions||0),clicks=Number(c.clicks||0),ctr=Number(c.ctr||0),now=Date.now(),start=new Date(c.starts_at).getTime(),end=new Date(c.ends_at).getTime(),status=now<start?"Scheduled":now>=end?"Expired":"Live";
-  const statusText=status==="Live"?"Your campaign is currently running.":status==="Scheduled"?"Your campaign is approved and scheduled to start soon.":"Your campaign has ended; its performance remains available for reporting.";
-  const ctrText=impressions>0?(ctr>=2?"Your campaign is receiving a healthy level of clicks relative to impressions.":ctr>0?"Your campaign has received clicks and can continue building engagement.":"No clicks have been recorded yet."): "Your campaign has not recorded any impressions yet.";
-  campaignResult.textContent="Campaign report loaded.";
+  if(!res.ok)throw new Error(Array.isArray(rows)?JSON.stringify(rows):rows.message||"Campaign history could not be loaded.");
+  if(!Array.isArray(rows)||!rows.length){campaignResult.textContent="No campaigns were found for that advertiser email. Check the email address and try again.";return}
+  campaignResult.textContent=rows.length+" campaign"+(rows.length===1?"":"s")+" found.";
   campaignReport.style.display="block";
-  campaignReport.innerHTML='<div class="card" style="margin:18px 0 0;padding:18px"><h3 style="margin-top:0">'+c.business_name+'</h3><p style="margin:4px 0 14px"><b>'+c.headline+'</b></p><div class="grid"><div class="package"><h3>Status</h3><b>'+status+'</b><p class="note">'+statusText+'</p></div><div class="package"><h3>Impressions</h3><b>'+impressions+'</b><p class="note">Times your advert was displayed.</p></div><div class="package"><h3>Clicks</h3><b>'+clicks+'</b><p class="note">Visits generated from your advert.</p></div><div class="package"><h3>CTR</h3><b>'+ctr.toFixed(2)+'%</b><p class="note">Clicks divided by impressions.</p></div></div><p class="note"><b>Placement:</b> '+c.placement+'<br><b>Campaign period:</b> '+new Date(c.starts_at).toLocaleString()+' → '+new Date(c.ends_at).toLocaleString()+'</p><p class="note">'+ctrText+'</p></div>';
- }catch(err){campaignResult.textContent="We could not load the campaign report right now. Please check the details or email harvesthcn@gmail.com."}
+  campaignReport.innerHTML='<div class="table-wrap"><table><thead><tr><th>Campaign ID</th><th>Business</th><th>Headline</th><th>Status</th><th>Impressions</th><th>Clicks</th><th>CTR</th><th>Start date</th><th>End date</th></tr></thead><tbody>'+
+    rows.map(c=>{
+      const status=campaignState(c.starts_at,c.ends_at),cls=status.toLowerCase();
+      return '<tr><td><code>'+esc(c.campaign_id)+'</code></td><td><b>'+esc(c.business_name)+'</b></td><td>'+esc(c.headline)+'</td><td><span class="status '+cls+'">'+status+'</span></td><td>'+Number(c.impressions||0)+'</td><td>'+Number(c.clicks||0)+'</td><td>'+Number(c.ctr||0).toFixed(2)+'%</td><td>'+new Date(c.starts_at).toLocaleString()+'</td><td>'+new Date(c.ends_at).toLocaleString()+'</td></tr>';
+    }).join("")+
+    '</tbody></table></div><p class="note">CTR = clicks ÷ impressions. Scheduled and expired campaigns remain available here for reporting.</p>';
+ }catch(err){campaignResult.textContent="We could not load the campaign history right now. Please check the email or contact harvesthcn@gmail.com."}
 });
 form.addEventListener("submit",async e=>{
  e.preventDefault();result.textContent="Sending your request…";

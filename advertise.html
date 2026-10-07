@@ -15,7 +15,7 @@ h1{margin:8px 0}.brand{font-weight:800;color:#176b43;font-size:22px}.grid{displa
 .package{border:1px solid #dce7e1;border-radius:14px;padding:18px}.package h3{margin-top:0}
 label{display:block;font-weight:700;margin-top:12px}input,select,textarea{width:100%;box-sizing:border-box;padding:12px;border:1px solid #ccd9d2;border-radius:10px;margin-top:6px;font:inherit}
 button{margin-top:16px;padding:12px 18px;border:0;border-radius:10px;background:#176b43;color:white;font-weight:700;cursor:pointer}
-a{color:#176b43}.note{font-size:14px;color:#5d6d65}.table-wrap{overflow:auto;margin-top:16px}table{width:100%;border-collapse:collapse;min-width:760px}th,td{text-align:left;padding:11px;border-bottom:1px solid #e5ece8;vertical-align:top}th{font-size:13px;color:#52635b;background:#f8faf9}code{font-size:12px;word-break:break-all}.status{display:inline-block;padding:4px 9px;border-radius:999px;font-size:12px;font-weight:800;background:#eef4f0}.status.live{background:#e2f4e8;color:#176b43}.status.scheduled{background:#fff4d8;color:#8a5a00}.status.expired{background:#f0f1f1;color:#59615d}
+a{color:#176b43}.note{font-size:14px;color:#5d6d65}.table-wrap{overflow:auto;margin-top:16px}table{width:100%;border-collapse:collapse;min-width:760px}th,td{text-align:left;padding:11px;border-bottom:1px solid #e5ece8;vertical-align:top}th{font-size:13px;color:#52635b;background:#f8faf9}code{font-size:12px;word-break:break-all}.status{display:inline-block;padding:4px 9px;border-radius:999px;font-size:12px;font-weight:800;background:#eef4f0}.status.live{background:#e2f4e8;color:#176b43}.status.scheduled{background:#fff4d8;color:#8a5a00}.status.expired{background:#f0f1f1;color:#59615d}.detail-btn{margin:0;padding:8px 11px;font-size:12px}.detail-card{margin-top:16px;padding:16px;border:1px solid #dce7e1;border-radius:14px;background:#f8faf9}.detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}.detail-item{padding:10px;background:#fff;border:1px solid #e5ece8;border-radius:10px}.detail-item small{display:block;color:#64736c;font-size:11px}.detail-item b{display:block;margin-top:3px;word-break:break-word}
 </style>
 </head>
 <body>
@@ -96,12 +96,31 @@ campaignButton.addEventListener("click",async()=>{
   if(!Array.isArray(rows)||!rows.length){campaignResult.textContent="No campaigns were found for that advertiser email. Check the email address and try again.";return}
   campaignResult.textContent=rows.length+" campaign"+(rows.length===1?"":"s")+" found.";
   campaignReport.style.display="block";
-  campaignReport.innerHTML='<div class="table-wrap"><table><thead><tr><th>Campaign ID</th><th>Business</th><th>Headline</th><th>Status</th><th>Impressions</th><th>Clicks</th><th>CTR</th><th>Start date</th><th>End date</th></tr></thead><tbody>'+
+  campaignReport.innerHTML='<div class="table-wrap"><table><thead><tr><th>Campaign ID</th><th>Business</th><th>Headline</th><th>Status</th><th>Impressions</th><th>Clicks</th><th>CTR</th><th>Start date</th><th>End date</th><th>Details</th></tr></thead><tbody>'+
     rows.map(c=>{
       const status=campaignState(c.starts_at,c.ends_at),cls=status.toLowerCase();
-      return '<tr><td><code>'+esc(c.campaign_id)+'</code></td><td><b>'+esc(c.business_name)+'</b></td><td>'+esc(c.headline)+'</td><td><span class="status '+cls+'">'+status+'</span></td><td>'+Number(c.impressions||0)+'</td><td>'+Number(c.clicks||0)+'</td><td>'+Number(c.ctr||0).toFixed(2)+'%</td><td>'+new Date(c.starts_at).toLocaleString()+'</td><td>'+new Date(c.ends_at).toLocaleString()+'</td></tr>';
+      return '<tr><td><code>'+esc(c.campaign_id)+'</code></td><td><b>'+esc(c.business_name)+'</b></td><td>'+esc(c.headline)+'</td><td><span class="status '+cls+'">'+status+'</span></td><td>'+Number(c.impressions||0)+'</td><td>'+Number(c.clicks||0)+'</td><td>'+Number(c.ctr||0).toFixed(2)+'%</td><td>'+new Date(c.starts_at).toLocaleString()+'</td><td>'+new Date(c.ends_at).toLocaleString()+'</td><td><button type="button" class="detail-btn" data-campaign-detail="'+esc(c.campaign_id)+'">View campaign</button></td></tr>';
     }).join("")+
-    '</tbody></table></div><p class="note">CTR = clicks ÷ impressions. Scheduled and expired campaigns remain available here for reporting.</p>';
+    '</tbody></table></div><div id="campaignDetail" class="detail-card" style="display:none"></div><p class="note">CTR = clicks ÷ impressions. Scheduled and expired campaigns remain available here for reporting.</p>';
+ campaignReport.querySelectorAll("[data-campaign-detail]").forEach(btn=>btn.addEventListener("click",()=>{
+   const c=rows.find(x=>String(x.campaign_id)===String(btn.dataset.campaignDetail));
+   if(!c)return;
+   const detail=document.getElementById("campaignDetail"),status=campaignState(c.starts_at,c.ends_at);
+   detail.style.display="block";
+   detail.innerHTML='<h3 style="margin-top:0">Campaign details</h3><div class="detail-grid">'+
+    '<div class="detail-item"><small>Campaign ID</small><b>'+esc(c.campaign_id)+'</b></div>'+
+    '<div class="detail-item"><small>Business</small><b>'+esc(c.business_name)+'</b></div>'+
+    '<div class="detail-item"><small>Headline</small><b>'+esc(c.headline)+'</b></div>'+
+    '<div class="detail-item"><small>Placement</small><b>'+esc(c.placement)+'</b></div>'+
+    '<div class="detail-item"><small>Status</small><b>'+status+'</b></div>'+
+    '<div class="detail-item"><small>Impressions</small><b>'+Number(c.impressions||0)+'</b></div>'+
+    '<div class="detail-item"><small>Clicks</small><b>'+Number(c.clicks||0)+'</b></div>'+
+    '<div class="detail-item"><small>CTR</small><b>'+Number(c.ctr||0).toFixed(2)+'%</b></div>'+
+    '<div class="detail-item"><small>Start date</small><b>'+new Date(c.starts_at).toLocaleString()+'</b></div>'+
+    '<div class="detail-item"><small>End date</small><b>'+new Date(c.ends_at).toLocaleString()+'</b></div>'+
+    '</div>';
+   detail.scrollIntoView({behavior:"smooth",block:"nearest"});
+  }));
  }catch(err){campaignResult.textContent="We could not load the campaign history right now. Please check the email or contact harvesthcn@gmail.com."}
 });
 form.addEventListener("submit",async e=>{

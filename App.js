@@ -930,16 +930,103 @@ async function getChatConversations(){
   return data||[];
 }
 function chatTab(u){if(!sb||!authUser)return `<div class="empty-state compact"><div>💬</div><h3>Chat is unavailable</h3><p>Connect your Supabase project to use buyer-seller chat.</p></div>`;setTimeout(loadChatsPanel,0);return `<div class="panel-heading"><div><span class="eyebrow">Buyer ↔ Seller</span><h2>Your chats</h2></div></div><div id="chatListPanel"><div class="empty-state compact"><div>⏳</div><h3>Loading chats…</h3></div></div>`}
-async function loadChatsPanel(){const root=$("#chatListPanel");if(!root||!sb||!authUser)return;try{const cs=await getChatConversations();if(!cs.length){root.innerHTML=`<div class="empty-state compact"><div>💬</div><h3>No chats yet</h3><p>Open an approved listing and tap Chat seller to start a private conversation.</p></div>`;return}const ids=cs.map(c=>c.listing_id).filter(Boolean);const {data:ls,error}=await sb.from('listings').select('id,title,location,country,seller_id').in('id',ids);if(error)throw error;const map=Object.fromEntries((ls||[]).map(x=>[x.id,x]));root.innerHTML=`<div class="chat-list">${cs.map(c=>{const l=map[c.listing_id]||{};const other=c.buyer_id===authUser.id?"Seller":"Buyer";return `<button class="chat-row" data-chat="${esc(c.id)}" data-listing="${esc(c.listing_id||"")}"><span class="chat-avatar">💬</span><span><b>${esc(l.title||"HarvestHome listing")}</b><small>${esc(other)} · ${esc(l.location||"")}, ${esc(l.country||"")}</small></span><span class="chat-arrow">→</span></button>`}).join("")}</div>`;$$("[data-chat]",root).forEach(e=>e.onclick=async()=>{const l=listings().find(x=>String(x.id)===String(e.dataset.listing));if(l)await openChat(e.dataset.chat,l)})}catch(e){root.innerHTML=`<div class="empty-state compact"><div>⚠️</div><h3>Chats could not be loaded</h3><p>${esc(e.message||"Please try again.")}</p></div>`}}
+async function loadChatsPanel(){
+  const root=$("#chatListPanel");
+  if(!root||!sb||!authUser)return;
+  try{
+    const cs=await getChatConversations();
+    const {data:clearStates,error:clearError}=await sb.from('conversation_user_state')
+      .select('conversation_id,cleared_at').eq('user_id',authUser.id);
+    if(clearError)throw clearError;
+    const clearedAtById=Object.fromEntries((clearStates||[]).map(x=>[String(x.conversation_id),x.cleared_at]));
+    // A cleared chat stays out of this user's list until either participant sends a new message.
+    const visibleCs=cs.filter(c=>{
+      const clearedAt=clearedAtById[String(c.id)];
+      if(!clearedAt)return true;
+      const lastActivity=new Date(c.updated_at||c.created_at||0).getTime();
+      return lastActivity>new Date(clearedAt).getTime();
+    });
+    if(!visibleCs.length){
+      root.innerHTML=`<div class="empty-state compact"><div>💬</div><h3>No chats to show</h3><p>Your cleared chats are hidden from your list. A chat will appear again when a new message is sent. You can also open a listing and contact the other person again.</p></div>`;
+      return;
+    }
+    const ids=visibleCs.map(c=>c.listing_id).filter(Boolean);
+    const {data:ls,error}=await sb.from('listings').select('id,title,location,country,seller_id').in('id',ids);
+    if(error)throw error;
+    const map=Object.fromEntries((ls||[]).map(x=>[x.id,x]));
+    root.innerHTML=`<div class="chat-list">${visibleCs.map(c=>{
+      const l=map[c.listing_id]||{};
+      const other=c.buyer_id===authUser.id?"Seller":"Buyer";
+      return `<button class="chat-row" data-chat="${esc(c.id)}" data-listing="${esc(c.listing_id||"")}"><span class="chat-avatar">💬</span><span><b>${esc(l.title||"HarvestHome listing")}</b><small>${esc(other)} · ${esc(l.location||"")}, ${esc(l.country||"")}</small></span><span class="chat-arrow">→</span></button>`;
+    }).join("")}</div>`;
+    $$("[data-chat]",root).forEach(e=>e.onclick=async()=>{
+      const l=listings().find(x=>String(x.id)===String(e.dataset.listing));
+      if(l)await openChat(e.dataset.chat,l);
+      else{
+        const {data:row,error}=await sb.from('listings').select('*').eq('id',e.dataset.listing).maybeSingle();
+        if(error)toast(error.message||"Could not open listing chat.",true);
+        else if(row)await openChat(e.dataset.chat,{...row,title:row.title||"HarvestHome listing"});
+        else toast("This listing is no longer available, but your chat history is preserved.",true);
+      }
+    });
+  }catch(e){
+    root.innerHTML=`<div class="empty-state compact"><div>⚠️</div><h3>Chats could not be loaded</h3><p>${esc(e.message||"Please try again.")}</p></div>`;
+  }
+}
 async function contact(id){const u=user();if(!u){auth("login");toast("Log in to contact the seller.",true);return}const l=await resolveListing(id);if(!l){toast("Listing not found.",true);return}if(!sb||!authUser||!l.seller_id){toast("This listing is not connected to a seller account yet.",true);return}if(l.seller_id===authUser.id){toast("You cannot contact yourself about your own listing.",true);return}try{let {data:c,error}=await sb.from('conversations').select('*').eq('listing_id',l.id).eq('buyer_id',authUser.id).eq('seller_id',l.seller_id).maybeSingle();if(error)throw error;if(!c){const r=await sb.from('conversations').insert({listing_id:l.id,buyer_id:authUser.id,seller_id:l.seller_id}).select().single();if(r.error)throw r.error;c=r.data;try{
       await sb.rpc('record_buyer_referral',{p_seller_id:l.seller_id,p_buyer_id:authUser.id,p_listing_id:l.id});
     }catch(referralError){
       console.warn('Buyer referral could not be recorded:',referralError.message);
     }}await syncListingPerformance();openChat(c.id,l)}catch(e){toast(e.message||"Could not start the chat.",true)}}
 async function openChat(conversationId,listing){clearInterval(chatTimer);await renderChatModal(conversationId,listing);chatTimer=setInterval(()=>renderChatModal(conversationId,listing,true),5000)}
-async function renderChatModal(conversationId,listing,silent=false){if(!sb||!authUser)return;try{const {data:msgs,error}=await sb.from('messages').select('id,sender_id,body,created_at').eq('conversation_id',conversationId).order('created_at',{ascending:true});if(error)throw error;if(!silent)$('#modalRoot').innerHTML=`<div class="modal-backdrop"><div class="modal wide chat-modal"><button class="modal-close" data-chat-close>×</button><span class="eyebrow">Private buyer ↔ seller chat</span><h2>${esc(listing?.title||"HarvestHome listing")}</h2><div id="chatMessages" class="chat-messages"></div><form id="chatForm" class="chat-form"><textarea name="message" rows="2" maxlength="2000" placeholder="Write a message to the seller…" required></textarea><button class="primary-btn">Send message</button></form><small class="demo-note">Messages are stored securely in Supabase and only the buyer and seller can access this conversation.</small></div></div>`;const box=$("#chatMessages");if(!box)return;box.innerHTML=(msgs||[]).map(m=>`<div class="chat-bubble ${m.sender_id===authUser.id?"mine":"theirs"}"><p>${esc(m.body)}</p><small>${new Date(m.created_at).toLocaleString()}</small>${m.sender_id===authUser.id?`<div class="chat-actions"><button type="button" class="chat-action" data-msg-edit="${esc(m.id)}">Edit</button><button type="button" class="chat-action danger" data-msg-delete="${esc(m.id)}">Delete</button></div>`:""}</div>`).join("")||'<div class="chat-empty">Start the conversation with the seller.</div>';box.scrollTop=box.scrollHeight;$$("[data-msg-edit]",box).forEach(btn=>{btn.onclick=()=>editChatMessage(btn.dataset.msgEdit,conversationId,listing)});$$("[data-msg-delete]",box).forEach(btn=>{btn.onclick=()=>deleteChatMessage(btn.dataset.msgDelete,conversationId,listing)});if(!silent){const closeBtn=$("#modalRoot [data-chat-close]");if(closeBtn)closeBtn.onclick=()=>{clearInterval(chatTimer);chatTimer=null;close()};const form=$("#chatForm");if(form)form.onsubmit=e=>{e.preventDefault();sendChatMessage(e,conversationId,listing)}}}catch(e){if(!silent)toast(e.message||"Could not load chat.",true)}}
+async function renderChatModal(conversationId,listing,silent=false){
+  if(!sb||!authUser)return;
+  try{
+    const {data:clearState,error:clearError}=await sb.from('conversation_user_state')
+      .select('cleared_at').eq('conversation_id',conversationId).eq('user_id',authUser.id).maybeSingle();
+    if(clearError)throw clearError;
+    const {data:allMsgs,error}=await sb.from('messages')
+      .select('id,sender_id,body,created_at').eq('conversation_id',conversationId).order('created_at',{ascending:true});
+    if(error)throw error;
+    const clearedAt=clearState?.cleared_at?new Date(clearState.cleared_at).getTime():0;
+    const msgs=(allMsgs||[]).filter(m=>!clearedAt||new Date(m.created_at).getTime()>clearedAt);
+    if(!silent)$('#modalRoot').innerHTML=`<div class="modal-backdrop"><div class="modal wide chat-modal"><div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap"><button type="button" class="outline-btn" data-chat-clear>Clear chat</button><button class="modal-close" data-chat-close>×</button></div><span class="eyebrow">Private buyer ↔ seller chat</span><h2>${esc(listing?.title||"HarvestHome listing")}</h2><div id="chatMessages" class="chat-messages"></div><form id="chatForm" class="chat-form"><textarea name="message" rows="2" maxlength="2000" placeholder="Write a message to the seller…" required></textarea><button class="primary-btn">Send message</button></form><small class="demo-note">Messages are stored securely in Supabase and only the buyer and seller can access this conversation. Clear chat hides the earlier messages only from your own view; it does not delete them for the other person.</small></div></div>`;
+    const box=$("#chatMessages");
+    if(!box)return;
+    box.innerHTML=msgs.map(m=>`<div class="chat-bubble ${m.sender_id===authUser.id?"mine":"theirs"}"><p>${esc(m.body)}</p><small>${new Date(m.created_at).toLocaleString()}</small>${m.sender_id===authUser.id?`<div class="chat-actions"><button type="button" class="chat-action" data-msg-edit="${esc(m.id)}">Edit</button><button type="button" class="chat-action danger" data-msg-delete="${esc(m.id)}">Delete</button></div>`:""}</div>`).join("")||'<div class="chat-empty">No messages to show. Send a new message to continue this conversation.</div>';
+    box.scrollTop=box.scrollHeight;
+    $$("[data-msg-edit]",box).forEach(btn=>{btn.onclick=()=>editChatMessage(btn.dataset.msgEdit,conversationId,listing)});
+    $$("[data-msg-delete]",box).forEach(btn=>{btn.onclick=()=>deleteChatMessage(btn.dataset.msgDelete,conversationId,listing)});
+    if(!silent){
+      const closeBtn=$("#modalRoot [data-chat-close]");
+      if(closeBtn)closeBtn.onclick=()=>{clearInterval(chatTimer);chatTimer=null;close()};
+      const clearBtn=$("#modalRoot [data-chat-clear]");
+      if(clearBtn)clearBtn.onclick=()=>clearChatForMe(conversationId,listing);
+      const form=$("#chatForm");
+      if(form)form.onsubmit=e=>{e.preventDefault();sendChatMessage(e,conversationId,listing)};
+    }
+  }catch(e){
+    if(!silent)toast(e.message||"Could not load chat.",true);
+  }
+}
 async function editChatMessage(messageId,conversationId,listing){if(!sb||!authUser)return;try{const {data:m,error}=await sb.from('messages').select('id,sender_id,body').eq('id',messageId).maybeSingle();if(error)throw error;if(!m||m.sender_id!==authUser.id)throw new Error("You can only edit your own messages.");const next=window.prompt("Edit your message:",m.body);if(next===null)return;const body=String(next).trim();if(!body){toast("Message cannot be empty.",true);return}if(body.length>2000){toast("Message must be 2000 characters or less.",true);return}const {error:updateError}=await sb.from('messages').update({body}).eq('id',messageId).eq('sender_id',authUser.id);if(updateError)throw updateError;await renderChatModal(conversationId,listing,true)}catch(err){toast(err.message||"Message could not be edited.",true)}}
 async function deleteChatMessage(messageId,conversationId,listing){if(!sb||!authUser)return;if(!window.confirm("Delete this message? This cannot be undone."))return;try{const {error}=await sb.from('messages').delete().eq('id',messageId).eq('sender_id',authUser.id);if(error)throw error;await renderChatModal(conversationId,listing,true)}catch(err){toast(err.message||"Message could not be deleted.",true)}}
+async function clearChatForMe(conversationId,listing){
+  if(!sb||!authUser)return;
+  if(!window.confirm("Clear this chat from your view? This only hides the earlier messages for you. It will NOT delete messages or change the other person's chat. You can continue chatting later."))return;
+  try{
+    const {error}=await sb.from('conversation_user_state').upsert({
+      conversation_id:conversationId,
+      user_id:authUser.id,
+      cleared_at:new Date().toISOString()
+    },{onConflict:'conversation_id,user_id'});
+    if(error)throw error;
+    await renderChatModal(conversationId,listing,true);
+    toast("Chat cleared from your view. The other person's messages and chat are preserved.");
+  }catch(e){
+    toast(e.message||"Could not clear this chat. Please try again.",true);
+  }
+}
 async function sendChatMessage(e,conversationId,listing){
   e.preventDefault();
   const message=String(new FormData(e.target).get('message')||"").trim();

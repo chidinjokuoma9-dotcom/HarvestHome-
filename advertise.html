@@ -79,9 +79,10 @@ a{color:#176b43}.note{font-size:14px;color:#5d6d65}.table-wrap{overflow:auto;mar
 </div>
 <div class="card">
 <h2>📊 Advertiser campaign history</h2>
-<p class="note">Enter the advertiser email used when your campaigns were created. You will see all matching campaigns, their status and current performance in one place.</p>
+<p class="note">For privacy, enter the Campaign ID and the advertiser email used when that campaign was created. After a match is verified, you can view all campaigns associated with that email.</p>
+<label>Campaign ID<input id="campaignProofId" maxlength="80" placeholder="Paste a Campaign ID"></label>
 <label>Advertiser email<input id="campaignEmail" type="email" maxlength="200" placeholder="business@example.com"></label>
-<button type="button" id="checkCampaign" onclick="loadCampaignHistory()">View campaign history</button>
+<button type="button" id="checkCampaign" onclick="loadCampaignHistory()">Verify and view campaign history</button>
 <p id="campaignResult" class="note"></p>
 <div id="campaignSummary" class="summary-grid" style="display:none"></div><div id="campaignReport" style="display:none"></div><div id="performanceReport" style="display:none"></div><div id="professionalReport" style="display:none"></div>
 </div>
@@ -103,10 +104,12 @@ function campaignState(start,end){
 }
 window.loadCampaignHistory=async function(){
  const email=document.getElementById("campaignEmail").value.trim();
- campaignResult.textContent="Loading campaign history…";campaignReport.style.display="none";campaignReport.innerHTML="";campaignSummary.style.display="none";campaignSummary.innerHTML="";performanceReport.style.display="none";performanceReport.innerHTML="";professionalReport.style.display="none";professionalReport.innerHTML="";
+ const campaignId=document.getElementById("campaignProofId").value.trim();
+ campaignResult.textContent="Verifying campaign ID and advertiser email…";campaignReport.style.display="none";campaignReport.innerHTML="";campaignSummary.style.display="none";campaignSummary.innerHTML="";performanceReport.style.display="none";performanceReport.innerHTML="";professionalReport.style.display="none";professionalReport.innerHTML="";
+ if(!campaignId){campaignResult.textContent="Enter a Campaign ID first.";return}
  if(!email){campaignResult.textContent="Enter the advertiser email used for your campaign.";return}
  try{
-  const res=await fetch(SUPABASE_URL+"/rest/v1/rpc/get_advertiser_campaign_history",{method:"POST",headers:{"apikey":SUPABASE_ANON_KEY,"Authorization":"Bearer "+SUPABASE_ANON_KEY,"Content-Type":"application/json"},body:JSON.stringify({p_email:email})});
+  const res=await fetch(SUPABASE_URL+"/rest/v1/rpc/get_advertiser_campaign_history",{method:"POST",headers:{"apikey":SUPABASE_ANON_KEY,"Authorization":"Bearer "+SUPABASE_ANON_KEY,"Content-Type":"application/json"},body:JSON.stringify({p_email:email,p_campaign_id:campaignId})});
   const rows=await res.json();
   if(!res.ok)throw new Error(Array.isArray(rows)?JSON.stringify(rows):rows.message||"Campaign history could not be loaded.");
   if(!Array.isArray(rows)||!rows.length){campaignResult.textContent="No campaigns were found for that advertiser email. Check the email address and try again.";return}

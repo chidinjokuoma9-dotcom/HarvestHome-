@@ -1319,10 +1319,18 @@ try{
    return;
   }
  }
- if(cover_url||video_url){
+ {
+  // A free listing becomes publicly visible only after its submission and media uploads finish.
+  // Start its 24-hour public period at successful publication, even when no media was attached.
   const publishExpiresAt=new Date(Date.now()+24*60*60*1000).toISOString();
-  const ur=await sb.from("listings").update({cover_url,video_url,publication_plan:"free",publish_expires_at:publishExpiresAt}).eq("id",row.id).eq("seller_id",authUser.id);
+  const publishUpdate={status:"approved",publication_plan:"free",publish_expires_at:publishExpiresAt};
+  if(cover_url)publishUpdate.cover_url=cover_url;
+  if(video_url)publishUpdate.video_url=video_url;
+  const ur=await sb.from("listings").update(publishUpdate).eq("id",row.id).eq("seller_id",authUser.id);
   if(ur.error)throw ur.error;
+  if(!ur.data && !ur.error){
+    // Supabase may return no row data for an update without .select(); the absence is not an error.
+  }
  }
  await syncListings();
  if(statusRoot)statusRoot.innerHTML='<div class="dashboard-callout"><b>All uploads complete — 100% ✓</b><p>Every selected photo and video has finished uploading. Your free listing is now public for 24 hours. Paid Featured promotions require moderator approval.</p></div>';

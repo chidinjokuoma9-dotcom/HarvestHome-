@@ -71,3 +71,12 @@
   .nav-actions .account-btn .status-pill{display:none}
   .nav-actions .primary-btn.small{padding:8px 8px;font-size:11px;white-space:nowrap}
 }
+
+
+/* Private buyer/seller chat photo sharing */
+.chat-composer-actions{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap}
+.chat-photo-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:42px;padding:9px 14px;border:1px solid #b9d9c3;border-radius:10px;background:#f0faf3;color:#176b3b;font-weight:750;cursor:pointer;box-sizing:border-box}
+.chat-photo-btn:hover{background:#e4f5e9}.chat-photo-btn.uploading{opacity:.65;cursor:wait}.chat-image-link{display:block;max-width:100%;margin:2px 0 8px}
+.chat-image{display:block;width:auto;max-width:min(100%,320px);max-height:320px;object-fit:contain;border-radius:12px;border:1px solid rgba(30,70,45,.14);background:#f6f8f6}
+.chat-bubble p{white-space:pre-wrap;overflow-wrap:anywhere}
+@media(max-width:620px){.chat-composer-actions{justify-content:stretch}.chat-composer-actions>*{flex:1}.chat-photo-btn,.chat-composer-actions .primary-btn{min-height:44px}}

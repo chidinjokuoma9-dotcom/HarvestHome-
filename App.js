@@ -14,6 +14,8 @@ const seed = [];
 
 const state={view:"marketplace",search:"",sort:"featured",priceMin:"",priceMax:"",country:localStorage.getItem(KEYS.country)||C.DEFAULT_COUNTRY,location:"All locations",category:"All categories",mode:"All",dashboardTab:"overview",authMode:"login",payments:[],transactionFilterSeller:{status:"all",range:"all",search:""},transactionFilterAdmin:{status:"all",range:"all",search:""},sharedListing:null};
 let chatTimer=null;
+const chatImageUrlCache=new Map();
+const CHAT_IMAGE_MARKER=/^\[\[HH_CHAT_IMAGE:([^\]]+)\]\](?:\n([\s\S]*))?$/;
 state.rewardAdmin=[];state.verificationRequests=[];state.sellerPerformance={listings:0,approved:0,pending:0,rejected:0,views:0,chats:0,uniqueBuyers:0,recommendations:0};state.listingPerformance=[];state.featuredListings=[];state.professionalSellers=[];state.advertisingRequests=[];state.advertisingCampaigns=[];state.advertisingReport=[];
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
 const json=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}};
@@ -990,10 +992,18 @@ async function renderChatModal(conversationId,listing,silent=false){
     if(error)throw error;
     const clearedAt=clearState?.cleared_at?new Date(clearState.cleared_at).getTime():0;
     const msgs=(allMsgs||[]).filter(m=>!clearedAt||new Date(m.created_at).getTime()>clearedAt);
-    if(!silent)$('#modalRoot').innerHTML=`<div class="modal-backdrop"><div class="modal wide chat-modal"><div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap"><button type="button" class="outline-btn" data-chat-clear>Clear chat</button><button class="modal-close" data-chat-close>×</button></div><span class="eyebrow">Private buyer ↔ seller chat</span><h2>${esc(listing?.title||"HarvestHome listing")}</h2><div id="chatMessages" class="chat-messages"></div><form id="chatForm" class="chat-form"><textarea name="message" rows="2" maxlength="2000" placeholder="Write a message to the seller…" required></textarea><button class="primary-btn">Send message</button></form><small class="demo-note">Messages are stored securely in Supabase and only the buyer and seller can access this conversation. Clear chat hides the earlier messages only from your own view; it does not delete them for the other person.</small></div></div>`;
+    if(!silent)$('#modalRoot').innerHTML=`<div class="modal-backdrop"><div class="modal wide chat-modal"><div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap"><button type="button" class="outline-btn" data-chat-clear>Clear chat</button><button class="modal-close" data-chat-close>×</button></div><span class="eyebrow">Private buyer ↔ seller chat</span><h2>${esc(listing?.title||"HarvestHome listing")}</h2><div id="chatMessages" class="chat-messages"></div><form id="chatForm" class="chat-form"><textarea name="message" rows="2" maxlength="1800" placeholder="Write a message to the seller…"></textarea><div class="chat-composer-actions"><label class="chat-photo-btn" for="chatPhotoInput" title="Send a photo">📷 Photo</label><input id="chatPhotoInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden><button class="primary-btn" type="submit">Send message</button></div></form><small class="demo-note">Messages are stored securely in Supabase and only the buyer and seller can access this conversation. Clear chat hides the earlier messages only from your own view; it does not delete them for the other person.</small></div></div>`;
     const box=$("#chatMessages");
     if(!box)return;
-    box.innerHTML=msgs.map(m=>`<div class="chat-bubble ${m.sender_id===authUser.id?"mine":"theirs"}"><p>${esc(m.body)}</p><small>${new Date(m.created_at).toLocaleString()}</small>${m.sender_id===authUser.id?`<div class="chat-actions"><button type="button" class="chat-action" data-msg-edit="${esc(m.id)}">Edit</button><button type="button" class="chat-action danger" data-msg-delete="${esc(m.id)}">Delete</button></div>`:""}</div>`).join("")||'<div class="chat-empty">No messages to show. Send a new message to continue this conversation.</div>';
+    const renderedMsgs=await Promise.all(msgs.map(async m=>{
+      const imageMatch=String(m.body||"").match(CHAT_IMAGE_MARKER);let content="";
+      if(imageMatch){const path=imageMatch[1];let cached=chatImageUrlCache.get(path);
+        if(!cached||cached.expiresAt<Date.now()+60000){const signed=await sb.storage.from("chat-media").createSignedUrl(path,3600);if(signed.error)throw signed.error;cached={url:signed.data.signedUrl,expiresAt:Date.now()+3500000};chatImageUrlCache.set(path,cached)}
+        content='<a class="chat-image-link" href="'+esc(cached.url)+'" target="_blank" rel="noopener noreferrer"><img class="chat-image" src="'+esc(cached.url)+'" alt="Photo shared in this conversation" loading="lazy"></a>'+(imageMatch[2]?'<p>'+esc(imageMatch[2])+'</p>':"");
+      }else{content="<p>"+esc(m.body)+"</p>"}
+      return '<div class="chat-bubble '+(m.sender_id===authUser.id?"mine":"theirs")+'">'+content+'<small>'+new Date(m.created_at).toLocaleString()+'</small>'+(m.sender_id===authUser.id?'<div class="chat-actions">'+(!imageMatch?'<button type="button" class="chat-action" data-msg-edit="'+esc(m.id)+'">Edit</button>':"")+'<button type="button" class="chat-action danger" data-msg-delete="'+esc(m.id)+'">Delete</button></div>':"")+'</div>';
+    }));
+    box.innerHTML=renderedMsgs.join("")||'<div class="chat-empty">No messages to show. Send a message or photo to continue this conversation.</div>';
     box.scrollTop=box.scrollHeight;
     $$("[data-msg-edit]",box).forEach(btn=>{btn.onclick=()=>editChatMessage(btn.dataset.msgEdit,conversationId,listing)});
     $$("[data-msg-delete]",box).forEach(btn=>{btn.onclick=()=>deleteChatMessage(btn.dataset.msgDelete,conversationId,listing)});
@@ -1004,6 +1014,8 @@ async function renderChatModal(conversationId,listing,silent=false){
       if(clearBtn)clearBtn.onclick=()=>clearChatForMe(conversationId,listing);
       const form=$("#chatForm");
       if(form)form.onsubmit=e=>{e.preventDefault();sendChatMessage(e,conversationId,listing)};
+      const photoInput=$("#chatPhotoInput");
+      if(photoInput)photoInput.onchange=()=>{const file=photoInput.files&&photoInput.files[0];if(file)sendChatPhoto(file,conversationId,listing,form);photoInput.value=""};
     }
   }catch(e){
     if(!silent)toast(e.message||"Could not load chat.",true);
@@ -1026,6 +1038,24 @@ async function clearChatForMe(conversationId,listing){
   }catch(e){
     toast(e.message||"Could not clear this chat. Please try again.",true);
   }
+}
+async function sendChatPhoto(file,conversationId,listing,form){
+  if(!sb||!authUser)return;
+  if(!file.type||!["image/jpeg","image/png","image/webp","image/gif"].includes(file.type)){toast("Please choose a JPG, PNG, WEBP, or GIF image.",true);return}
+  if(file.size>5*1024*1024){toast("Chat photos must be 5 MB or smaller.",true);return}
+  const caption=String(form?.querySelector('[name="message"]')?.value||"").trim();if(caption.length>1800){toast("Photo caption must be 1,800 characters or less.",true);return}
+  const photoBtn=form?.querySelector(".chat-photo-btn");if(photoBtn){photoBtn.classList.add("uploading");photoBtn.textContent="Uploading…";photoBtn.style.pointerEvents="none"}
+  let uploadedPath=null;
+  try{const result=await sb.from("conversations").select("id,buyer_id,seller_id,listing_id").eq("id",conversationId).maybeSingle();if(result.error)throw result.error;const conversation=result.data;
+    if(!conversation)throw new Error("Chat conversation no longer exists.");if(conversation.buyer_id!==authUser.id&&conversation.seller_id!==authUser.id)throw new Error("You are not a participant in this chat.");
+    const ext=({"image/jpeg":"jpg","image/png":"png","image/webp":"webp","image/gif":"gif"})[file.type];const path=authUser.id+"/"+conversationId+"/"+Date.now()+"-"+Math.random().toString(36).slice(2,10)+"."+ext;
+    const upload=await sb.storage.from("chat-media").upload(path,file,{upsert:false,contentType:file.type});if(upload.error)throw upload.error;uploadedPath=path;
+    const body="[[HH_CHAT_IMAGE:"+path+"]]"+(caption?"\n"+caption:"");const inserted=await sb.from("messages").insert({conversation_id:conversationId,sender_id:authUser.id,body});if(inserted.error)throw inserted.error;
+    const updated=await sb.from("conversations").update({updated_at:new Date().toISOString()}).eq("id",conversationId);if(updated.error)throw updated.error;
+    if(conversation.seller_id&&conversation.seller_id!==authUser.id)await createNotification(conversation.seller_id,"chat_message","New photo in chat",'A buyer shared a photo about "'+(listing?.title||"your listing")+'".',listing?.id||conversation.listing_id||null);
+    if(form)form.reset();await renderChatModal(conversationId,listing,true);toast("Photo sent successfully.");
+  }catch(err){if(uploadedPath){try{await sb.storage.from("chat-media").remove([uploadedPath])}catch(cleanupError){console.warn("Unused chat photo cleanup failed:",cleanupError.message)}}toast(err.message||"Photo could not be sent. Please try again.",true)}
+  finally{if(photoBtn){photoBtn.classList.remove("uploading");photoBtn.textContent="📷 Photo";photoBtn.style.pointerEvents=""}}
 }
 async function sendChatMessage(e,conversationId,listing){
   e.preventDefault();

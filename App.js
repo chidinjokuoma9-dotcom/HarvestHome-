@@ -370,8 +370,9 @@ function passwordResetPage(){
     </section>
   </main>`
 }
+let persistentAdsterraBannerSection=null;
 function adsterraBannerSlot(){
-  return '<section class="section" aria-label="Advertisement" style="padding:18px 0 8px"><div class="container" style="display:flex;justify-content:center"><div style="width:100%;max-width:300px;text-align:center"><small style="display:block;margin-bottom:6px;color:#667085;font-size:11px;letter-spacing:.04em;text-transform:uppercase">Advertisement</small><div id="harvesthome-adsterra-banner" style="width:300px;max-width:100%;min-height:250px;margin:0 auto;display:flex;justify-content:center;align-items:flex-start;overflow:hidden"></div></div></div></section>';
+  return '<section id="harvesthome-adsterra-section" class="section" aria-label="Advertisement" style="padding:18px 0 8px"><div class="container" style="display:flex;justify-content:center"><div style="width:100%;max-width:300px;text-align:center"><small style="display:block;margin-bottom:6px;color:#667085;font-size:11px;letter-spacing:.04em;text-transform:uppercase">Advertisement</small><div id="harvesthome-adsterra-banner" style="width:300px;max-width:100%;min-height:250px;margin:0 auto;display:flex;justify-content:center;align-items:flex-start;overflow:hidden"></div></div></div></section>';
 }
 function loadAdsterraBanner(){
   const slot=document.getElementById('harvesthome-adsterra-banner');
@@ -391,10 +392,19 @@ function loadAdsterraBanner(){
   slot.appendChild(script);
 }
 function render(){
+  const existingAdSection=document.getElementById('harvesthome-adsterra-section');
+  if(existingAdSection){
+    existingAdSection.remove();
+    persistentAdsterraBannerSection=existingAdSection;
+  }
   const recovery=passwordRecoveryPending;
   document.body.innerHTML=recovery
     ?passwordResetPage()
     :`<div id="app">${state.view==="marketplace"?marketplace():dashboard()}</div><div id="modalRoot"></div><div id="toast"></div>`;
+  const newAdSection=document.getElementById('harvesthome-adsterra-section');
+  if(newAdSection&&persistentAdsterraBannerSection){
+    newAdSection.replaceWith(persistentAdsterraBannerSection);
+  }
   bind();
   loadAdsterraBanner();
 }

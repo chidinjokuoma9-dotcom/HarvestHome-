@@ -57,7 +57,7 @@ async function main() {
 
       await page.goto('http://127.0.0.1:4173/', {waitUntil:'domcontentloaded'});
       await page.waitForSelector('#harvesthome-adsterra-section', {timeout:15000});
-      await page.waitForFunction(() => window.__harvesthomeAdsterraMockLoaded === 1, {timeout:10000});
+      await page.waitForFunction(() => window.__harvesthomeAdsterraMockLoaded === 1, null, {timeout:10000});
 
       const slot = page.locator('#harvesthome-adsterra-banner');
       assert.equal(await page.locator('#harvesthome-adsterra-section').count(), 1, viewport.name + ': one labeled banner section');

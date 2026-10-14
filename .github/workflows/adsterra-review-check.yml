@@ -8,6 +8,7 @@ on:
       - "App.js"
       - "index.html"
       - "tests/adsterra-browser-check.cjs"
+      - "tests/adsterra-live-smoke.cjs"
       - ".github/workflows/adsterra-review-check.yml"
 
 permissions:
@@ -27,7 +28,9 @@ jobs:
       - name: Check JavaScript syntax
         run: node --check App.js
       - name: Check browser test syntax
-        run: node --check tests/adsterra-browser-check.cjs
+        run: |
+          node --check tests/adsterra-browser-check.cjs
+          node --check tests/adsterra-live-smoke.cjs
       - name: Check banner integration and preserve AdSense loader
         run: |
           node <<'NODE'
@@ -53,5 +56,7 @@ jobs:
         run: |
           npm install --no-save playwright
           npx playwright install --with-deps chromium
-      - name: Run isolated desktop and mobile browser checks
+      - name: Run isolated mocked desktop and mobile checks
         run: node tests/adsterra-browser-check.cjs
+      - name: Run isolated real-Adsterra network smoke test
+        run: node tests/adsterra-live-smoke.cjs

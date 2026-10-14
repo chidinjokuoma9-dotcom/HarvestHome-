@@ -37,8 +37,8 @@ jobs:
           assert.match(app, /function loadAdsterraBanner\(\)/, 'banner loader exists');
           assert.match(app, /83a4f890a6b4866344289fc3dd470ed2/, 'configured Adsterra unit key exists');
           assert.match(app, /bauval\.org\/22\/83a4f890a6b4866344289fc3dd470ed2/, 'configured Adsterra script URL exists');
-          assert.match(app, /'width'\s*:\s*300/, 'banner width remains 300px');
-          assert.match(app, /'height'\s*:\s*250/, 'banner height remains 250px');
+          assert.match(app, /width\s*:\s*300/, 'banner width remains 300px');
+          assert.match(app, /height\s*:\s*250/, 'banner height remains 250px');
           assert.match(app, /slot\.dataset\.loaded\s*===\s*'true'/, 'duplicate script injection is guarded');
           assert.match(app, /existingAdSection\.remove\(\)/, 'banner section is preserved across app rerenders');
           assert.match(app, /\$\{adsterraBannerSlot\(\)\}/, 'banner slot is integrated into the marketplace template');

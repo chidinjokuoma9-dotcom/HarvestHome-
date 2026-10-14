@@ -46,6 +46,7 @@ async function main() {
       const pageErrors = [];
       page.on('pageerror', e => pageErrors.push(e.message));
 
+      await page.route('https://**/*', route => route.abort());
       await page.route('**/Config.js*', route => route.fulfill({status:200,contentType:'text/javascript',body:configStub()}));
       await page.route('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2', route => route.fulfill({status:200,contentType:'text/javascript',body:'window.supabase={createClient:()=>null};'}));
       await page.route('https://pagead2.googlesyndication.com/**', route => route.abort());
@@ -53,7 +54,6 @@ async function main() {
         mockedAdScriptLoads++;
         return route.fulfill({status:200,contentType:'text/javascript',body:'window.__harvesthomeAdsterraMockLoaded=(window.__harvesthomeAdsterraMockLoaded||0)+1;'});
       });
-      await page.route('https://**/*', route => route.abort());
 
       await page.goto('http://127.0.0.1:4173/', {waitUntil:'domcontentloaded'});
       await page.waitForSelector('#harvesthome-adsterra-section', {timeout:15000});

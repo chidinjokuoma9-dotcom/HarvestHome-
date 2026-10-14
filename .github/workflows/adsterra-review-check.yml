@@ -7,6 +7,7 @@ on:
     paths:
       - "App.js"
       - "index.html"
+      - "tests/adsterra-browser-check.cjs"
       - ".github/workflows/adsterra-review-check.yml"
 
 permissions:
@@ -14,7 +15,7 @@ permissions:
 
 jobs:
   review-only:
-    name: Syntax and non-regression checks (no deployment)
+    name: Syntax and isolated browser checks (no deployment)
     runs-on: ubuntu-latest
     steps:
       - name: Check out review branch
@@ -25,6 +26,8 @@ jobs:
           node-version: "22"
       - name: Check JavaScript syntax
         run: node --check App.js
+      - name: Check browser test syntax
+        run: node --check tests/adsterra-browser-check.cjs
       - name: Check banner integration and preserve AdSense loader
         run: |
           node <<'NODE'
@@ -46,3 +49,9 @@ jobs:
 
           console.log('PASS: JavaScript syntax, banner safeguards, marketplace placement, and existing AdSense loader.');
           NODE
+      - name: Install Playwright and Chromium
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+      - name: Run isolated desktop and mobile browser checks
+        run: node tests/adsterra-browser-check.cjs

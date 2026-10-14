@@ -1,0 +1,62 @@
+name: Adsterra banner review checks
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "App.js"
+      - "index.html"
+      - "tests/adsterra-browser-check.cjs"
+      - "tests/adsterra-live-smoke.cjs"
+      - ".github/workflows/adsterra-review-check.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  review-only:
+    name: Syntax and isolated browser checks (no deployment)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out review branch
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Check JavaScript syntax
+        run: node --check App.js
+      - name: Check browser test syntax
+        run: |
+          node --check tests/adsterra-browser-check.cjs
+          node --check tests/adsterra-live-smoke.cjs
+      - name: Check banner integration and preserve AdSense loader
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const assert = require('node:assert/strict');
+          const app = fs.readFileSync('App.js', 'utf8');
+          const html = fs.readFileSync('index.html', 'utf8');
+
+          assert.match(app, /function adsterraBannerSlot\(\)/, 'banner slot helper exists');
+          assert.match(app, /function loadAdsterraBanner\(\)/, 'banner loader exists');
+          assert.match(app, /83a4f890a6b4866344289fc3dd470ed2/, 'configured Adsterra unit key exists');
+          assert.match(app, /bauval\.org\/22\/83a4f890a6b4866344289fc3dd470ed2/, 'configured Adsterra script URL exists');
+          assert.match(app, /width\s*:\s*300/, 'banner width remains 300px');
+          assert.match(app, /height\s*:\s*250/, 'banner height remains 250px');
+          assert.match(app, /slot\.dataset\.loaded\s*===\s*'true'/, 'duplicate script injection is guarded');
+          assert.match(app, /existingAdSection\.remove\(\)/, 'banner section is preserved across app rerenders');
+          assert.match(app, /\$\{adsterraBannerSlot\(\)\}/, 'banner slot is integrated into the marketplace template');
+          assert.match(html, /pagead2\.googlesyndication\.com\/pagead\/js\/adsbygoogle\.js\?client=ca-pub-7460782738006743/, 'existing Google AdSense loader remains present');
+
+          console.log('PASS: JavaScript syntax, banner safeguards, marketplace placement, and existing AdSense loader.');
+          NODE
+      - name: Install Playwright and Chromium
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+      - name: Run isolated mocked desktop and mobile checks
+        run: node tests/adsterra-browser-check.cjs
+      - name: Run isolated real-Adsterra network smoke test
+        run: node tests/adsterra-live-smoke.cjs

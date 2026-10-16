@@ -1351,8 +1351,8 @@ try{
  }
  {
   // A free listing becomes publicly visible only after its submission and media uploads finish.
-  // Start its 24-hour public period at successful publication, even when no media was attached.
-  const publishExpiresAt=new Date(Date.now()+24*60*60*1000).toISOString();
+  // Start its 48-hour public period at successful publication, even when no media was attached.
+  const publishExpiresAt=new Date(Date.now()+48*60*60*1000).toISOString();
   const publishUpdate={status:"approved",publication_plan:"free",publish_expires_at:publishExpiresAt};
   if(cover_url)publishUpdate.cover_url=cover_url;
   if(video_url)publishUpdate.video_url=video_url;

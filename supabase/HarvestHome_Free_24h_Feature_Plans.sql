@@ -7,7 +7,7 @@ alter table public.listings
   add column if not exists publish_expires_at timestamptz;
 
 -- Existing listings were created under the previous paid-approval model.
--- Keep them from unexpectedly becoming 24-hour listings.
+-- Keep them from unexpectedly becoming 48-hour listings.
 update public.listings
 set publication_plan='legacy_paid'
 where publication_plan is null;
@@ -18,7 +18,7 @@ alter table public.listings
 create index if not exists listings_publication_expiry_idx
   on public.listings(publication_plan, publish_expires_at);
   
--- Automatically give every NEW free listing its 24-hour public period.
+-- Automatically give every NEW free listing its 48-hour public period.
 -- This protects the rule even if the client does not send publish_expires_at.
 create or replace function public.set_free_listing_publication()
 returns trigger
@@ -33,7 +33,7 @@ begin
     new.status := 'approved';
     new.publish_expires_at := coalesce(
       new.publish_expires_at,
-      now()+interval '24 hours'
+      now()+interval '48 hours'
     );
   elsif tg_op='UPDATE'
         and lower(coalesce(new.publication_plan,''))='free'
@@ -41,7 +41,7 @@ begin
     new.status := 'approved';
     new.publish_expires_at := coalesce(
       new.publish_expires_at,
-      now()+interval '24 hours'
+      now()+interval '48 hours'
     );
   end if;
 
@@ -58,13 +58,13 @@ execute function public.set_free_listing_publication();
 
 -- Any already-created free listing without an expiry gets one now.
 update public.listings
-set publish_expires_at=now()+interval '24 hours'
+set publish_expires_at=now()+interval '48 hours'
 where publication_plan='free'
   and publish_expires_at is null;
 
 
 -- Public users can see approved listings only while a free publication is active.
--- Paid/legacy listings have no 24-hour expiry.
+-- Paid/legacy listings have no 48-hour expiry.
 drop policy if exists listings_public_approved on public.listings;
 create policy listings_public_approved
 on public.listings
@@ -108,7 +108,7 @@ using (
 );
 
 -- Approval rules:
--- * free listings are published immediately for 24 hours; no moderator approval is required;
+-- * free listings are published immediately for 48 hours; no moderator approval is required;
 -- * paid/Featured listings require moderator approval after successful payment;
 -- * moderators can still access and delete free listings.
 create or replace function public.approve_paid_listing(p_listing_id uuid)
@@ -143,7 +143,7 @@ begin
   end if;
 
   if v_plan='free' then
-    v_expires:=now()+interval '24 hours';
+    v_expires:=now()+interval '48 hours';
     update public.listings
       set status='approved',
           publish_expires_at=v_expires,
@@ -214,7 +214,7 @@ $$;
 
 grant execute on function public.approve_paid_listing(uuid) to authenticated;
 
--- Keep the reward programme from counting free 24-hour listings.
+-- Keep the reward programme from counting free 48-hour listings.
 -- These checks apply even if a client tries to call reward functions directly.
 
 create or replace function public.award_listing_creation_reward(p_listing_id uuid)

@@ -112,6 +112,15 @@
     return match ? match[1].replace(/\s+/g, "").toUpperCase() : "";
   }
 
+  // Normalize only explicit MB/GB units. A bare numeric provider value such as "2100"
+  // remains unverified and must not be guessed or silently converted.
+  function comparableSizeMB(value) {
+    const match = String(value || "").trim().match(/^(\d+(?:\.\d+)?)\s*(MB|GB)$/i);
+    if (!match) return null;
+    const amount = Number(match[1]);
+    return Number.isFinite(amount) ? amount * (/^GB$/i.test(match[2]) ? 1024 : 1) : null;
+  }
+
   function renderCatalog(payload) {
     const plans = Array.isArray(payload?.plans) ? payload.plans : [];
     currentPlans = plans.map((plan, index) => {
@@ -120,20 +129,32 @@
       const providerSize = String(plan.data_size ?? "").trim();
       const network = String(plan.network || "UNKNOWN").trim().toUpperCase();
       const code = String(plan.plan_code || "").trim();
+      const planId = String(plan.plan_id ?? "").trim();
       const price = Number(plan.price);
       const validity = String(plan.validity || "Not provided").replace(/\s+/g, " ").trim();
       const issues = [];
+      if (!planId) issues.push("Missing plan ID");
       if (!code) issues.push("Missing plan code");
-      if (!Number.isFinite(price) || price < 0) issues.push("Invalid price");
+      if (!Number.isFinite(price) || price <= 0) issues.push("Invalid provider price");
       if (!validity || validity === "Not provided") issues.push("Missing validity");
-      if (/social/i.test(validity)) issues.push("Special/social validity needs review");
-      if (sizeInName && providerSize && sizeInName.toLowerCase() !== providerSize.replace(/\s+/g, "").toLowerCase()) {
-        issues.push("Size mismatch");
+      if (/social/i.test(name + " " + validity)) issues.push("Special/social plan needs review");
+      if (!["MTN", "AIRTEL", "GLO", "9MOBILE"].includes(network)) issues.push("Unknown network");
+      const namedMB = comparableSizeMB(sizeInName);
+      const providerMB = comparableSizeMB(providerSize);
+      if (sizeInName && providerSize) {
+        if (providerMB === null || namedMB === null || Math.abs(namedMB - providerMB) > 0.01) {
+          issues.push("Size mismatch / provider value needs review");
+        }
+      } else if (sizeInName || providerSize) {
+        issues.push("Incomplete size information");
       }
       if (code && plans.slice(0, index).some(previous => String(previous.plan_code || "").trim() === code)) {
         issues.push("Duplicate plan code");
       }
-      return { network, name, sizeInName, providerSize, validity, price, code, issues };
+      if (planId && plans.slice(0, index).some(previous => String(previous.plan_id ?? "").trim() === planId)) {
+        issues.push("Duplicate plan ID");
+      }
+      return { network, name, sizeInName, providerSize, validity, price, code, planId, issues };
     });
     const flagged = currentPlans.filter(plan => plan.issues.length).length;
     catalogSummary.textContent = `Test catalog received: ${currentPlans.length} plans · ${flagged} entries need review · purchases disabled`;

@@ -57,7 +57,7 @@
     </div>
     <section id="customer-preview" class="card" hidden aria-labelledby="customer-preview-title">
       <h2 id="customer-preview-title">3. Customer plan-selection preview</h2>
-      <div class="preview-banner"><strong>Development preview only.</strong> This is not connected to checkout. Plans with review flags are excluded. Prices shown are provider reference prices, not approved HarvestHome selling prices. No purchase or payment can be made here.</div>
+      <div class="preview-banner"><strong>Development pricing preview only.</strong> No checkout or purchase is connected. Plans with review flags are excluded. Suggested prices use a moderate target profit of at least ₦50 or 5% of provider cost (whichever is higher), include an estimate of standard local Paystack fees, and round up to the next ₦10. This assumes HarvestHome absorbs Paystack fees; confirm your Paystack fee settings before adopting prices. These are estimates, not approved live prices.</div>
       <div class="filter-row">
         <select id="preview-network" aria-label="Filter preview plans by network"><option value="ALL">All networks</option><option>MTN</option><option>AIRTEL</option><option>GLO</option><option>9MOBILE</option></select>
         <input id="preview-search" type="search" placeholder="Find a plan, e.g. 2GB" aria-label="Search preview plans">
@@ -146,6 +146,30 @@
     drawPlanPreview();
   }
 
+  // Development-only pricing estimate. Assumes HarvestHome absorbs standard Nigerian local Paystack fees.
+  // Official fee reference: 1.5% + ₦100 for transactions at/above ₦2,500; ₦100 waived below ₦2,500; ₦2,000 cap.
+  function estimateLocalPaystackFee(amount) {
+    const flatFee = amount >= 2500 ? 100 : 0;
+    return Math.min(2000, Math.ceil(amount * 0.015 + flatFee));
+  }
+
+  function suggestRetailPrice(providerCost) {
+    const cost = Number(providerCost);
+    if (!Number.isFinite(cost) || cost < 0) {
+      return { sellingPrice: 0, estimatedProfit: 0 };
+    }
+    const targetProfit = Math.max(50, Math.ceil(cost * 0.05));
+    let sellingPrice = Math.ceil((cost + targetProfit) / 10) * 10;
+    // Move in ₦10 steps until the target remains after the estimated payment fee.
+    while (sellingPrice - cost - estimateLocalPaystackFee(sellingPrice) < targetProfit) {
+      sellingPrice += 10;
+    }
+    return {
+      sellingPrice,
+      estimatedProfit: sellingPrice - cost - estimateLocalPaystackFee(sellingPrice)
+    };
+  }
+
   function drawPlanPreview() {
     planGrid.replaceChildren();
     const network = previewNetwork.value;
@@ -168,11 +192,14 @@
       const heading = document.createElement("h3");
       heading.textContent = plan.name;
       card.appendChild(heading);
+      const pricing = suggestRetailPrice(plan.price);
       for (const detail of [
         "Network: " + plan.network,
         "Data: " + (plan.sizeInName || plan.providerSize),
         "Validity: " + plan.validity,
-        "Provider reference price: " + "₦" + plan.price.toLocaleString("en-NG")
+        "Provider reference cost: " + "₦" + plan.price.toLocaleString("en-NG"),
+        "Suggested retail price (estimate): " + "₦" + pricing.sellingPrice.toLocaleString("en-NG"),
+        "Estimated profit after local Paystack fee: " + "₦" + pricing.estimatedProfit.toLocaleString("en-NG")
       ]) {
         const paragraph = document.createElement("p");
         paragraph.textContent = detail;

@@ -99,7 +99,21 @@
         headers:{Authorization:"Bearer "+accessToken},
         body:{network:document.getElementById("network").value,phone_number:phone,amount}
       });
-      if(error){result.textContent=JSON.stringify({error:error.message||"Test request failed. Check Supabase function logs."},null,2);return}
+      if(error){
+        let details=null;
+        try{
+          if(error.context && typeof error.context.clone==="function"){
+            const response=error.context.clone();
+            details=await response.json().catch(async()=>({response_text:(await response.text()).slice(0,500)}));
+          }
+        }catch(_){}
+        result.textContent=JSON.stringify({
+          error:error.message||"Test request failed.",
+          status:error.context?.status||null,
+          details
+        },null,2);
+        return;
+      }
       result.textContent=JSON.stringify(data,null,2);
     }catch(_){result.textContent="Test request failed. Check Supabase function logs. Do not retry if a reference was returned until its status is checked."}
     finally{submitButton.disabled=!accessToken}

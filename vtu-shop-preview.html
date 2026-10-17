@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="theme-color" content="#176b3b">
+<title>Data & Airtime | HarvestHome Preview</title>
+<style>
+:root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#183a25;background:#f4f8f4;--green:#176b3b;--muted:#5b6d60;--line:#dce8dd}
+*{box-sizing:border-box}body{margin:0}a{color:inherit}button,input,select{font:inherit}main{max-width:1060px;margin:auto;padding:18px 16px 42px}
+header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.brand{font-weight:900;font-size:1.12rem;color:var(--green)}.badge{font-size:.76rem;font-weight:800;letter-spacing:.04em;background:#fff1c9;color:#755000;padding:8px 11px;border:1px solid #f0dda6;border-radius:999px}
+.hero{margin-top:22px;border-radius:28px;padding:clamp(24px,5vw,52px);background:linear-gradient(130deg,#dff2e3,#fff 70%);border:1px solid #d3e8d6}.eyebrow{font-size:.78rem;font-weight:850;letter-spacing:.14em;text-transform:uppercase;color:var(--green)}h1{font-size:clamp(2.2rem,6vw,4rem);letter-spacing:-.05em;line-height:1.03;margin:13px 0}.hero p{max-width:650px;color:var(--muted);line-height:1.7;font-size:1.04rem}.networks{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}.network{background:#fff;border:1px solid #d5e4d7;border-radius:999px;padding:8px 13px;font-size:.86rem;font-weight:800}
+.layout{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(270px,.85fr);gap:18px;margin-top:18px}.panel,.side-card{background:#fff;border:1px solid var(--line);border-radius:22px;padding:clamp(18px,3vw,28px);box-shadow:0 8px 28px #17351f08}.tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;background:#f0f5f0;padding:6px;border-radius:14px}.tab{border:0;border-radius:10px;padding:12px 8px;font-weight:850;background:transparent;color:#516556;cursor:pointer}.tab[aria-selected=true]{background:var(--green);color:white;box-shadow:0 3px 10px #176b3b20}
+h2{font-size:1.35rem;margin:20px 0 8px} .muted{color:var(--muted);line-height:1.65}.field{margin-top:16px}label{display:block;font-weight:750;margin-bottom:7px;font-size:.92rem}input,select{width:100%;padding:13px;border:1px solid #bdcdbf;border-radius:11px;background:white;color:#183a25;min-height:49px}input:focus,select:focus,button:focus-visible,a:focus-visible{outline:3px solid #e2b54c;outline-offset:2px}.primary,.secondary{display:flex;justify-content:center;align-items:center;text-align:center;text-decoration:none;width:100%;min-height:49px;padding:13px 16px;border:0;border-radius:12px;font-weight:850;margin-top:18px;cursor:pointer}.primary{background:var(--green);color:white}.secondary{background:#e8f4ea;color:var(--green)}.disabled{opacity:.65;cursor:not-allowed}.notice{margin-top:16px;border:1px solid #f0dda6;background:#fff9e9;color:#674d12;border-radius:15px;padding:14px;line-height:1.6;font-size:.91rem}.side-card h2{margin-top:0}.feature{display:flex;gap:12px;margin:17px 0}.feature-icon{width:42px;height:42px;flex:0 0 42px;display:grid;place-items:center;background:#e8f5eb;border-radius:13px;font-size:1.2rem}.feature strong{display:block;margin-bottom:3px}.feature p{margin:0;color:var(--muted);font-size:.9rem;line-height:1.5}.small{font-size:.83rem;color:var(--muted);line-height:1.6}footer{text-align:center;padding:25px 8px 0;color:#657568;font-size:.84rem;line-height:1.7}
+@media(max-width:760px){.layout{grid-template-columns:1fr}.hero{border-radius:22px}.side-card{order:2}}
+</style>
+</head>
+<body>
+<main>
+<header><div class="brand">🌿 HarvestHome</div><span class="badge">PRIVATE PREVIEW · TEST ONLY</span></header>
+<section class="hero">
+<div class="eyebrow">HarvestHome VTU</div>
+<h1>Stay connected.<br>Keep moving.</h1>
+<p>A simple home for Nigerian mobile data and airtime. We’re preparing a clear, convenient experience with transparent prices and helpful transaction support.</p>
+<div class="networks" aria-label="Networks planned for support"><span class="network">MTN</span><span class="network">Airtel</span><span class="network">Glo</span><span class="network">9mobile</span></div>
+</section>
+<div class="layout">
+<section class="panel">
+<div class="tabs" role="tablist" aria-label="Choose service">
+<button class="tab" id="data-tab" type="button" role="tab" aria-selected="true" aria-controls="data-panel">📶 Data bundles</button>
+<button class="tab" id="airtime-tab" type="button" role="tab" aria-selected="false" aria-controls="airtime-panel">📱 Airtime</button>
+</div>
+<div id="data-panel" role="tabpanel" aria-labelledby="data-tab">
+<h2>Find a data bundle</h2>
+<p class="muted">Choose your network and view the plans available in our protected development catalogue. We’re keeping prices under review so they remain fair and competitive.</p>
+<div class="field"><label for="data-network">Mobile network</label><select id="data-network"><option value="ALL">All networks</option><option value="MTN">MTN</option><option value="AIRTEL">Airtel</option><option value="GLO">Glo</option><option value="9MOBILE">9mobile</option></select></div>
+<div class="field"><label for="data-phone">Recipient phone number (optional for browsing)</label><input id="data-phone" inputmode="tel" autocomplete="tel" placeholder="08012345678" maxlength="16"></div>
+<a class="primary" id="catalog-link" href="/">View available data plans</a>
+<p class="small">The catalogue requires HarvestHome sign-in for this test. Selecting a plan does not create an order.</p>
+</div>
+<div id="airtime-panel" role="tabpanel" aria-labelledby="airtime-tab" hidden>
+<h2>Prepare an airtime top-up</h2>
+<p class="muted">Choose a network and enter the amount you want to top up. This screen is a preview; no airtime will be sent and no money will be collected.</p>
+<div class="field"><label for="airtime-network">Mobile network</label><select id="airtime-network"><option value="MTN">MTN</option><option value="AIRTEL">Airtel</option><option value="GLO">Glo</option><option value="9MOBILE">9mobile</option></select></div>
+<div class="field"><label for="airtime-phone">Recipient phone number</label><input id="airtime-phone" inputmode="tel" autocomplete="tel" placeholder="08012345678" maxlength="16"></div>
+<div class="field"><label for="airtime-amount">Airtime amount (₦)</label><select id="airtime-amount"><option value="100">₦100</option><option value="200">₦200</option><option value="500">₦500</option><option value="1000">₦1,000</option><option value="2000">₦2,000</option><option value="5000">₦5,000</option></select></div>
+<button class="primary" id="airtime-continue" type="button">Continue to protected test</button>
+<p id="airtime-message" class="small" role="status">No request has been sent.</p>
+</div>
+<div class="notice"><strong>Development safety:</strong> Customer checkout and live purchases are disabled. Do not enter payment details here. The supplier and payment flow must pass testing before launch.</div>
+</section>
+<aside class="side-card">
+<h2>Built around trust</h2>
+<div class="feature"><div class="feature-icon" aria-hidden="true">🏷️</div><div><strong>Clear pricing</strong><p>We’re checking provider costs and comparing like-for-like plans before approving retail prices.</p></div></div>
+<div class="feature"><div class="feature-icon" aria-hidden="true">🛡️</div><div><strong>Protected checkout</strong><p>Payments will only be enabled after server-side verification and duplicate-order safeguards are tested.</p></div></div>
+<div class="feature"><div class="feature-icon" aria-hidden="true">🧾</div><div><strong>Traceable support</strong><p>The planned service will use transaction references and clear status handling to help customers get support.</p></div></div>
+<a class="secondary" href="/vtu.html">Back to HarvestHome VTU hub</a>
+<p class="small">HarvestHome — Connecting Africa. Growing Together. 🧡💚</p>
+</aside>
+</div>
+<footer>Private development preview · Not linked from the public marketplace · No customer purchase is available</footer>
+</main>
+<script>
+(() => {
+ const dataTab=document.getElementById("data-tab"), airtimeTab=document.getElementById("airtime-tab");
+ const dataPanel=document.getElementById("data-panel"), airtimePanel=document.getElementById("airtime-panel");
+ function selectTab(which){
+   const data=which==="data";
+   dataTab.setAttribute("aria-selected",String(data)); airtimeTab.setAttribute("aria-selected",String(!data));
+   dataPanel.hidden=!data; airtimePanel.hidden=data;
+ }
+ dataTab.addEventListener("click",()=>selectTab("data"));
+ airtimeTab.addEventListener("click",()=>selectTab("airtime"));
+ document.getElementById("data-network").addEventListener("change",event=>{
+   const url=new URL("/",window.location.origin);
+   if(event.target.value!=="ALL") url.searchParams.set("network",event.target.value);
+   document.getElementById("catalog-link").href=url.pathname+url.search;
+ });
+ document.getElementById("airtime-continue").addEventListener("click",()=>{
+   const phone=document.getElementById("airtime-phone").value.trim().replace(/[\s()-]/g,"");
+   const message=document.getElementById("airtime-message");
+   if(!/^(?:0[789][01]\d{8}|\+?234[789][01]\d{8})$/.test(phone)){
+     message.textContent="Please enter a valid Nigerian mobile number. No request was sent."; return;
+   }
+   const network=document.getElementById("airtime-network").value;
+   const amount=document.getElementById("airtime-amount").value;
+   message.textContent="Preview prepared for "+network+" · "+phone+" · ₦"+Number(amount).toLocaleString("en-NG")+". No order or payment was created. Continue only to the restricted test screen.";
+   window.location.href="/airtime-test.html";
+ });
+})();
+</script>
+</body>
+</html>

@@ -7,6 +7,7 @@ on:
     paths:
       - "data-airtime-test.html"
       - "airtime-test.html"
+      - "vtu-test.html"
       - "Config.js"
       - "wrangler.meledata-preview.toml"
       - ".github/workflows/deploy-meledata-preview.yml"
@@ -24,11 +25,12 @@ jobs:
       - name: Check out development branch only
         uses: actions/checkout@v4
 
-      - name: Prepare the isolated test page
+      - name: Prepare the isolated test pages
         run: |
           mkdir -p .meledata-preview
           cp data-airtime-test.html .meledata-preview/index.html
           cp airtime-test.html .meledata-preview/airtime-test.html
+          cp vtu-test.html .meledata-preview/vtu.html
           cp Config.js .meledata-preview/Config.js
 
       - name: Create Cloudflare Worker Preview (not production)
@@ -38,7 +40,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           wranglerVersion: "4.136.3"
-          command: preview --config wrangler.meledata-preview.toml --name meledata-test --message "MELE DATA catalog test page"
+          command: preview --config wrangler.meledata-preview.toml --name meledata-test --message "HarvestHome VTU development hub"
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish preview link in workflow summary
@@ -47,10 +49,11 @@ jobs:
           DEPLOYMENT_URL: ${{ steps.preview.outputs.preview-deployment-url }}
         run: |
           {
-            echo "## HarvestHome MELE DATA test preview"
+            echo "## HarvestHome VTU development preview"
             echo
-            echo "This is a Cloudflare Worker Preview. The production Worker was not deployed."
+            echo "This is an isolated Cloudflare Worker Preview. The production Worker and harvesthome.ng were not deployed."
             echo
             echo "- **Preview URL:** ${PREVIEW_URL}"
+            echo "- **VTU hub:** ${PREVIEW_URL}/vtu.html"
             echo "- **Specific deployment:** ${DEPLOYMENT_URL}"
           } >> "$GITHUB_STEP_SUMMARY"

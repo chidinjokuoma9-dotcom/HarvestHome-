@@ -73,7 +73,7 @@ jobs:
               "config.SUPABASE_URL",
               "config.SUPABASE_ANON_KEY",
               'functions.invoke("meledata-test-airtime"',
-              'method:"POST"',
+              'method: "POST"',
           ]
           for item in required_airtime:
               if item not in airtime_page:

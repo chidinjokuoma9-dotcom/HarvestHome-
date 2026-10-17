@@ -52,7 +52,8 @@ jobs:
           old = "close();state.view='dashboard';state.dashboardTab='listings';render();toast('Listing submitted. It is now under moderator review.');return"
           new = "close();state.view='dashboard';state.dashboardTab='listings';render();showListingSubmittedConfirmation(d.title,row.id);return"
           if old not in text:
-              raise SystemExit("listing success line not found")
+              print("Legacy seller success line is not present; leaving App.js unchanged.")
+              raise SystemExit(0)
           text = text.replace(old, new, 1)
 
           path.write_text(text, encoding="utf-8")

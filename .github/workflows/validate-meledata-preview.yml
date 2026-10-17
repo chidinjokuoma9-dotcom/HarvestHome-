@@ -7,6 +7,7 @@ on:
     paths:
       - "data-airtime-test.html"
       - "airtime-test.html"
+      - "vtu-test.html"
       - "Config.js"
       - "supabase/functions/meledata-test-catalog/index.ts"
       - ".github/workflows/validate-meledata-preview.yml"
@@ -19,10 +20,7 @@ jobs:
   validate-preview-only:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out development branch
-        uses: actions/checkout@v4
-
-      - name: Check diagnostic page and test-only safety guards
+      - name: Check diagnostic pages and test-only safety guards
         shell: python
         run: |
           from pathlib import Path
@@ -62,11 +60,10 @@ jobs:
           with tempfile.NamedTemporaryFile("w", suffix=".js", encoding="utf-8", delete=False) as f:
               f.write("\n".join(scripts))
               js_path = f.name
-
           subprocess.run(["node", "--check", js_path], check=True)
+
           airtime_page = Path("airtime-test.html").read_text(encoding="utf-8")
           config = Path("Config.js").read_text(encoding="utf-8")
-
           required_airtime = [
               'name="robots" content="noindex,nofollow,noarchive"',
               '<script src="Config.js?v=airtime-test-config1"></script>',
@@ -91,4 +88,14 @@ jobs:
               airtime_js_path = f.name
           subprocess.run(["node", "--check", airtime_js_path], check=True)
 
-          print("Catalog and airtime preview checks passed. No production deployment or purchase was performed.")
+          hub = Path("vtu-test.html").read_text(encoding="utf-8")
+          for item in [
+              'name="robots" content="noindex,nofollow,noarchive"',
+              'href="/airtime-test.html"',
+              'href="/"',
+              "No customer checkout or live purchase is available here",
+          ]:
+              if item not in hub:
+                  raise SystemExit(f"VTU hub missing safety/navigation requirement: {item}")
+
+          print("Catalog, airtime and VTU hub checks passed. No production deployment or purchase was performed.")

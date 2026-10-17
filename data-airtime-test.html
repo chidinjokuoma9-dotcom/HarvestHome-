@@ -57,7 +57,7 @@
     </div>
     <section id="customer-preview" class="card" hidden aria-labelledby="customer-preview-title">
       <h2 id="customer-preview-title">3. Customer plan-selection preview</h2>
-      <div class="preview-banner"><strong>Affordable-pricing development preview only.</strong> No checkout or purchase is connected. Plans with review flags are excluded. Prices aim to encourage repeat customers: every eligible bundle targets at least ₦30 profit after estimated local Paystack fees, with gradually higher profit targets for larger provider-cost tiers. The estimate rounds up to the next ₦10. It assumes HarvestHome absorbs Paystack fees; confirm your actual Paystack fee settings before adopting prices. These are development estimates, not approved live prices, and have not yet been compared with competitors.</div>
+      <div class="preview-banner"><strong>Affordable-pricing development preview only.</strong> No checkout or purchase is connected. Plans with review flags are excluded. Customer-first tiered targets after estimated local Paystack fees: ₦30 on provider costs below ₦500, ₦35 on ₦500–₦999, ₦40 on ₦1,000–₦2,499, ₦50 on ₦2,500–₦4,999, ₦75 on ₦5,000–₦9,999, and ₦100 on ₦10,000+. Selling prices round up in ₦10 steps only as needed to cover the target and estimated fee. HarvestHome is assumed to absorb the fee; confirm your actual Paystack fee settings before adopting prices. Compare the same network, data type and validity with competitors before approval; this preview cannot automatically verify market prices. These are development estimates, not approved live prices.</div>
       <div class="filter-row">
         <select id="preview-network" aria-label="Filter preview plans by network"><option value="ALL">All networks</option><option>MTN</option><option>AIRTEL</option><option>GLO</option><option>9MOBILE</option></select>
         <input id="preview-search" type="search" placeholder="Find a plan, e.g. 2GB" aria-label="Search preview plans">
@@ -159,22 +159,22 @@
       return { sellingPrice: 0, estimatedProfit: 0, targetProfit: 0 };
     }
 
-    // Balanced, customer-friendly graduated targets.
-    // Every eligible plan aims for at least ₦30 net profit after the estimated fee.
-    // Higher provider-cost tiers earn more, while prices round up only to the next ₦10.
+    // Customer-first tiered minimum profit targets, measured AFTER estimated payment fees.
+    // The target grows with provider cost, but stays moderate to help repeat-customer retention.
+    // Compare the same network, data type and validity before approving any suggested price.
     let targetProfit;
-    if (cost < 300) {
+    if (cost < 500) {
       targetProfit = 30;
-    } else if (cost < 500) {
-      targetProfit = 35;
     } else if (cost < 1000) {
-      targetProfit = 45;
-    } else if (cost < 2000) {
-      targetProfit = 60;
+      targetProfit = 35;
+    } else if (cost < 2500) {
+      targetProfit = 40;
     } else if (cost < 5000) {
-      targetProfit = 85;
+      targetProfit = 50;
+    } else if (cost < 10000) {
+      targetProfit = 75;
     } else {
-      targetProfit = 120;
+      targetProfit = 100;
     }
 
     let sellingPrice = Math.ceil((cost + targetProfit) / 10) * 10;
@@ -218,6 +218,7 @@
         "Validity: " + plan.validity,
         "Provider reference cost: " + "₦" + plan.price.toLocaleString("en-NG"),
         "Suggested retail price (estimate): " + "₦" + pricing.sellingPrice.toLocaleString("en-NG"),
+        "Target profit after estimated fee: " + "₦" + pricing.targetProfit.toLocaleString("en-NG"),
         "Estimated profit after local Paystack fee: " + "₦" + pricing.estimatedProfit.toLocaleString("en-NG")
       ]) {
         const paragraph = document.createElement("p");

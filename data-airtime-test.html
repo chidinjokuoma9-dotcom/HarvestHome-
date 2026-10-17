@@ -126,6 +126,7 @@
       if (!code) issues.push("Missing plan code");
       if (!Number.isFinite(price) || price < 0) issues.push("Invalid price");
       if (!validity || validity === "Not provided") issues.push("Missing validity");
+      if (/social/i.test(validity)) issues.push("Special/social validity needs review");
       if (sizeInName && providerSize && sizeInName.toLowerCase() !== providerSize.replace(/\s+/g, "").toLowerCase()) {
         issues.push("Size mismatch");
       }

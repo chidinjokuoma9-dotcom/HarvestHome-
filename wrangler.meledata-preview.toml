@@ -1,0 +1,6 @@
+# Dedicated Cloudflare Workers Preview configuration for the MELE DATA test page.
+# This file is used only by the preview workflow on the development branch.
+# The production deploy workflow runs from main and does not use this config.
+name = "harvesthome"
+compatibility_date = "2026-10-17"
+assets = { directory = "./.meledata-preview" }

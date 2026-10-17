@@ -83,11 +83,11 @@ jobs:
           if "paystack.initialize" in airtime_page.lower() or "purchases_enabled = true" in airtime_page.lower():
               raise SystemExit("Airtime test page must not enable live checkout or purchases.")
 
-          airtime_scripts = re.findall(r"<script>([\\s\\S]*?)</script>", airtime_page, re.IGNORECASE)
+          airtime_scripts = re.findall(r"<script>([\s\S]*?)</script>", airtime_page, re.IGNORECASE)
           if not airtime_scripts:
               raise SystemExit("No inline JavaScript was found in the airtime test page.")
           with tempfile.NamedTemporaryFile("w", suffix=".js", encoding="utf-8", delete=False) as f:
-              f.write("\\n".join(airtime_scripts))
+              f.write("\n".join(airtime_scripts))
               airtime_js_path = f.name
           subprocess.run(["node", "--check", airtime_js_path], check=True)
 

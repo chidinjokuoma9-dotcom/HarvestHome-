@@ -19,6 +19,7 @@
     button:disabled{opacity:.55;cursor:wait}.secondary{background:#e7f4e9;color:#176b3b}
     pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#102417;color:#e9f6eb;padding:14px;border-radius:12px;min-height:54px;font-size:.88rem}
     .small{font-size:.86rem;color:#607064;line-height:1.5}
+    .catalog-wrap{overflow-x:auto;margin-top:14px}table{border-collapse:collapse;width:100%;font-size:.9rem;background:#fff}th,td{text-align:left;vertical-align:top;padding:10px;border-bottom:1px solid #e3ece4}th{background:#edf5ee}td{overflow-wrap:anywhere}.flag{display:inline-block;background:#fff0d4;color:#775000;padding:4px 7px;border-radius:7px;font-size:.78rem;font-weight:700}.ok{color:#176b3b;font-weight:700}.catalog-summary{font-weight:700;margin-top:12px}.filter-row{display:flex;gap:8px;flex-wrap:wrap}.filter-row select,.filter-row input{min-width:130px;flex:1;padding:10px;border:1px solid #bdcdbf;border-radius:9px;font:inherit}
   </style>
 </head>
 <body>
@@ -46,6 +47,13 @@
     <p class="small">The button stays unavailable until authentication succeeds. Only the catalog-check function is called; no purchase endpoint is called.</p>
     <button id="test-button" type="button" disabled>Check MELE DATA test connection</button>
     <pre id="result" role="status">Waiting for sign-in.</pre>
+    <div id="catalog-panel" hidden>
+      <p id="catalog-summary" class="catalog-summary"></p>
+      <p class="small">Development review only. Suspect provider values are flagged rather than silently corrected. Do not publish this catalog to customers until the provider confirms flagged entries.</p>
+      <div class="filter-row"><select id="network-filter" aria-label="Filter by network"><option value="ALL">All networks</option><option>MTN</option><option>AIRTEL</option><option>GLO</option><option>9MOBILE</option></select><input id="plan-search" type="search" placeholder="Search plans (e.g. 2GB, 30 days)" aria-label="Search plans"></div>
+      <div class="catalog-wrap"><table><thead><tr><th>Network</th><th>Plan</th><th>Size in name</th><th>Provider size</th><th>Validity</th><th>Price</th><th>Review</th></tr></thead><tbody id="catalog-rows"></tbody></table></div>
+      <details><summary>Show technical JSON response</summary><pre id="raw-result"></pre></details>
+    </div>
     <button id="clear-button" class="secondary" type="button">Clear results and sign out of this test</button>
   </section>
   <p class="small">This page is not linked from the public marketplace. Do not publish it to the production site. If you are unsure whether you are on a development preview, stop and ask for confirmation.</p>
@@ -67,15 +75,109 @@
   const clearButton = document.getElementById("clear-button");
   const authStatus = document.getElementById("auth-status");
   const result = document.getElementById("result");
+  const catalogPanel = document.getElementById("catalog-panel");
+  const catalogSummary = document.getElementById("catalog-summary");
+  const catalogRows = document.getElementById("catalog-rows");
+  const rawResult = document.getElementById("raw-result");
+  const networkFilter = document.getElementById("network-filter");
+  const planSearch = document.getElementById("plan-search");
   let accessToken = null;
+  let currentPlans = [];
 
   function showResult(value) {
     result.textContent = typeof value === "string" ? value : JSON.stringify(value, null, 2);
   }
 
+  function planSizeFromName(name) {
+    const match = String(name || "").match(/\b(\d+(?:\.\d+)?\s*(?:MB|GB))\b/i);
+    return match ? match[1].replace(/\s+/g, "").toUpperCase() : "";
+  }
+
+  function renderCatalog(payload) {
+    const plans = Array.isArray(payload?.plans) ? payload.plans : [];
+    currentPlans = plans.map((plan, index) => {
+      const name = String(plan.plan_name || "Unnamed plan").trim();
+      const sizeInName = planSizeFromName(name);
+      const providerSize = String(plan.data_size ?? "").trim();
+      const network = String(plan.network || "UNKNOWN").trim().toUpperCase();
+      const code = String(plan.plan_code || "").trim();
+      const price = Number(plan.price);
+      const validity = String(plan.validity || "Not provided").replace(/\s+/g, " ").trim();
+      const issues = [];
+      if (!code) issues.push("Missing plan code");
+      if (!Number.isFinite(price) || price < 0) issues.push("Invalid price");
+      if (!validity || validity === "Not provided") issues.push("Missing validity");
+      if (sizeInName && providerSize && sizeInName.toLowerCase() !== providerSize.replace(/\s+/g, "").toLowerCase()) {
+        issues.push("Size mismatch");
+      }
+      if (code && plans.slice(0, index).some(previous => String(previous.plan_code || "").trim() === code)) {
+        issues.push("Duplicate plan code");
+      }
+      return { network, name, sizeInName, providerSize, validity, price, code, issues };
+    });
+    const flagged = currentPlans.filter(plan => plan.issues.length).length;
+    catalogSummary.textContent = `Test catalog received: ${currentPlans.length} plans · ${flagged} entries need review · purchases disabled`;
+    rawResult.textContent = JSON.stringify(payload, null, 2);
+    catalogPanel.hidden = false;
+    drawRows();
+  }
+
+  function drawRows() {
+    catalogRows.replaceChildren();
+    const network = networkFilter.value;
+    const query = planSearch.value.trim().toLowerCase();
+    const visible = currentPlans.filter(plan =>
+      (network === "ALL" || plan.network === network) &&
+      (!query || [plan.network, plan.name, plan.sizeInName, plan.providerSize, plan.validity, plan.code].join(" ").toLowerCase().includes(query))
+    );
+    for (const plan of visible) {
+      const row = document.createElement("tr");
+      const values = [
+        plan.network,
+        plan.name,
+        plan.sizeInName || "Not clear from name",
+        plan.providerSize || "Not provided",
+        plan.validity,
+        Number.isFinite(plan.price) ? "₦" + plan.price.toLocaleString("en-NG") : "Invalid"
+      ];
+      for (const value of values) {
+        const cell = document.createElement("td");
+        cell.textContent = value;
+        row.appendChild(cell);
+      }
+      const review = document.createElement("td");
+      if (plan.issues.length) {
+        const flag = document.createElement("span");
+        flag.className = "flag";
+        flag.textContent = plan.issues.join("; ");
+        review.appendChild(flag);
+      } else {
+        const ok = document.createElement("span");
+        ok.className = "ok";
+        ok.textContent = "No automatic flags";
+        review.appendChild(ok);
+      }
+      row.appendChild(review);
+      catalogRows.appendChild(row);
+    }
+    if (!visible.length) {
+      const row = document.createElement("tr");
+      const cell = document.createElement("td");
+      cell.colSpan = 7;
+      cell.textContent = "No plans match this filter.";
+      row.appendChild(cell);
+      catalogRows.appendChild(row);
+    }
+  }
+
+  networkFilter.addEventListener("change", drawRows);
+  planSearch.addEventListener("input", drawRows);
+
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     accessToken = null;
+    catalogPanel.hidden = true;
+    currentPlans = [];
     testButton.disabled = true;
     signInButton.disabled = true;
     authStatus.textContent = "Signing in with Supabase Auth…";
@@ -129,7 +231,12 @@
         showResult({ error: detail });
         return;
       }
-      showResult(data);
+      if (data && data.mode === "test" && data.purchases_enabled === false && Array.isArray(data.plans)) {
+        renderCatalog(data);
+        showResult("Catalog loaded successfully. Review the flagged entries before any customer-facing use.");
+      } else {
+        showResult(data);
+      }
     } catch (_) {
       showResult("The function request failed. Check Supabase function logs for the request; no purchase was attempted.");
     } finally {
@@ -139,6 +246,12 @@
 
   clearButton.addEventListener("click", () => {
     accessToken = null;
+    currentPlans = [];
+    catalogPanel.hidden = true;
+    catalogRows.replaceChildren();
+    rawResult.textContent = "";
+    networkFilter.value = "ALL";
+    planSearch.value = "";
     email.value = "";
     password.value = "";
     testButton.disabled = true;

@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow,noarchive"><meta name="theme-color" content="#176b3b">
+<title>MELE DATA Airtime Sandbox Test — HarvestHome</title>
+<style>
+:root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#17351f;background:#f4f8f4}*{box-sizing:border-box}
+body{margin:0;padding:22px 14px 40px}main{max-width:620px;margin:auto}.brand{font-weight:800;color:#176b3b;font-size:1.15rem}
+h1{font-size:1.65rem;line-height:1.2;margin:18px 0 8px}.muted,.small{color:#526458;line-height:1.55}
+.card{background:#fff;border:1px solid #dce8dc;border-radius:16px;padding:18px;margin-top:16px}
+.warning{background:#fff5df;border:1px solid #ead39a;color:#674d12;border-radius:12px;padding:13px;line-height:1.5}
+label{display:block;font-weight:650;margin:13px 0 6px}input,select{width:100%;padding:12px;border:1px solid #bdcdbf;border-radius:10px;font:inherit}
+button{width:100%;border:0;border-radius:10px;padding:12px 16px;background:#176b3b;color:white;font:inherit;font-weight:700;margin-top:14px;cursor:pointer}
+button:disabled{opacity:.55;cursor:wait}.secondary{background:#e7f4e9;color:#176b3b}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#102417;color:#e9f6eb;padding:14px;border-radius:12px;min-height:50px;font-size:.88rem}
+.small{font-size:.88rem}.status{font-weight:650}
+</style>
+</head>
+<body><main>
+<div class="brand">🌿 HarvestHome</div>
+<h1>MELE DATA airtime sandbox test</h1>
+<p class="muted">A private development test page. It is not linked to the public marketplace and cannot take Paystack payments.</p>
+<div class="warning"><strong>Test mode only.</strong> Before submitting, confirm the MELE DATA token configured in Supabase is a sandbox/test token. Never enter API keys or payment details here. A submitted test may create a sandbox transaction with the provider; do not use a real customer's number.</div>
+<section class="card">
+<h2>1. Sign in</h2><p class="small">Use your existing HarvestHome account. The test session is not saved to browser storage.</p>
+<form id="signin">
+<label for="email">Email address</label><input id="email" type="email" autocomplete="username" required>
+<label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required>
+<button id="signinBtn">Sign in securely</button>
+</form><p id="authStatus" class="small status" role="status">Not signed in.</p>
+</section>
+<section class="card">
+<h2>2. Submit one sandbox airtime test</h2>
+<form id="airtime">
+<label for="network">Mobile network</label><select id="network" required><option value="MTN">MTN</option><option value="AIRTEL">Airtel</option><option value="GLO">Glo</option><option value="9MOBILE">9mobile</option></select>
+<label for="phone">Test Nigerian mobile number</label><input id="phone" type="tel" inputmode="tel" placeholder="08012345678" autocomplete="off" required>
+<label for="amount">Amount (₦100–₦5,000)</label><input id="amount" type="number" min="100" max="5000" step="1" value="100" required>
+<p class="small">Use a provider-approved test number if MELE DATA supplies one. This page only calls the server-side test function; live customer checkout is not connected.</p>
+<button id="submitBtn" disabled>Run sandbox airtime test</button>
+</form>
+<pre id="result" role="status">Sign in before testing. No request has been sent.</pre>
+<button id="clearBtn" class="secondary" type="button">Clear results and sign out</button>
+</section>
+<p class="small">Development branch only. Purchases on HarvestHome's live marketplace remain disabled. The MELE DATA secret stays in Supabase.</p>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(() => {
+ const SUPABASE_URL="https://dbariugnwgzbhxvtbcpz.supabase.co";
+ const SUPABASE_ANON_KEY="sb_publishable_Cyhnta7uwaauZm59KwlwMg_gJ3BzT6k";
+ const client=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
+ const signin=document.getElementById("signin"), airtime=document.getElementById("airtime");
+ const email=document.getElementById("email"), password=document.getElementById("password");
+ const signinBtn=document.getElementById("signinBtn"), submitBtn=document.getElementById("submitBtn");
+ const authStatus=document.getElementById("authStatus"), result=document.getElementById("result");
+ const clearBtn=document.getElementById("clearBtn"); let signedIn=false;
+ signin.addEventListener("submit",async e=>{
+  e.preventDefault(); signedIn=false; submitBtn.disabled=true; signinBtn.disabled=true;
+  authStatus.textContent="Signing in…"; result.textContent="Waiting for authentication.";
+  try{
+   const {data,error}=await client.auth.signInWithPassword({email:email.value.trim(),password:password.value});
+   password.value="";
+   if(error||!data.session){authStatus.textContent="Sign-in failed. Check your credentials and account status.";result.textContent="Authentication failed; no airtime request was sent.";return;}
+   signedIn=true; submitBtn.disabled=false; authStatus.textContent="Signed in for this test only. Session remains in memory.";
+   result.textContent="Ready. Review network, number and amount before submitting.";
+  }catch(_){password.value="";authStatus.textContent="Could not sign in. Check your connection.";result.textContent="No airtime request was sent.";}
+  finally{signinBtn.disabled=false;}
+ });
+ airtime.addEventListener("submit",async e=>{
+  e.preventDefault();
+  if(!signedIn){result.textContent="Sign in first.";return;}
+  const network=document.getElementById("network").value;
+  const phone=document.getElementById("phone").value.trim();
+  const amount=Number(document.getElementById("amount").value);
+  if(!/^((0[789][01][0-9]{8})|(234[789][01][0-9]{8})|(\+234[789][01][0-9]{8}))$/.test(phone.replace(/[\s()-]/g,""))){
+   result.textContent="Enter a valid Nigerian mobile number (11-digit local format or +234 format).";return;
+  }
+  if(!Number.isInteger(amount)||amount<100||amount>5000){result.textContent="Amount must be a whole Naira value from ₦100 to ₦5,000.";return;}
+  if(!window.confirm("Run a MELE DATA SANDBOX airtime test for "+network+" on "+phone+" for ₦"+amount.toLocaleString("en-NG")+"? Only continue with a test number."))return;
+  submitBtn.disabled=true; result.textContent="Submitting to the server-side sandbox test function…";
+  try{
+   const {data,error}=await client.functions.invoke("meledata-test-airtime",{method:"POST",body:{network,phone_number:phone,amount}});
+   if(error){let detail=error.message||"Function request failed.";try{if(error.context&&typeof error.context.json==="function"){const body=await error.context.json();result.textContent=JSON.stringify({error:detail,response:body},null,2);return;}}catch(_){}result.textContent=JSON.stringify({error:detail},null,2);return;}
+   result.textContent=JSON.stringify(data,null,2);
+  }catch(_){result.textContent="Request failed. Check Supabase function logs. Do not repeat immediately if the provider may have accepted the request; check the reference/status first.";}
+  finally{submitBtn.disabled=!signedIn;}
+ });
+ clearBtn.addEventListener("click",async()=>{
+  signedIn=false;submitBtn.disabled=true;email.value="";password.value="";document.getElementById("phone").value="";
+  try{await client.auth.signOut({scope:"local"});}catch(_){}
+  authStatus.textContent="Signed out of this test.";result.textContent="Results cleared. No browser-persisted session was created.";
+ });
+})();
+</script></body></html>

@@ -95,7 +95,7 @@ jobs:
           hub = Path("vtu-test.html").read_text(encoding="utf-8")
           for item in [
               'name="robots" content="noindex,nofollow,noarchive"',
-              'href="/airtime-test.html"',
+              'window.location.href="/airtime-test.html"',
               'href="/"',
               "No customer checkout or live purchase is available here",
           ]:

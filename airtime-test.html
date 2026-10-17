@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="theme-color" content="#176b3b">
+<title>HarvestHome Airtime Test</title>
+<style>
+:root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#17351f;background:#f5f8f5}
+*{box-sizing:border-box}body{margin:0;padding:22px 14px 40px}main{max-width:600px;margin:auto}.brand{font-weight:800;color:#176b3b;font-size:1.15rem}h1{font-size:1.65rem;line-height:1.2;margin:18px 0 8px}.muted,.small{color:#526458;line-height:1.6}.small{font-size:.88rem}.card{background:#fff;border:1px solid #dce8dc;border-radius:18px;padding:20px;margin-top:18px;box-shadow:0 8px 24px #17351f0a}.warning{background:#fff8e7;border:1px solid #f0dca6;border-radius:12px;padding:13px;line-height:1.5;color:#674d12}.success-note{background:#eef6ff;border:1px solid #c8def6;border-radius:12px;padding:13px;color:#204c75;line-height:1.5}label{display:block;font-weight:650;margin:14px 0 6px}input,select{width:100%;padding:12px;border:1px solid #bdcdbf;border-radius:10px;font:inherit;background:white}button{border:0;border-radius:10px;padding:12px 16px;background:#176b3b;color:white;font:inherit;font-weight:700;margin-top:14px;width:100%;cursor:pointer}button:disabled{opacity:.55;cursor:wait}.secondary{background:#e7f4e9;color:#176b3b}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#102417;color:#e9f6eb;padding:14px;border-radius:12px;min-height:50px;font-size:.88rem}
+</style>
+</head>
+<body><main>
+<div class="brand">🌿 HarvestHome</div>
+<h1>Airtime top-up — test only</h1>
+<p class="muted">A private development screen to validate the MELE DATA airtime integration before adding airtime to the public marketplace.</p>
+<div class="warning"><strong>Sandbox safety:</strong> This page is not linked from the live marketplace. The server accepts only a MELE DATA token that confirms test mode. Do not enter a real payment or share your API key here. This screen can make a sandbox test request only after sign-in.</div>
+<section class="card">
+<h2>1. Sign in securely</h2>
+<p class="small">Use your HarvestHome account. Your password is sent directly to Supabase Auth and is not sent to the airtime provider.</p>
+<form id="signin-form">
+<label for="email">Email address</label><input id="email" type="email" autocomplete="username" required>
+<label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required>
+<button id="signin-button" type="submit">Sign in for test</button>
+</form>
+<p id="auth-status" class="small" role="status">Not signed in.</p>
+</section>
+<section class="card">
+<h2>2. Test airtime request</h2>
+<div class="success-note">Test limits: Nigerian numbers only, ₦100–₦5,000, and the provider token must be verified as test mode on every request.</div>
+<form id="airtime-form">
+<label for="network">Mobile network</label><select id="network" required><option value="MTN">MTN</option><option value="AIRTEL">Airtel</option><option value="GLO">Glo</option><option value="9MOBILE">9mobile</option></select>
+<label for="phone">Recipient phone number</label><input id="phone" inputmode="tel" autocomplete="tel" placeholder="08012345678" maxlength="16" required>
+<label for="amount">Airtime amount (₦)</label><input id="amount" type="number" inputmode="numeric" min="100" max="5000" step="1" placeholder="100" required>
+<p class="small">This test calls the provider sandbox directly from the server. Do not use a live token or expect real airtime delivery.</p>
+<button id="submit-button" type="submit" disabled>Run sandbox airtime test</button>
+</form>
+<pre id="result" role="status">Sign in first. No airtime request has been sent.</pre>
+<button id="clear-button" class="secondary" type="button">Clear results and sign out</button>
+</section>
+<p class="small">For customer launch, we still need Paystack checkout, server-side payment verification, duplicate-payment protection, an order ledger, delivery-status reconciliation, refunds/support handling, and explicit live-mode approval. This test page does not do those things.</p>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(() => {
+  const client = window.supabase.createClient(
+    "https://dbariugnwgzbhxvtbcpz.supabase.co",
+    "sb_publishable_Cyhnta7uwaauZm59KwlwMg_gJ3BzT6k",
+    {auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}}
+  );
+  const signInForm=document.getElementById("signin-form");
+  const airtimeForm=document.getElementById("airtime-form");
+  const signInButton=document.getElementById("signin-button");
+  const submitButton=document.getElementById("submit-button");
+  const authStatus=document.getElementById("auth-status");
+  const result=document.getElementById("result");
+  const password=document.getElementById("password");
+  let accessToken=null;
+  signInForm.addEventListener("submit",async event=>{
+    event.preventDefault();accessToken=null;submitButton.disabled=true;signInButton.disabled=true;
+    authStatus.textContent="Signing in securely…";result.textContent="Waiting for sign-in.";
+    try{
+      const {data,error}=await client.auth.signInWithPassword({
+        email:document.getElementById("email").value.trim(),
+        password:password.value
+      });
+      password.value="";
+      if(error||!data.session?.access_token){
+        authStatus.textContent="Sign-in failed. Check your details and try again.";
+        result.textContent=error?.message||"No authenticated session returned.";return;
+      }
+      accessToken=data.session.access_token;
+      authStatus.textContent="Signed in for this test session. Session is held in memory only.";
+      submitButton.disabled=false;result.textContent="Signed in. You may run a sandbox test.";
+    }catch(_){password.value="";authStatus.textContent="Could not sign in. Check your connection.";result.textContent="No provider request was made."}
+    finally{signInButton.disabled=false}
+  });
+  airtimeForm.addEventListener("submit",async event=>{
+    event.preventDefault();
+    if(!accessToken){result.textContent="Sign in first.";return}
+    const amount=Number(document.getElementById("amount").value);
+    if(!Number.isInteger(amount)||amount<100||amount>5000){result.textContent="Use a whole Naira amount from ₦100 to ₦5,000.";return}
+    const phone=document.getElementById("phone").value.trim();
+    if(!/^(?:0[789][01]\d{8}|\+?234[789][01]\d{8})$/.test(phone.replace(/[\s()-]/g,""))){result.textContent="Enter a valid Nigerian mobile number.";return}
+    submitButton.disabled=true;result.textContent="Checking provider test mode and submitting sandbox request…";
+    try{
+      const {data,error}=await client.functions.invoke("meledata-test-airtime",{
+        method:"POST",
+        headers:{Authorization:"Bearer "+accessToken},
+        body:{network:document.getElementById("network").value,phone_number:phone,amount}
+      });
+      if(error){result.textContent=JSON.stringify({error:error.message||"Test request failed. Check Supabase function logs."},null,2);return}
+      result.textContent=JSON.stringify(data,null,2);
+    }catch(_){result.textContent="Test request failed. Check Supabase function logs. Do not retry if a reference was returned until its status is checked."}
+    finally{submitButton.disabled=!accessToken}
+  });
+  document.getElementById("clear-button").addEventListener("click",async()=>{
+    accessToken=null;submitButton.disabled=true;document.getElementById("email").value="";password.value="";
+    document.getElementById("phone").value="";document.getElementById("amount").value="";
+    authStatus.textContent="Signed out of this test.";result.textContent="Results cleared. No live purchase is enabled.";
+    try{await client.auth.signOut({scope:"local"})}catch(_){}
+  });
+})();
+</script>
+</body></html>

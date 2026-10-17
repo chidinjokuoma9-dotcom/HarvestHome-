@@ -57,7 +57,7 @@
     </div>
     <section id="customer-preview" class="card" hidden aria-labelledby="customer-preview-title">
       <h2 id="customer-preview-title">3. Customer plan-selection preview</h2>
-      <div class="preview-banner"><strong>Development pricing preview only.</strong> No checkout or purchase is connected. Plans with review flags are excluded. Suggested prices use a moderate target profit of at least ₦50 or 5% of provider cost (whichever is higher), include an estimate of standard local Paystack fees, and round up to the next ₦10. This assumes HarvestHome absorbs Paystack fees; confirm your Paystack fee settings before adopting prices. These are estimates, not approved live prices.</div>
+      <div class="preview-banner"><strong>Affordable-pricing development preview only.</strong> No checkout or purchase is connected. Plans with review flags are excluded. Prices aim to encourage repeat customers by using smaller profit targets on low-cost bundles and moderate targets on larger bundles. The estimate includes standard local Paystack fees and rounds up to the next ₦10. It assumes HarvestHome absorbs Paystack fees; confirm your actual Paystack fee settings before adopting prices. These are estimates, not approved live prices, and have not yet been compared with competitors.</div>
       <div class="filter-row">
         <select id="preview-network" aria-label="Filter preview plans by network"><option value="ALL">All networks</option><option>MTN</option><option>AIRTEL</option><option>GLO</option><option>9MOBILE</option></select>
         <input id="preview-search" type="search" placeholder="Find a plan, e.g. 2GB" aria-label="Search preview plans">
@@ -156,17 +156,33 @@
   function suggestRetailPrice(providerCost) {
     const cost = Number(providerCost);
     if (!Number.isFinite(cost) || cost < 0) {
-      return { sellingPrice: 0, estimatedProfit: 0 };
+      return { sellingPrice: 0, estimatedProfit: 0, targetProfit: 0 };
     }
-    const targetProfit = Math.max(50, Math.ceil(cost * 0.05));
+
+    // Draft customer-first targets: keep entry-level bundles affordable,
+    // while allowing a modestly larger profit target for higher-cost bundles.
+    let targetProfit;
+    if (cost < 300) {
+      targetProfit = Math.max(15, Math.ceil(cost * 0.025));
+    } else if (cost < 500) {
+      targetProfit = Math.max(20, Math.ceil(cost * 0.03));
+    } else if (cost < 1000) {
+      targetProfit = Math.max(25, Math.ceil(cost * 0.035));
+    } else if (cost < 2500) {
+      targetProfit = Math.max(35, Math.ceil(cost * 0.04));
+    } else {
+      targetProfit = Math.max(50, Math.ceil(cost * 0.045));
+    }
+
     let sellingPrice = Math.ceil((cost + targetProfit) / 10) * 10;
-    // Move in ₦10 steps until the target remains after the estimated payment fee.
+    // Add only what is needed to cover the estimated payment fee and target profit.
     while (sellingPrice - cost - estimateLocalPaystackFee(sellingPrice) < targetProfit) {
       sellingPrice += 10;
     }
     return {
       sellingPrice,
-      estimatedProfit: sellingPrice - cost - estimateLocalPaystackFee(sellingPrice)
+      estimatedProfit: sellingPrice - cost - estimateLocalPaystackFee(sellingPrice),
+      targetProfit
     };
   }
 

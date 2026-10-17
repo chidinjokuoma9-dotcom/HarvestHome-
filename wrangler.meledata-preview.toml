@@ -4,3 +4,6 @@
 name = "harvesthome"
 compatibility_date = "2026-10-17"
 assets = { directory = "./.meledata-preview" }
+
+# Required by Wrangler's isolated Worker Preview command.
+[previews]

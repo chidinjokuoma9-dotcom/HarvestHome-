@@ -20,6 +20,7 @@
     pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#102417;color:#e9f6eb;padding:14px;border-radius:12px;min-height:54px;font-size:.88rem}
     .small{font-size:.86rem;color:#607064;line-height:1.5}
     .catalog-wrap{overflow-x:auto;margin-top:14px}table{border-collapse:collapse;width:100%;font-size:.9rem;background:#fff}th,td{text-align:left;vertical-align:top;padding:10px;border-bottom:1px solid #e3ece4}th{background:#edf5ee}td{overflow-wrap:anywhere}.flag{display:inline-block;background:#fff0d4;color:#775000;padding:4px 7px;border-radius:7px;font-size:.78rem;font-weight:700}.ok{color:#176b3b;font-weight:700}.catalog-summary{font-weight:700;margin-top:12px}.filter-row{display:flex;gap:8px;flex-wrap:wrap}.filter-row select,.filter-row input{min-width:130px;flex:1;padding:10px;border:1px solid #bdcdbf;border-radius:9px;font:inherit}
+    .plan-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:14px}.plan-card{border:1px solid #dce8dc;border-radius:14px;padding:14px;background:#fff}.plan-card h3{margin:0 0 8px;font-size:1.02rem}.plan-card p{margin:5px 0;color:#526458}.plan-card button{margin-top:10px}.preview-banner{background:#eef6ff;border:1px solid #c8def6;border-radius:12px;padding:13px;color:#204c75;line-height:1.5}.selected-plan{background:#edf7ef;border-radius:12px;padding:12px;margin-top:12px;line-height:1.5}.empty-state{padding:14px;color:#526458}
   </style>
 </head>
 <body>
@@ -54,6 +55,17 @@
       <div class="catalog-wrap"><table><thead><tr><th>Network</th><th>Plan</th><th>Size in name</th><th>Provider size</th><th>Validity</th><th>Price</th><th>Review</th></tr></thead><tbody id="catalog-rows"></tbody></table></div>
       <details><summary>Show technical JSON response</summary><pre id="raw-result"></pre></details>
     </div>
+    <section id="customer-preview" class="card" hidden aria-labelledby="customer-preview-title">
+      <h2 id="customer-preview-title">3. Customer plan-selection preview</h2>
+      <div class="preview-banner"><strong>Development preview only.</strong> This is not connected to checkout. Plans with review flags are excluded. Prices shown are provider reference prices, not approved HarvestHome selling prices. No purchase or payment can be made here.</div>
+      <div class="filter-row">
+        <select id="preview-network" aria-label="Filter preview plans by network"><option value="ALL">All networks</option><option>MTN</option><option>AIRTEL</option><option>GLO</option><option>9MOBILE</option></select>
+        <input id="preview-search" type="search" placeholder="Find a plan, e.g. 2GB" aria-label="Search preview plans">
+      </div>
+      <p id="preview-summary" class="small"></p>
+      <div id="plan-grid" class="plan-grid"></div>
+      <div id="selected-plan" class="selected-plan" role="status">No plan selected. Selecting a plan here only previews the choice.</div>
+    </section>
     <button id="clear-button" class="secondary" type="button">Clear results and sign out of this test</button>
   </section>
   <p class="small">This page is not linked from the public marketplace. Do not publish it to the production site. If you are unsure whether you are on a development preview, stop and ask for confirmation.</p>
@@ -81,8 +93,15 @@
   const rawResult = document.getElementById("raw-result");
   const networkFilter = document.getElementById("network-filter");
   const planSearch = document.getElementById("plan-search");
+  const customerPreview = document.getElementById("customer-preview");
+  const previewNetwork = document.getElementById("preview-network");
+  const previewSearch = document.getElementById("preview-search");
+  const previewSummary = document.getElementById("preview-summary");
+  const planGrid = document.getElementById("plan-grid");
+  const selectedPlanBox = document.getElementById("selected-plan");
   let accessToken = null;
   let currentPlans = [];
+  let selectedPlanCode = null;
 
   function showResult(value) {
     result.textContent = typeof value === "string" ? value : JSON.stringify(value, null, 2);
@@ -119,7 +138,63 @@
     catalogSummary.textContent = `Test catalog received: ${currentPlans.length} plans · ${flagged} entries need review · purchases disabled`;
     rawResult.textContent = JSON.stringify(payload, null, 2);
     catalogPanel.hidden = false;
+    customerPreview.hidden = false;
+    selectedPlanCode = null;
+    selectedPlanBox.textContent = "No plan selected. Selecting a plan here only previews the choice.";
     drawRows();
+    drawPlanPreview();
+  }
+
+  function drawPlanPreview() {
+    planGrid.replaceChildren();
+    const network = previewNetwork.value;
+    const query = previewSearch.value.trim().toLowerCase();
+    // Safety gate: anything with an automatic review flag is never shown in the customer-style preview.
+    const eligibleForPreview = currentPlans.filter(plan =>
+      plan.issues.length === 0 &&
+      Number.isFinite(plan.price) &&
+      plan.price >= 0 &&
+      plan.code
+    );
+    const visible = eligibleForPreview.filter(plan =>
+      (network === "ALL" || plan.network === network) &&
+      (!query || [plan.network, plan.name, plan.sizeInName, plan.providerSize, plan.validity].join(" ").toLowerCase().includes(query))
+    );
+    previewSummary.textContent = `${visible.length} plans shown · ${currentPlans.length - eligibleForPreview.length} flagged or incomplete plans excluded · purchases disabled`;
+    for (const plan of visible) {
+      const card = document.createElement("article");
+      card.className = "plan-card";
+      const heading = document.createElement("h3");
+      heading.textContent = plan.name;
+      card.appendChild(heading);
+      for (const detail of [
+        "Network: " + plan.network,
+        "Data: " + (plan.sizeInName || plan.providerSize),
+        "Validity: " + plan.validity,
+        "Provider reference price: " + "₦" + plan.price.toLocaleString("en-NG")
+      ]) {
+        const paragraph = document.createElement("p");
+        paragraph.textContent = detail;
+        card.appendChild(paragraph);
+      }
+      const choose = document.createElement("button");
+      choose.type = "button";
+      choose.className = "secondary";
+      choose.textContent = selectedPlanCode === plan.code ? "Selected for preview" : "Select plan (preview only)";
+      choose.addEventListener("click", () => {
+        selectedPlanCode = plan.code;
+        selectedPlanBox.textContent = "Preview selection: " + plan.network + " — " + plan.name + " · " + plan.validity + " · provider reference price ₦" + plan.price.toLocaleString("en-NG") + ". No order has been created and no payment has been taken.";
+        drawPlanPreview();
+      });
+      card.appendChild(choose);
+      planGrid.appendChild(card);
+    }
+    if (!visible.length) {
+      const empty = document.createElement("p");
+      empty.className = "empty-state";
+      empty.textContent = "No eligible plans match this filter.";
+      planGrid.appendChild(empty);
+    }
   }
 
   function drawRows() {
@@ -172,6 +247,8 @@
 
   networkFilter.addEventListener("change", drawRows);
   planSearch.addEventListener("input", drawRows);
+  previewNetwork.addEventListener("change", drawPlanPreview);
+  previewSearch.addEventListener("input", drawPlanPreview);
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -248,6 +325,12 @@
     accessToken = null;
     currentPlans = [];
     catalogPanel.hidden = true;
+    customerPreview.hidden = true;
+    selectedPlanCode = null;
+    selectedPlanBox.textContent = "No plan selected. Selecting a plan here only previews the choice.";
+    planGrid.replaceChildren();
+    previewNetwork.value = "ALL";
+    previewSearch.value = "";
     catalogRows.replaceChildren();
     rawResult.textContent = "";
     networkFilter.value = "ALL";

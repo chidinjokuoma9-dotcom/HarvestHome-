@@ -20,6 +20,9 @@ jobs:
   validate-preview-only:
     runs-on: ubuntu-latest
     steps:
+      - name: Check out development branch
+        uses: actions/checkout@v4
+
       - name: Check diagnostic pages and test-only safety guards
         shell: python
         run: |

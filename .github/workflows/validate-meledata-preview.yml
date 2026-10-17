@@ -6,6 +6,8 @@ on:
       - feature/harvesthome-data-airtime-foundation
     paths:
       - "data-airtime-test.html"
+      - "airtime-test.html"
+      - "Config.js"
       - "supabase/functions/meledata-test-catalog/index.ts"
       - ".github/workflows/validate-meledata-preview.yml"
   workflow_dispatch:
@@ -62,4 +64,31 @@ jobs:
               js_path = f.name
 
           subprocess.run(["node", "--check", js_path], check=True)
-          print("Preview checks passed. No production deployment or purchase was performed.")
+          airtime_page = Path("airtime-test.html").read_text(encoding="utf-8")
+          config = Path("Config.js").read_text(encoding="utf-8")
+
+          required_airtime = [
+              'name="robots" content="noindex,nofollow,noarchive"',
+              '<script src="Config.js?v=airtime-test-config1"></script>',
+              "config.SUPABASE_URL",
+              "config.SUPABASE_ANON_KEY",
+              'functions.invoke("meledata-test-airtime"',
+              'method:"POST"',
+          ]
+          for item in required_airtime:
+              if item not in airtime_page:
+                  raise SystemExit(f"Airtime test page missing requirement: {item}")
+          if "SUPABASE_URL:" not in config or "SUPABASE_ANON_KEY:" not in config:
+              raise SystemExit("Shared HarvestHome Supabase configuration is incomplete.")
+          if "paystack.initialize" in airtime_page.lower() or "purchases_enabled = true" in airtime_page.lower():
+              raise SystemExit("Airtime test page must not enable live checkout or purchases.")
+
+          airtime_scripts = re.findall(r"<script>([\\s\\S]*?)</script>", airtime_page, re.IGNORECASE)
+          if not airtime_scripts:
+              raise SystemExit("No inline JavaScript was found in the airtime test page.")
+          with tempfile.NamedTemporaryFile("w", suffix=".js", encoding="utf-8", delete=False) as f:
+              f.write("\\n".join(airtime_scripts))
+              airtime_js_path = f.name
+          subprocess.run(["node", "--check", airtime_js_path], check=True)
+
+          print("Catalog and airtime preview checks passed. No production deployment or purchase was performed.")

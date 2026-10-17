@@ -7,7 +7,8 @@ on:
     paths:
       - "data-airtime-test.html"
       - "airtime-test.html"
-      - "vtu-test.html"\n      - "vtu-shop-preview.html"
+      - "vtu-test.html"
+      - "vtu-shop-preview.html"
       - "Config.js"
       - "supabase/functions/meledata-test-catalog/index.ts"
       - ".github/workflows/validate-meledata-preview.yml"
@@ -114,11 +115,11 @@ jobs:
                   raise SystemExit(f"Customer shop preview missing safety/navigation requirement: {item}")
           if "paystack" in shop.lower() and ("initialize" in shop.lower() or "secret" in shop.lower()):
               raise SystemExit("Customer shop preview must not contain checkout integration or secrets.")
-          shop_scripts = re.findall(r"<script>([\\s\\S]*?)</script>", shop, re.IGNORECASE)
+          shop_scripts = re.findall(r"<script>([\s\S]*?)</script>", shop, re.IGNORECASE)
           if not shop_scripts:
               raise SystemExit("No inline JavaScript was found in the customer shop preview.")
           with tempfile.NamedTemporaryFile("w", suffix=".js", encoding="utf-8", delete=False) as f:
-              f.write("\\n".join(shop_scripts))
+              f.write("\n".join(shop_scripts))
               shop_js_path = f.name
           subprocess.run(["node", "--check", shop_js_path], check=True)
 

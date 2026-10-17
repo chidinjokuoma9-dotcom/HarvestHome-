@@ -66,6 +66,7 @@
   const result=document.getElementById("result");
   const password=document.getElementById("password");
   let accessToken=null;
+  let testWalletBalance=null;
   signInForm.addEventListener("submit",async event=>{
     event.preventDefault();accessToken=null;submitButton.disabled=true;signInButton.disabled=true;
     authStatus.textContent="Signing in securely…";result.textContent="Waiting for sign-in.";
@@ -80,8 +81,39 @@
         result.textContent=error?.message||"No authenticated session returned.";return;
       }
       accessToken=data.session.access_token;
-      authStatus.textContent="Signed in for this test session. Session is held in memory only.";
-      submitButton.disabled=false;result.textContent="Signed in. You may run a sandbox test.";
+      authStatus.textContent="Signed in for this test session. Checking provider test mode and wallet balance…";
+      result.textContent="Verifying the provider token is test-only and reading the sandbox wallet balance…";
+      const {data:statusData,error:statusError}=await client.functions.invoke("meledata-test-airtime",{
+        method:"GET",
+        headers:{Authorization:"Bearer "+accessToken}
+      });
+      if(statusError){
+        submitButton.disabled=true;
+        result.textContent=JSON.stringify({error:"Could not verify test mode or read the sandbox wallet balance. No airtime request was sent.",details:statusError.message||"Status check failed."},null,2);
+        authStatus.textContent="Signed in, but provider safety check needs attention.";
+        return;
+      }
+      testWalletBalance=Number.isFinite(Number(statusData?.test_wallet_balance))?Number(statusData.test_wallet_balance):null;
+      authStatus.textContent="Signed in. Provider mode confirmed: "+String(statusData?.mode||"unknown").toUpperCase()+".";
+      if(testWalletBalance!==null && testWalletBalance<100){
+        submitButton.disabled=true;
+        result.textContent=JSON.stringify({
+          status:"Test mode verified",
+          mode:statusData.mode,
+          test_wallet_balance:testWalletBalance,
+          currency:statusData.currency||"NGN",
+          message:"The sandbox wallet is below ₦100. No purchase request was sent. Ask MELE DATA support to confirm or reset the advertised sandbox test credits."
+        },null,2);
+      }else{
+        submitButton.disabled=false;
+        result.textContent=JSON.stringify({
+          status:"Ready for sandbox test",
+          mode:statusData.mode,
+          test_wallet_balance:testWalletBalance,
+          currency:statusData.currency||"NGN",
+          note:"Only a test-mode request can be submitted."
+        },null,2);
+      }
     }catch(_){password.value="";authStatus.textContent="Could not sign in. Check your connection.";result.textContent="No provider request was made."}
     finally{signInButton.disabled=false}
   });
@@ -119,7 +151,7 @@
     finally{submitButton.disabled=!accessToken}
   });
   document.getElementById("clear-button").addEventListener("click",async()=>{
-    accessToken=null;submitButton.disabled=true;document.getElementById("email").value="";password.value="";
+    accessToken=null;testWalletBalance=null;submitButton.disabled=true;document.getElementById("email").value="";password.value="";
     document.getElementById("phone").value="";document.getElementById("amount").value="";
     authStatus.textContent="Signed out of this test.";result.textContent="Results cleared. No live purchase is enabled.";
     try{await client.auth.signOut({scope:"local"})}catch(_){}

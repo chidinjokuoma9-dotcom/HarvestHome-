@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta name="theme-color" content="#176b3b">
+  <title>Private Data Catalog Test — HarvestHome</title>
+  <style>
+    :root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#17351f;background:#f5f8f5}
+    *{box-sizing:border-box}body{margin:0;padding:22px 14px 40px}
+    main{max-width:680px;margin:0 auto}.brand{font-weight:800;color:#176b3b;font-size:1.15rem}
+    h1{font-size:1.7rem;line-height:1.2;margin:18px 0 8px}.muted{color:#526458;line-height:1.6}
+    .card{background:#fff;border:1px solid #dce8dc;border-radius:18px;padding:20px;margin-top:18px;box-shadow:0 8px 24px #17351f0a}
+    .warning{background:#fff8e7;border:1px solid #f0dca6;border-radius:12px;padding:13px;line-height:1.5;color:#674d12}
+    label{display:block;font-weight:650;margin:14px 0 6px}
+    input{width:100%;padding:12px;border:1px solid #bdcdbf;border-radius:10px;font:inherit}
+    button{border:0;border-radius:10px;padding:12px 16px;background:#176b3b;color:white;font:inherit;font-weight:700;margin-top:14px;width:100%;cursor:pointer}
+    button:disabled{opacity:.55;cursor:wait}.secondary{background:#e7f4e9;color:#176b3b}
+    pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#102417;color:#e9f6eb;padding:14px;border-radius:12px;min-height:54px;font-size:.88rem}
+    .small{font-size:.86rem;color:#607064;line-height:1.5}
+  </style>
+</head>
+<body>
+<main>
+  <div class="brand">🌿 HarvestHome</div>
+  <h1>MELE DATA test-catalog checker</h1>
+  <p class="muted">A temporary development-only diagnostic. It checks authentication and requests the provider's test data-plan catalog. It cannot buy data or airtime.</p>
+  <div class="warning"><strong>Safety:</strong> Purchases remain disabled. This page never asks for your MELE DATA API key or any payment details. Your email and password are sent directly to your configured Supabase Auth project by its official client library; they are not sent to HarvestHome's server or printed in the results. Use only the preview deployment for this page.</div>
+
+  <section class="card" aria-labelledby="signin-title">
+    <h2 id="signin-title">1. Sign in for this test</h2>
+    <p class="small">Use your existing HarvestHome email and password. This test client does not persist the session in browser storage.</p>
+    <form id="signin-form">
+      <label for="email">Email address</label>
+      <input id="email" name="email" type="email" autocomplete="username" required>
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required>
+      <button id="signin-button" type="submit">Sign in securely</button>
+    </form>
+    <p id="auth-status" class="small" role="status">Not signed in for this test.</p>
+  </section>
+
+  <section class="card" aria-labelledby="test-title">
+    <h2 id="test-title">2. Check the test catalog</h2>
+    <p class="small">The button stays unavailable until authentication succeeds. Only the catalog-check function is called; no purchase endpoint is called.</p>
+    <button id="test-button" type="button" disabled>Check MELE DATA test connection</button>
+    <pre id="result" role="status">Waiting for sign-in.</pre>
+    <button id="clear-button" class="secondary" type="button">Clear results and sign out of this test</button>
+  </section>
+  <p class="small">This page is not linked from the public marketplace. Do not publish it to the production site. If you are unsure whether you are on a development preview, stop and ask for confirmation.</p>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(() => {
+  const SUPABASE_URL = "https://dbariugnwgzbhxvtbcpz.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJIUzI1NiIsInJlZiI6ImRiYXJpdWdud2d6Ymh4dnRiY3B6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAxOTAxNjUsImV4cCI6MjEwNTc2NjE2NX0.LtnUyH6WHZ1hLNhrAN42DvzW9-Y1TyXYlj6b5gj2v6s";
+  const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+  });
+  const form = document.getElementById("signin-form");
+  const email = document.getElementById("email");
+  const password = document.getElementById("password");
+  const signInButton = document.getElementById("signin-button");
+  const testButton = document.getElementById("test-button");
+  const clearButton = document.getElementById("clear-button");
+  const authStatus = document.getElementById("auth-status");
+  const result = document.getElementById("result");
+  let accessToken = null;
+
+  function showResult(value) {
+    result.textContent = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+  }
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    accessToken = null;
+    testButton.disabled = true;
+    signInButton.disabled = true;
+    authStatus.textContent = "Signing in with Supabase Auth…";
+    showResult("Waiting for sign-in.");
+    try {
+      const { data, error } = await client.auth.signInWithPassword({
+        email: email.value.trim(),
+        password: password.value
+      });
+      password.value = "";
+      if (error || !data.session?.access_token) {
+        authStatus.textContent = "Sign-in failed. Check your details or account verification and try again.";
+        showResult({ error: error?.message || "No authenticated session was returned." });
+        return;
+      }
+      accessToken = data.session.access_token;
+      authStatus.textContent = "Signed in for this one-time test. Session is held in memory only.";
+      testButton.disabled = false;
+      showResult("Sign-in succeeded. You can now run the test-catalog check.");
+    } catch (_) {
+      password.value = "";
+      authStatus.textContent = "Could not complete sign-in. Check your connection and try again.";
+      showResult("Sign-in request failed. No provider request was made.");
+    } finally {
+      signInButton.disabled = false;
+    }
+  });
+
+  testButton.addEventListener("click", async () => {
+    if (!accessToken) {
+      showResult("Please sign in first.");
+      return;
+    }
+    testButton.disabled = true;
+    showResult("Checking the test catalog…");
+    try {
+      const { data, error } = await client.functions.invoke("meledata-test-catalog", {
+        method: "GET",
+        headers: { Authorization: "Bearer " + accessToken }
+      });
+      if (error) {
+        let detail = error.message || "Function request failed.";
+        try {
+          const context = error.context;
+          if (context && typeof context.json === "function") {
+            const body = await context.json();
+            showResult({ error: detail, response: body });
+            return;
+          }
+        } catch (_) {}
+        showResult({ error: detail });
+        return;
+      }
+      showResult(data);
+    } catch (_) {
+      showResult("The function request failed. Check Supabase function logs for the request; no purchase was attempted.");
+    } finally {
+      testButton.disabled = !accessToken;
+    }
+  });
+
+  clearButton.addEventListener("click", () => {
+    accessToken = null;
+    email.value = "";
+    password.value = "";
+    testButton.disabled = true;
+    authStatus.textContent = "Signed out of this test. No browser-persisted session was created.";
+    showResult("Results cleared.");
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,65 @@
+name: Validate MELE DATA development preview
+
+on:
+  push:
+    branches:
+      - feature/harvesthome-data-airtime-foundation
+    paths:
+      - "data-airtime-test.html"
+      - "supabase/functions/meledata-test-catalog/index.ts"
+      - ".github/workflows/validate-meledata-preview.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-preview-only:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out development branch
+        uses: actions/checkout@v4
+
+      - name: Check diagnostic page and test-only safety guards
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+          import subprocess
+          import tempfile
+
+          page = Path("data-airtime-test.html").read_text(encoding="utf-8")
+          fn = Path("supabase/functions/meledata-test-catalog/index.ts").read_text(encoding="utf-8")
+
+          required_page = [
+              'name="robots" content="noindex,nofollow,noarchive"',
+              'persistSession: false',
+              'functions.invoke("meledata-test-catalog"',
+              'method: "GET"',
+          ]
+          for item in required_page:
+              if item not in page:
+                  raise SystemExit(f"Preview page missing safety requirement: {item}")
+
+          if "Authorization: Bearer " not in page:
+              raise SystemExit("Expected authenticated test-catalog request is missing.")
+
+          if "MELEDATA_API_KEY" not in fn:
+              raise SystemExit("Server-side MELE DATA key handling is missing.")
+          if 'req.method !== "GET"' not in fn:
+              raise SystemExit("Function must reject non-GET methods.")
+          if "if (!isTest" not in fn or "purchases_enabled: false" not in fn:
+              raise SystemExit("Test-mode or purchases-disabled guard is missing.")
+          if "/data/plans" not in fn or "/wallet/" not in fn:
+              raise SystemExit("Expected test wallet/catalog checks are missing.")
+
+          scripts = re.findall(r"<script>([\\s\\S]*?)</script>", page, re.IGNORECASE)
+          if not scripts:
+              raise SystemExit("No inline JavaScript was found in the diagnostic page.")
+
+          with tempfile.NamedTemporaryFile("w", suffix=".js", encoding="utf-8", delete=False) as f:
+              f.write("\\n".join(scripts))
+              js_path = f.name
+
+          subprocess.run(["node", "--check", js_path], check=True)
+          print("Preview checks passed. No production deployment or purchase was performed.")

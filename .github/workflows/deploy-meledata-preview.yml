@@ -6,6 +6,8 @@ on:
       - feature/harvesthome-data-airtime-foundation
     paths:
       - "data-airtime-test.html"
+      - "airtime-test.html"
+      - "Config.js"
       - "wrangler.meledata-preview.toml"
       - ".github/workflows/deploy-meledata-preview.yml"
   workflow_dispatch:
@@ -26,6 +28,8 @@ jobs:
         run: |
           mkdir -p .meledata-preview
           cp data-airtime-test.html .meledata-preview/index.html
+          cp airtime-test.html .meledata-preview/airtime-test.html
+          cp Config.js .meledata-preview/Config.js
 
       - name: Create Cloudflare Worker Preview (not production)
         id: preview

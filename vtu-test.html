@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta name="theme-color" content="#176b3b">
+  <title>HarvestHome VTU — Data & Airtime Preview</title>
+  <style>
+    :root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#17351f;background:#f4f8f4}
+    *{box-sizing:border-box}body{margin:0;padding:18px 14px 44px}
+    main{max-width:920px;margin:0 auto}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+    .brand{font-size:1.15rem;font-weight:850;color:#176b3b}.pill{font-size:.78rem;font-weight:750;color:#765200;background:#fff0c9;border:1px solid #efd99c;padding:7px 10px;border-radius:999px}
+    .hero{margin-top:22px;padding:clamp(22px,5vw,42px);border-radius:26px;background:linear-gradient(135deg,#e5f4e8,#fff 68%);border:1px solid #d6e8d8}
+    .eyebrow{color:#176b3b;font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;font-weight:800}
+    h1{font-size:clamp(2rem,5vw,3.2rem);line-height:1.08;letter-spacing:-.04em;margin:12px 0}
+    .lead{max-width:650px;color:#526458;line-height:1.7;font-size:1.04rem;margin:0}
+    .network-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}.network{padding:8px 12px;border:1px solid #d6e4d7;background:#fff;border-radius:999px;font-weight:750;font-size:.88rem}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin-top:18px}
+    .card{background:#fff;border:1px solid #dce8dc;border-radius:20px;padding:22px;box-shadow:0 8px 24px #17351f0a}
+    .icon{width:50px;height:50px;border-radius:15px;background:#e8f5eb;display:grid;place-items:center;font-size:1.6rem}
+    h2{margin:14px 0 8px;font-size:1.35rem}.card p{color:#526458;line-height:1.65;margin:0}
+    .button{display:flex;justify-content:center;align-items:center;text-decoration:none;text-align:center;margin-top:18px;padding:13px 16px;border-radius:12px;background:#176b3b;color:#fff;font-weight:800;min-height:48px}
+    .button.alt{background:#e7f4e9;color:#176b3b}.notice{margin-top:18px;border:1px solid #f0dca6;background:#fff8e7;color:#674d12;border-radius:16px;padding:16px;line-height:1.6}
+    .steps{margin-top:18px}.steps h2{margin-top:0}.steps ol{padding-left:22px;color:#526458;line-height:1.8}
+    footer{padding:22px 4px 0;text-align:center;color:#657368;font-size:.85rem;line-height:1.7}
+    a:focus-visible{outline:3px solid #d79c1b;outline-offset:3px}
+  </style>
+</head>
+<body>
+<main>
+  <header class="top">
+    <div class="brand">🌿 HarvestHome</div>
+    <span class="pill">PRIVATE DEVELOPMENT PREVIEW</span>
+  </header>
+  <section class="hero">
+    <div class="eyebrow">HarvestHome VTU</div>
+    <h1>Data and airtime.<br>One trusted home.</h1>
+    <p class="lead">Our planned HarvestHome service will make it simple to explore mobile data bundles and airtime for Nigerian networks, with clear prices, transaction references and helpful support.</p>
+    <div class="network-row" aria-label="Networks planned for support">
+      <span class="network">MTN</span><span class="network">Airtel</span><span class="network">Glo</span><span class="network">9mobile</span>
+    </div>
+  </section>
+  <section class="grid" aria-label="Development test areas">
+    <article class="card">
+      <div class="icon" aria-hidden="true">📶</div>
+      <h2>Data bundles</h2>
+      <p>Review the existing provider catalogue, compare plan details and inspect our preliminary HarvestHome pricing estimates. Entries requiring review are flagged and excluded from the preview.</p>
+      <a class="button" href="/">Open data catalogue test</a>
+    </article>
+    <article class="card">
+      <div class="icon" aria-hidden="true">📱</div>
+      <h2>Airtime top-up</h2>
+      <p>Open the restricted sandbox test screen to inspect the provider mode and wallet check. The current MELE DATA sandbox balance discrepancy is still under investigation.</p>
+      <a class="button alt" href="/airtime-test.html">Open airtime sandbox test</a>
+    </article>
+  </section>
+  <section class="notice" role="note">
+    <strong>Important: testing only.</strong> This is not the live HarvestHome service. No customer checkout or live purchase is available here. MELE DATA's sandbox airtime endpoint has returned “Insufficient wallet balance” despite reporting a ₦1,000,000 test balance. We are investigating the issue and evaluating alternative suppliers, including VTpass, before selecting a provider for production.
+  </section>
+  <section class="card steps">
+    <h2>Our launch promise</h2>
+    <ol>
+      <li>Verify supplier pricing and available plans for all four networks.</li>
+      <li>Test successful, pending and failed transaction outcomes without risking customer money.</li>
+      <li>Protect payments with server-side verification, duplicate-order safeguards and transaction-status checks.</li>
+      <li>Enable customer purchases only after the supplier and full payment flow have passed testing.</li>
+    </ol>
+  </section>
+  <footer>HarvestHome — Connecting Africa. Growing Together. 🧡💚<br>Private development preview · Not linked from the public marketplace.</footer>
+</main>
+</body>
+</html>

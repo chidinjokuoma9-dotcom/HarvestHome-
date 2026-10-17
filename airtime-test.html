@@ -42,11 +42,20 @@
 <p class="small">For customer launch, we still need Paystack checkout, server-side payment verification, duplicate-payment protection, an order ledger, delivery-status reconciliation, refunds/support handling, and explicit live-mode approval. This test page does not do those things.</p>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="Config.js?v=airtime-test-config1"></script>
 <script>
 (() => {
+  const config = window.HARVESTHOME_CONFIG;
+  if (!config || !config.SUPABASE_URL || !config.SUPABASE_ANON_KEY) {
+    const result = document.getElementById("result");
+    if (result) result.textContent = "HarvestHome configuration did not load. No airtime request was sent.";
+    document.getElementById("submit-button").disabled = true;
+    document.getElementById("signin-button").disabled = true;
+    return;
+  }
   const client = window.supabase.createClient(
-    "https://dbariugnwgzbhxvtbcpz.supabase.co",
-    "sb_publishable_Cyhnta7uwaauZm59KwlwMg_gJ3BzT6k",
+    config.SUPABASE_URL,
+    config.SUPABASE_ANON_KEY,
     {auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}}
   );
   const signInForm=document.getElementById("signin-form");

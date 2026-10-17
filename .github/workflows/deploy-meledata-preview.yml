@@ -7,7 +7,8 @@ on:
     paths:
       - "data-airtime-test.html"
       - "airtime-test.html"
-      - "vtu-test.html"\n      - "vtu-shop-preview.html"
+      - "vtu-test.html"
+      - "vtu-shop-preview.html"
       - "Config.js"
       - "wrangler.meledata-preview.toml"
       - ".github/workflows/deploy-meledata-preview.yml"
@@ -30,7 +31,8 @@ jobs:
           mkdir -p .meledata-preview
           cp data-airtime-test.html .meledata-preview/index.html
           cp airtime-test.html .meledata-preview/airtime-test.html
-          cp vtu-test.html .meledata-preview/vtu.html\n          cp vtu-shop-preview.html .meledata-preview/shop.html
+          cp vtu-test.html .meledata-preview/vtu.html
+          cp vtu-shop-preview.html .meledata-preview/shop.html
           cp Config.js .meledata-preview/Config.js
 
       - name: Create Cloudflare Worker Preview (not production)

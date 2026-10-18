@@ -36,7 +36,7 @@ jobs:
               ('req.method !== "GET"', "Must reject non-GET requests"),
               ('auth.getUser()', "Must authenticate the signed-in user"),
               ('VTPASS_API_KEY', "Must read the provider key from server secrets"),
-              ('VTPASS_SECRET_KEY', "Must read the provider secret from server secrets"),
+              ('VTPASS_PUBLIC_KEY', "Must read the provider public key from server secrets"),
               ('purchasesEnabled: false', "Must explicitly report customer purchases disabled"),
               ('origin !== PREVIEW_ORIGIN', "Must restrict browser origin to the development preview"),
           ]
@@ -50,7 +50,7 @@ jobs:
               raise SystemExit("FAIL: catalogue endpoint must never call the purchase endpoint")
           if '"Access-Control-Allow-Origin": "*"' in source:
               raise SystemExit("FAIL: wildcard CORS is forbidden")
-          if '"apiKey":' in source or '"secretKey":' in source:
+          if '"apiKey":' in source or '"publicKey":' in source:
               raise SystemExit("FAIL: provider credentials must never be returned in response payloads")
 
           print("VTpass catalogue endpoint static safety checks passed. No function was deployed and no provider request was made.")

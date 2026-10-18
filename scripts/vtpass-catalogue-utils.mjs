@@ -12,6 +12,7 @@ export function classifyBundle(name = "") {
       && /xtratalk|voice|minutes|secs|airtime|\b\d+\s*(?:seconds?|secs?|mins?|minutes?)\b/i.test(value)) {
     return "combined-data-voice";
   }
+  if (/\bxtradata\b/.test(value)) return "xtradata";
   if (/xtratalk|voice|minutes|secs|airtime/.test(value)) return "voice";
   if (/whatsapp|instagram|tiktok|telegram|youtube|opera|social|\bwtf\b/.test(value)) return "app-specific";
   if (/glo tv|\btv\b|vod|streaming/.test(value)) return "video-streaming";

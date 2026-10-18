@@ -26,8 +26,12 @@
 </section>
 <section class="card">
 <h2>2. Read VTpass sandbox data variations</h2>
-<p class="small">This sends a GET request only. It must report sandbox/test mode and purchases disabled before the response is considered safe to inspect.</p>
-<button id="test-button" type="button" disabled>Check data variations</button>
+<p class="small">Choose a network, then send a GET request only. The endpoint must report sandbox/test mode and purchases disabled before the response is considered safe to inspect.</p>
+<label for="network">Network</label>
+<select id="network" style="width:100%;padding:12px;border:1px solid #bdcdbf;border-radius:9px;font:inherit">
+<option value="mtn-data">MTN Data</option><option value="airtel-data">Airtel Data</option><option value="glo-data">Glo Data</option><option value="etisalat-data">9mobile Data</option>
+</select>
+<button id="test-button" type="button" disabled>Check selected network</button>
 <p id="summary" class="small" role="status">Waiting for sign-in.</p>
 <pre id="result">No request sent.</pre>
 <button id="clear-button" type="button" disabled>Clear results and sign out</button>
@@ -42,6 +46,7 @@
   const form = document.getElementById("signin-form");
   const signInButton = document.getElementById("signin-button");
   const testButton = document.getElementById("test-button");
+  const networkSelect = document.getElementById("network");
   const clearButton = document.getElementById("clear-button");
   const authStatus = document.getElementById("auth-status");
   const summary = document.getElementById("summary");
@@ -98,11 +103,13 @@
       return;
     }
     testButton.disabled = true;
-    summary.textContent = "Checking the configured test endpoint…";
-    result.textContent = "Reading VTpass data variations. This is a GET/read-only request.";
+    const serviceID = networkSelect.value;
+    summary.textContent = "Checking " + networkSelect.options[networkSelect.selectedIndex].text + "…";
+    result.textContent = "Reading " + serviceID + " variations. This is a GET/read-only request.";
     try {
       const { data, error } = await client.functions.invoke("vtpass-test-data-variations", {
         method: "GET",
+        queryParams: { serviceID },
         headers: { Authorization: "Bearer " + accessToken }
       });
       if (error) {
@@ -121,7 +128,7 @@
       const safeMode = data?.mode === "sandbox" || data?.mode === "test";
       const disabled = data?.purchasesEnabled === false || data?.purchases_enabled === false;
       if (safeMode && disabled) {
-        summary.innerHTML = '<span class="ok">Sandbox/test mode reported; purchases disabled.</span>';
+        summary.innerHTML = '<span class="ok">Sandbox/test mode reported; purchases disabled for ' + serviceID + '.</span>';
       } else {
         summary.innerHTML = '<span class="bad">Safety status not confirmed. Treat this response as unapproved and do not proceed to purchases.</span>';
       }

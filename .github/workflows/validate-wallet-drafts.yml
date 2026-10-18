@@ -12,6 +12,7 @@ on:
       - "supabase/HarvestHome_Wallet_Deposit_Intents_DRAFT.sql"
       - "WALLET-FOUNDATION-PLAN.md"
       - "WALLET-DEPOSIT-TEST-CHECKLIST.md"
+      - "WALLET-DATABASE-REVIEW.md"
       - ".github/workflows/validate-wallet-drafts.yml"
   workflow_dispatch:
 
@@ -45,6 +46,7 @@ jobs:
           sql = Path("supabase/HarvestHome_Wallet_Deposit_Intents_DRAFT.sql").read_text(encoding="utf-8")
           plan = Path("WALLET-FOUNDATION-PLAN.md").read_text(encoding="utf-8")
           checklist = Path("WALLET-DEPOSIT-TEST-CHECKLIST.md").read_text(encoding="utf-8")
+          review = Path("WALLET-DATABASE-REVIEW.md").read_text(encoding="utf-8")
 
           checks = [
               (init, 'auth.getUser()', "Initialization must authenticate the signed-in user"),
@@ -69,6 +71,10 @@ jobs:
               (plan, "have **not** been deployed", "Plan must clearly state drafts are not deployed"),
               (checklist, "NOT READY FOR CUSTOMER PAYMENTS", "Checklist must block customer payments before testing"),
               (checklist, "Repeating verification does not credit twice", "Checklist must cover duplicate verification"),
+              (review, "NOT APPROVED FOR PRODUCTION", "Database review must block production use"),
+              (review, "webhook can race initialization", "Review must document webhook race"),
+              (review, "transaction/order schema", "Review must document incomplete purchase orchestration"),
+              (review, "NOT READY FOR CUSTOMER PAYMENTS", "Review must keep customer payments blocked"),
           ]
           for source, needle, message in checks:
               if needle.lower() not in source.lower():

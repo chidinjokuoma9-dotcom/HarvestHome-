@@ -41,6 +41,9 @@ test("deduplicates identical rows and classifies bundle types", () => {
   assert.equal(classifyBundle("YouTube 500MB"), "app-specific");
   assert.equal(classifyBundle("Glo TV VOD 2GB"), "video-streaming");
   assert.equal(classifyBundle("1GB + 2GB Night"), "night-bonus");
+  assert.equal(classifyBundle("200MB (100MB + 100MB Night) + 300 seconds"), "combined-data-voice");
+  assert.equal(classifyBundle("1.5GB + 300 seconds"), "combined-data-voice");
+  assert.equal(classifyBundle("300 seconds voice bundle"), "voice");
 });
 
 test("pricing helper uses caller-supplied fee model and targets minimum contribution", () => {

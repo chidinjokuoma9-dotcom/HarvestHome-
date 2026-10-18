@@ -63,8 +63,13 @@ alter table public.vtu_order_events enable row level security;
 -- read permission only, then RLS limits reads to their own order.
 revoke all on table public.vtu_orders from anon, authenticated;
 revoke all on table public.vtu_order_events from anon, authenticated;
-grant select on table public.vtu_orders to authenticated;
-grant select on table public.vtu_order_events to authenticated;
+-- Expose only customer-safe order fields. Provider cost, payment fee, provider IDs,
+-- raw provider response and internal reconciliation data remain server-side.
+grant select (
+  id, user_id, product_type, network, product_label, recipient_phone,
+  amount_kobo, currency, payment_status, order_status, created_at, updated_at, completed_at
+) on table public.vtu_orders to authenticated;
+-- No direct client SELECT grant on the internal audit/event table.
 
 -- Customers can inspect only their own order records. Do not add client INSERT/UPDATE
 -- policies: order creation, payment verification, provider calls and state changes

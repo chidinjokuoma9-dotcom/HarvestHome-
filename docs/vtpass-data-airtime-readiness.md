@@ -5,6 +5,7 @@
 **Customer purchases:** Disabled  
 **Live provider credentials:** Not enabled  
 **Last review:** 2026-10-18
+**Owner decision:** Three ambiguous variation codes are excluded from HarvestHome's candidate catalogue, not awaiting resolution.
 
 ## Current result
 
@@ -35,7 +36,7 @@ These are counts from the responses reviewed, not a guarantee that VTpass's curr
 The response's canonical `content.variations` array contains **37 entries**. The repeated misspelled `varations` property was not counted as a second catalogue and must not be merged.
 
 Keep these entries unavailable for publication until checked:
-- **Duplicate-code conflict:** `mtn-xtratalk-300` appears twice: `MTN N300 Xtratalk Weekly Bundle` at ₦300 and `MTN N200 Xtratalk - 3 days` at ₦200. The code cannot safely identify one plan.
+- **Owner-excluded code:** `mtn-xtratalk-300` is permanently excluded from HarvestHome's candidate catalogue because it appeared against two different Xtratalk offers. Do not offer either row.
 - **Name/code size conflicts:** `mtn-100mb-1000` is named 1.5GB; `mtn-500mb-2000` is named 4.5GB; `mtn-20hrs-1500` is named 6GB; `mtn-1gb-3500` is named 10GB; `mtn-100hr-5000` is named 15GB; and `mtn-3gb-6000` is named 20GB. Confirm provider mapping rather than trusting code fragments.
 - **Amount/code conflict:** `mtn-1tb-110000` is named ₦100,000 for 1TB but the code suggests ₦110,000.
 - **Category separation:** Xtratalk and Xtradata entries are not ordinary data bundles and should be labelled/separated according to their actual service benefit. The `mtn-120gb-22000` plan also mentions 80 minutes and needs accurate combined-plan labelling.
@@ -60,7 +61,7 @@ Review findings:
 The canonical `content.variations` array was reviewed from the user's sandbox response. The repeated misspelled `varations` property duplicates the same catalogue and must not be counted or merged. This response contains a mixed catalogue, not just ordinary data bundles.
 
 Review findings:
-- **Critical duplicate-code conflict:** `glo-mega-75000` appears for both `N75000 675GB` (₦75,000) and `N100000 1TB` (₦100,000). Quarantine both rows until VTpass confirms the correct unique variation code for each plan. Never choose one automatically.
+- **Owner-excluded code:** `glo-mega-75000` is permanently excluded because it appeared against both a 675GB/₦75,000 offer and a 1TB/₦100,000 offer. Do not offer either row.
 - **Keep SME separate:** Codes such as `glo-dg-70`, `glo-dg-320`, `glo-dg-960`, `glo-dg-3100`, `glo-dg-640`, `glo-dg-160-14`, and `glo-dg-1600` are explicitly labelled SME and should be identified as such, with eligibility/transfer restrictions confirmed before sale.
 - **Separate night and time-limited offers:** `glo-daily-*`, `glo-2days-*`, `glo-2weeks-*`, and `glo-monthly-*` include combined day/night data or specific one-off validity. Do not advertise combined data as fully anytime data; verify the validity wording.
 - **Separate special, weekend, and mega offers:** `glo-special-*`, `glo-weekend-500`, and `glo-mega-*` should retain their category and restrictions in the customer-facing label.
@@ -73,7 +74,7 @@ Review findings:
 The canonical `content.variations` array contains **18 entries**. The repeated misspelled `varations` property repeats the same rows and must not be counted or merged.
 
 Review findings:
-- **Critical duplicate-code conflict:** `eti-1000` appears for both `1.5GB - 30 days` and `4GB (2GB + 2GB Night)`. Quarantine both until VTpass confirms the correct unique variation code for each plan.
+- **Owner-excluded code:** `eti-1000` is permanently excluded because it appeared against both a 1.5GB/30-day offer and a 4GB bundle with night data. Do not offer either row.
 - **Different offer terms must stay distinct:** `eti-500` is described as 500MB for 30 days, while `eti-200` is 650MB for 1 day. Preserve each plan's exact stated size and validity rather than infer from code or price.
 - **Night-data bundle:** `eti-2500` is 11GB total with 7GB + 4GB night; `eti-1500-7` is 7GB with 6GB + 1GB night. Clearly explain any time-of-day restrictions.
 - **Combined bundle:** `eti-150-1` is described as 200MB (100MB + 100MB night) plus 300 seconds, so it must not be presented as a plain data-only plan without disclosing the voice component and restrictions.
@@ -81,11 +82,13 @@ Review findings:
 - **Catalogue is not wholesale pricing:** `variation_amount` and `fixedPrice: Yes` do not establish HarvestHome's actual provider debit or net reseller cost. Keep customer prices null and publication disabled until VTpass confirms the charge and plan mapping.
 - No other duplicate variation code is evident in this 18-row canonical snapshot, but re-check before publication.
 
-### Variation codes that must stay quarantined
+### Variation codes permanently excluded by owner decision
 
-- MTN: 'mtn-xtratalk-300' — two different Xtratalk descriptions/amounts.
-- Glo: 'glo-mega-75000' — conflicting 675GB/₦75,000 and 1TB/₦100,000 descriptions.
-- 9mobile: 'eti-1000' — conflicting 1.5GB and 4GB-with-night-data descriptions.
+- MTN: `mtn-xtratalk-300` — excluded entirely; neither offer should appear.
+- Glo: `glo-mega-75000` — excluded entirely; neither offer should appear.
+- 9mobile: `eti-1000` — excluded entirely; neither offer should appear.
+
+The catalogue helper now enforces this owner blocklist even if a future provider response contains only one row for a blocked code. This is a candidate-catalogue safety rule; no live checkout is enabled.
 
 Additional review flags:
 - MTN 'mtn-1tb-110000': name and variation code appear inconsistent about the amount.
@@ -99,7 +102,7 @@ Ask VTpass support to confirm these items in writing before customer prices or l
 
 1. For each data `variation_code`, is `variation_amount` the end-user retail amount, the reseller debit, or another reference amount? What exact amount will be deducted from HarvestHome's VTpass wallet for one successful vend?
 2. What is HarvestHome's actual airtime commission/net debit on a ₦100 MTN VTU transaction? The sandbox re-query returned `total_amount: 96.5` but `commission: 4` and `commission_details.rate: 3.50`; please explain which ledger field determines the actual wallet debit.
-3. Please provide corrected, unique variation codes for the conflicting catalogue entries: MTN `mtn-xtratalk-300`, Glo `glo-mega-75000`, and 9mobile `eti-1000`.
+3. HarvestHome has chosen to exclude the three ambiguous offers entirely; corrected codes are not required for this launch scope.
 4. Confirm whether the SME, night-data, social/app-specific, TV/VOD, binge, combined data/voice and long-validity offers are available to this account and disclose their exact restrictions.
 5. Confirm whether sandbox commission and variation values match live account pricing, and provide the live fee/commission schedule for this account.
 

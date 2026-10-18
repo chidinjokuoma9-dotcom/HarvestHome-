@@ -11,6 +11,8 @@ on:
       - "scripts/vtpass-transaction-utils.test.mjs"
       - "scripts/vtu-order-state.mjs"
       - "scripts/vtu-order-state.test.mjs"
+      - "scripts/vtu-transaction-state.mjs"
+      - "scripts/vtu-transaction-state.test.mjs"
       - ".github/workflows/vtpass-catalogue-tests.yml"
   workflow_dispatch:
 
@@ -33,3 +35,5 @@ jobs:
         run: node --test scripts/vtpass-transaction-utils.test.mjs
       - name: Run VTU order-state safety tests
         run: node --test scripts/vtu-order-state.test.mjs
+      - name: Run VTU transaction lifecycle safety tests
+        run: node --test scripts/vtu-transaction-state.test.mjs

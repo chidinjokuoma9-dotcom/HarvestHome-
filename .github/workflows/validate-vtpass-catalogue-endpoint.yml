@@ -1,0 +1,56 @@
+name: Validate VTpass Read-only Catalogue Endpoint
+
+on:
+  push:
+    branches:
+      - feature/harvesthome-data-airtime-foundation
+    paths:
+      - "supabase/functions/vtpass-test-data-variations/index.ts"
+      - ".github/workflows/validate-vtpass-catalogue-endpoint.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  vtpass-catalogue-endpoint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out development branch
+        uses: actions/checkout@v4
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Type-check read-only endpoint
+        run: deno check --no-lock supabase/functions/vtpass-test-data-variations/index.ts
+      - name: Check sandbox and read-only safety gates
+        shell: python
+        run: |
+          from pathlib import Path
+
+          source = Path("supabase/functions/vtpass-test-data-variations/index.ts").read_text(encoding="utf-8")
+          required = [
+              ('https://sandbox.vtpass.com/api/service-variations?serviceID=', "Must call the fixed VTpass sandbox catalogue host"),
+              ('new Set(["mtn-data", "airtel-data", "glo-data", "etisalat-data"])', "Must allow only the four reviewed data service IDs"),
+              ('req.method !== "GET"', "Must reject non-GET requests"),
+              ('auth.getUser()', "Must authenticate the signed-in user"),
+              ('VTPASS_API_KEY', "Must read the provider key from server secrets"),
+              ('VTPASS_SECRET_KEY', "Must read the provider secret from server secrets"),
+              ('purchasesEnabled: false', "Must explicitly report customer purchases disabled"),
+              ('origin !== PREVIEW_ORIGIN', "Must restrict browser origin to the development preview"),
+          ]
+          for needle, message in required:
+              if needle not in source:
+                  raise SystemExit("FAIL: " + message)
+
+          if "https://vtpass.com/api/" in source or "https://vtpass.com/api/service-variations" in source:
+              raise SystemExit("FAIL: live VTpass host is forbidden in this sandbox endpoint")
+          if "/api/pay" in source:
+              raise SystemExit("FAIL: catalogue endpoint must never call the purchase endpoint")
+          if '"Access-Control-Allow-Origin": "*"' in source:
+              raise SystemExit("FAIL: wildcard CORS is forbidden")
+          if "apiKey," in source or "secretKey," in source or "apiKey:" in source or "secretKey:" in source:
+              raise SystemExit("FAIL: provider credentials must never be returned in response payloads")
+
+          print("VTpass catalogue endpoint static safety checks passed. No function was deployed and no provider request was made.")

@@ -49,7 +49,7 @@ Use tiered pricing rather than one flat markup. Keep original decimal provider a
 1. Re-fetch and compare each complete canonical catalogue against the saved review; quarantine any newly conflicting variation codes.
 2. Confirm wholesale/provider charges, bundle eligibility, size, validity and special restrictions with VTpass.
 3. Confirm Paystack fee calculations using the current applicable fee rules and account setup.
-4. Test sandbox airtime and data purchase paths, status re-query, duplicate-request/idempotency protection, timeouts, failed/reversed transactions and reconciliation.
+4. Test sandbox airtime and data purchase paths, status re-query, duplicate-request/idempotency protection, timeouts, failed/reversed transactions and reconciliation. The restricted airtime page now includes a status-only re-query button for the saved test request ID.
 5. Ensure a failed or pending provider transaction cannot silently be shown as delivered or cause a duplicate customer charge.
 6. Confirm secrets remain server-side and are never exposed in the browser or committed to GitHub.
 7. Keep the test page noindex and isolated from the production marketplace.

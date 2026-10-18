@@ -1,0 +1,110 @@
+name: Validate HarvestHome VTpass-only preview
+
+on:
+  push:
+    branches:
+      - feature/harvesthome-data-airtime-foundation
+    paths:
+      - "vtpass-data-test.html"
+      - "vtpass-airtime-test.html"
+      - "vtu-test.html"
+      - "vtu-shop-preview.html"
+      - "Config.js"
+      - "supabase/functions/vtpass-test-airtime-status/index.ts"
+      - ".github/workflows/validate-vtpass-preview.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-preview-only:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out development branch
+        uses: actions/checkout@v4
+
+      - name: Validate VTpass-only pages and safety gates
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+          import subprocess
+          import tempfile
+
+          data_page = Path("vtpass-data-test.html").read_text(encoding="utf-8")
+          for item in [
+              'name="robots" content="noindex,nofollow,noarchive"',
+              'functions/v1/vtpass-test-data-variations',
+              'method: "GET"',
+              'purchasesEnabled',
+              'ownerExcludedCodes',
+          ]:
+              if item not in data_page:
+                  raise SystemExit("VTpass data review page missing safety requirement: " + item)
+          if "MELEDATA_API_KEY" in data_page or "meledata" in data_page.lower():
+              raise SystemExit("MELE DATA references must not be present in the VTpass-only data page.")
+
+          airtime_page = Path("vtpass-airtime-test.html").read_text(encoding="utf-8")
+          for item in [
+              'name="robots" content="noindex,nofollow,noarchive"',
+              'functions.invoke("vtpass-test-airtime"',
+              'persistSession: false',
+              'purchasesEnabledForCustomers',
+              'href="/vtu.html"',
+          ]:
+              if item not in airtime_page:
+                  raise SystemExit("VTpass airtime page missing safety requirement: " + item)
+          if "MELEDATA_API_KEY" in airtime_page or "meledata" in airtime_page.lower():
+              raise SystemExit("MELE DATA references must not be present in the VTpass airtime page.")
+          for item in [
+              'id="request-id"',
+              'id="requery-button"',
+              'Check status (no new purchase)',
+              'functions.invoke("vtpass-test-airtime-status"',
+              'action: "status re-query only"',
+          ]:
+              if item not in airtime_page:
+                  raise SystemExit("VTpass airtime status safety requirement missing: " + item)
+
+          status_fn = Path("supabase/functions/vtpass-test-airtime-status/index.ts").read_text(encoding="utf-8")
+          for item in ['req.method !== "POST"', 'https://sandbox.vtpass.com/api/requery', 'purchasesEnabledForCustomers: false']:
+              if item not in status_fn:
+                  raise SystemExit("VTpass status endpoint missing safety requirement: " + item)
+          if "https://sandbox.vtpass.com/api/pay" in status_fn:
+              raise SystemExit("Status-only endpoint must never submit a purchase.")
+
+          hub = Path("vtu-test.html").read_text(encoding="utf-8")
+          for item in [
+              'name="robots" content="noindex,nofollow,noarchive"',
+              'href="/vtpass-airtime-test.html"',
+              'href="/vtpass-data-test.html"',
+              "No customer checkout or live purchase is available here",
+          ]:
+              if item not in hub:
+                  raise SystemExit("VTpass hub missing safety/navigation requirement: " + item)
+
+          shop = Path("vtu-shop-preview.html").read_text(encoding="utf-8")
+          for item in [
+              'name="robots" content="noindex,nofollow,noarchive"',
+              'href="/vtu.html"',
+              'Customer checkout and live purchases are disabled',
+              'No order or payment was created',
+          ]:
+              if item not in shop:
+                  raise SystemExit("VTU shop preview missing safety/navigation requirement: " + item)
+          if "meledata" in shop.lower() or "MELEDATA_API_KEY" in shop:
+              raise SystemExit("MELE DATA references must not be present in the VTU shop preview.")
+          if "paystack" in shop.lower() and ("initialize" in shop.lower() or "secret" in shop.lower()):
+              raise SystemExit("VTU shop preview must not contain checkout integration or secrets.")
+
+          for name, page in [("data", data_page), ("airtime", airtime_page), ("shop", shop)]:
+              scripts = re.findall(r"<script>([\s\S]*?)</script>", page, re.IGNORECASE)
+              if not scripts:
+                  raise SystemExit("No inline JavaScript found in " + name + " page.")
+              with tempfile.NamedTemporaryFile("w", suffix=".js", encoding="utf-8", delete=False) as f:
+                  f.write("\n".join(scripts))
+                  js_path = f.name
+              subprocess.run(["node", "--check", js_path], check=True)
+
+          print("VTpass-only page, status re-query, navigation and safety checks passed. No production deployment or customer purchase was performed.")

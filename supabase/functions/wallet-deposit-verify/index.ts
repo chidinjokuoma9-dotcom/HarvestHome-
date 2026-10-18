@@ -52,8 +52,15 @@ serve(async (req) => {
         .select("balance_kobo,currency").eq("user_id", user.id).maybeSingle();
       return json({ success: true, status: "success", reference, balance_kobo: wallet?.balance_kobo ?? null, idempotent: true }, 200, origin);
     }
-    if (!["initialized", "pending"].includes(intent.status)) {
-      return json({ error: "This deposit is not awaiting verification.", status: intent.status }, 409, origin);
+    // Only an initialized checkout may be credited. A pending intent means the
+    // checkout details were not durably saved; never attempt a credit from that state.
+    if (intent.status !== "initialized") {
+      return json({
+        error: intent.status === "pending"
+          ? "This deposit checkout is not fully initialized yet. No wallet balance has been added."
+          : "This deposit is not awaiting verification.",
+        status: intent.status,
+      }, 409, origin);
     }
 
     const response = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`, {
@@ -97,6 +104,6 @@ serve(async (req) => {
     }, 200, origin);
   } catch (error) {
     console.error("wallet-deposit-verify error", error);
-    return json({ error: error instanceof Error ? error.message : "Wallet deposit verification failed." }, 400, req.headers.get("Origin") || "");
+    return json({ error: "Wallet deposit verification could not be completed. No balance was added; please retry or contact support with your reference." }, 400, req.headers.get("Origin") || "");
   }
 });

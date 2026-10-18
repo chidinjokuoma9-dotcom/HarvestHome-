@@ -30,10 +30,11 @@
 <h2>2. Send the fixed sandbox test</h2>
 <div class="info"><strong>Fixed test details</strong><br>Provider: VTpass sandbox<br>Network: MTN<br>Amount: ₦100<br>Test recipient: 08011111111<br>Customer purchases: disabled</div>
 <button id="test-button" type="button" disabled>Send one VTpass sandbox test</button>
+<button id="requery-button" class="secondary" type="button" disabled>Check status (no new purchase)</button>
 <pre id="result" role="status">Sign in first. No airtime request has been sent.</pre>
 <button id="clear-button" class="secondary" type="button" disabled>Clear results and sign out</button>
 </section>
-<p class="small">The server endpoint is expected to use server-side sandbox credentials and a fixed test payload. A successful HTTP response alone does not prove the provider transaction was delivered; inspect the provider response code and status. Do not share credentials or full private account details. For launch, we still need status re-query, duplicate protection, failure/pending handling, reconciliation, pricing approval and separate Paystack payment verification.</p>
+<p class="small">The server endpoint uses server-side sandbox credentials and a fixed test payload. After the one test, use “Check status” to re-query the saved request ID; this does not make another purchase. Do not share credentials or full private account details. For launch, we still need duplicate protection, failure/pending handling, reconciliation, pricing approval and separate Paystack payment verification.</p>
 <p class="small"><a href="/vtu.html">← Back to HarvestHome VTU preview</a></p>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -45,11 +46,13 @@
   const signInButton = document.getElementById("signin-button");
   const testButton = document.getElementById("test-button");
   const clearButton = document.getElementById("clear-button");
+  const requeryButton = document.getElementById("requery-button");
   const authStatus = document.getElementById("auth-status");
   const result = document.getElementById("result");
   let client = null;
   let accessToken = null;
   let testAttempted = false;
+  let lastRequestId = null;
 
   if (!config || !config.SUPABASE_URL || !config.SUPABASE_ANON_KEY || !window.supabase) {
     authStatus.textContent = "HarvestHome configuration did not load. No request was sent.";
@@ -66,6 +69,8 @@
     accessToken = null;
     testAttempted = false;
     testButton.disabled = true;
+    requeryButton.disabled = true;
+    lastRequestId = null;
     signInButton.disabled = true;
     authStatus.textContent = "Signing in securely…";
     result.textContent = "Waiting for sign-in.";
@@ -114,11 +119,13 @@
         authStatus.textContent = "The result needs review. This session cannot send another test.";
         return;
       }
+      lastRequestId = typeof data?.request_id === "string" ? data.request_id : null;
+      requeryButton.disabled = !lastRequestId;
       const provider = data?.providerResponse ?? {};
       const code = String(provider?.code ?? provider?.response_code ?? provider?.responseCode ?? "");
       const description = String(provider?.response_description ?? provider?.responseDescription ?? provider?.message ?? "");
       const status = String(provider?.content?.transactions?.status ?? provider?.status ?? provider?.transaction_status ?? "");
-      const delivered = code === "000" || /delivered|successful|success/i.test(status);
+      const delivered = /^delivered$/i.test(status);
       result.textContent = JSON.stringify({
         testEndpoint: { ok: data?.ok, mode: data?.mode, testOnly: data?.testOnly, purchasesEnabledForCustomers: data?.purchasesEnabledForCustomers },
         test: data?.test,
@@ -143,9 +150,56 @@
     }
   });
 
+
+  requeryButton.addEventListener("click", async () => {
+    if (!accessToken || !lastRequestId) return;
+    requeryButton.disabled = true;
+    result.textContent = "Checking the saved VTpass sandbox request ID. This does not submit another purchase.";
+    try {
+      const { data, error } = await client.functions.invoke("vtpass-test-airtime", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + accessToken },
+        body: { action: "requery", request_id: lastRequestId }
+      });
+      if (error) {
+        result.textContent = JSON.stringify({
+          status: "Status not confirmed — do not send another purchase",
+          request_id: lastRequestId,
+          message: error.message || "Could not read the re-query response."
+        }, null, 2);
+        return;
+      }
+      const provider = data?.providerResponse ?? {};
+      const tx = provider?.content?.transactions ?? {};
+      result.textContent = JSON.stringify({
+        mode: data?.mode,
+        action: data?.action,
+        request_id: data?.request_id,
+        providerHttpStatus: data?.providerHttpStatus,
+        providerResult: {
+          code: provider?.code ?? "not returned",
+          description: provider?.response_description ?? "not returned",
+          status: tx?.status ?? provider?.status ?? "not returned"
+        },
+        interpretation: data?.interpretation,
+        providerResponse: provider
+      }, null, 2);
+    } catch (_) {
+      result.textContent = JSON.stringify({
+        status: "Status not confirmed — do not send another purchase",
+        request_id: lastRequestId,
+        nextStep: "Check the VTpass sandbox transaction history or function logs before doing anything else."
+      }, null, 2);
+    } finally {
+      requeryButton.disabled = !lastRequestId;
+    }
+  });
+
   clearButton.addEventListener("click", async () => {
     accessToken = null;
     testAttempted = true;
+    lastRequestId = null;
+    requeryButton.disabled = true;
     document.getElementById("email").value = "";
     document.getElementById("password").value = "";
     testButton.disabled = true;

@@ -18,7 +18,9 @@ This inventory was read-only. No table, policy, function, secret, or production 
 
 ## Order record
 
-Use one durable order row per intended customer purchase. Suggested fields:
+Use one durable order row per intended customer purchase. The companion review-only SQL draft now includes an atomic `claim_vtu_provider_attempt` function. It updates only an order with verified payment, a payment verification timestamp, `payment_verified` state, no existing provider request ID, and zero provider attempts. The function stores the supplied request ID and transitions the order to `provider_pending` in one database update; repeated/concurrent calls should return no row. It uses `SECURITY INVOKER`, an empty `search_path`, and execution is revoked from `PUBLIC`, `anon`, and `authenticated`, with execution granted only to `service_role`. This has not been executed or reviewed against the live database and still needs SQL-level integration/concurrency testing before production.
+
+Suggested fields:
 
 - `id`: UUID generated server-side.
 - `user_id`: authenticated owner.
@@ -48,7 +50,7 @@ Before production, a reviewed migration should enforce at least:
 6. No direct client insert/update of orders, payments, provider attempts, refunds, or audit events.
 7. A server-side atomic claim/transition operation that locks the order row and checks its current state before claiming the only provider attempt.
 
-A generated request ID alone is not idempotency. The unique database constraint and atomic claim are the controls that prevent two concurrent requests from sending the same order twice.
+A generated request ID alone is not idempotency. The unique database constraint and atomic claim are the controls that prevent two concurrent requests from sending the same order twice. The draft claim only reserves one attempt; the future Edge Function must call VTpass only after exactly one order row is returned and must never auto-resubmit when the result is uncertain.
 
 ## Required transaction flow
 

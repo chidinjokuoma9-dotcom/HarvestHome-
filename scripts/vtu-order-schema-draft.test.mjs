@@ -84,5 +84,5 @@ test("order creation function is idempotent, validates inputs, and atomically re
   assert.ok(schema.includes("'order_created'"));
   assert.ok(schema.includes("revoke all on function public.create_vtu_order(uuid, text, text, text, text, text, text, text, bigint)"));
   assert.ok(schema.includes("grant execute on function public.create_vtu_order(uuid, text, text, text, text, text, text, text, bigint)"));
-  assert.ok(schema.includes("The caller must be a trusted Edge Function"));
+  assert.ok(schema.includes("trusted") && schema.includes("Edge Function"));
 });

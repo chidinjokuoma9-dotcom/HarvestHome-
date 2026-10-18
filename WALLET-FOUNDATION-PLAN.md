@@ -51,3 +51,13 @@ Do not launch or expose wallet funding on harvesthome.ng until the complete serv
 
 These are source drafts only. They have **not** been deployed to Supabase, and no database schema has been applied. Before deployment, review production CORS origins, callback routing, SQL against the existing schema, webhook reuse of the same credit RPC, and the test checklist. Never enable customer deposits until duplicate/concurrent verification and failure paths have been tested in an isolated environment.
 
+## Additional hardening completed in source drafts
+
+- Deposit initialize/verify now require a configured `WALLET_ALLOWED_ORIGIN` for browser-origin requests and no longer accept a callback URL supplied by the browser; use server-side `WALLET_CALLBACK_URL` instead.
+- Added `.github/workflows/validate-wallet-drafts.yml` with static safety checks for auth, amount/currency validation, webhook signatures, restricted CORS, and the atomic credit path.
+- These source checks are not a substitute for compiling/deploying to an isolated Supabase environment and running Paystack test-mode end-to-end cases.
+
+## Required isolated-test configuration
+
+Before deploying the drafts to an isolated test project, set `WALLET_ALLOWED_ORIGIN` to the exact preview origin and `WALLET_CALLBACK_URL` to a HarvestHome-owned HTTPS callback. Keep Paystack test keys and the Supabase service-role key in server-side secrets only. Do not use production credentials for this stage.
+

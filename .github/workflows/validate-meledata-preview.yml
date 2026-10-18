@@ -7,6 +7,7 @@ on:
     paths:
       - "data-airtime-test.html"
       - "airtime-test.html"
+      - "vtpass-airtime-test.html"
       - "vtu-test.html"
       - "vtu-shop-preview.html"
       - "Config.js"
@@ -92,10 +93,32 @@ jobs:
               airtime_js_path = f.name
           subprocess.run(["node", "--check", airtime_js_path], check=True)
 
+          vtpass_airtime_page = Path("vtpass-airtime-test.html").read_text(encoding="utf-8")
+          for item in [
+              'name="robots" content="noindex,nofollow,noarchive"',
+              'functions.invoke("vtpass-test-airtime"',
+              'method: "POST"',
+              'persistSession: false',
+              'testAttempted',
+              'purchasesEnabledForCustomers',
+              'href="/vtu.html"',
+          ]:
+              if item not in vtpass_airtime_page:
+                  raise SystemExit("VTpass airtime test page missing safety requirement: " + item)
+          if "VTPASS_SECRET_KEY" in vtpass_airtime_page:
+              raise SystemExit("VTpass credentials must stay server-side.")
+          vtpass_scripts = re.findall(r"<script>([\\s\\S]*?)</script>", vtpass_airtime_page, re.IGNORECASE)
+          if not vtpass_scripts:
+              raise SystemExit("No inline JavaScript was found in the VTpass airtime test page.")
+          with tempfile.NamedTemporaryFile("w", suffix=".js", encoding="utf-8", delete=False) as f:
+              f.write("\\n".join(vtpass_scripts))
+              vtpass_js_path = f.name
+          subprocess.run(["node", "--check", vtpass_js_path], check=True)
+
           hub = Path("vtu-test.html").read_text(encoding="utf-8")
           for item in [
               'name="robots" content="noindex,nofollow,noarchive"',
-              'href="/airtime-test.html"',
+              'href="/vtpass-airtime-test.html"',
               'href="/"',
               "No customer checkout or live purchase is available here",
           ]:

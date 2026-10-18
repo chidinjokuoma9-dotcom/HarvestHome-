@@ -46,7 +46,7 @@ Added `docs/VTU-ORDER-SCHEMA-DRAFT.sql` as a review-only design for direct per-o
 
 Added pure review helpers in `scripts/vtu-transaction-state.mjs` and offline regression tests in `scripts/vtu-transaction-state.test.mjs`. The helpers define allowed state transitions, preserve core transaction identity fields, require verified payment and an exact amount match before a provider attempt, reject a second attempt when a provider request already exists, and direct pending/timeouts to status re-query rather than automatic resubmission. The local Node test run passed all 9 tests.
 
-**Important limitation:** these helpers are not a production transaction system. They do not persist orders, lock rows atomically, verify Paystack payments, or guarantee provider idempotency. Production still requires a reviewed database schema with unique constraints and atomic server-side handling. No Supabase schema, production function, live provider call, or live customer checkout was changed or enabled by this work.
+**Important limitation:** these helpers are not a production transaction system. They do not persist orders, lock rows atomically, verify Paystack payments, or guarantee provider idempotency. A separate review draft, `docs/VTU-PRODUCTION-ORDER-ARCHITECTURE.md`, now documents the proposed order fields, database constraints, payment/provider sequence, access controls, and open decisions. It is design documentation only: no Supabase schema, production function, live provider call, or live customer checkout was changed or enabled by this work.
 
 ## Acceptance checklist
 

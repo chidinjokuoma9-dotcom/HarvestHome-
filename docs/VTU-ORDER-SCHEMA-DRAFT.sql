@@ -109,7 +109,7 @@ returns table (
 language sql
 security invoker
 set search_path = ''
-as $
+as $vtu$
   update public.vtu_orders as o
   set order_status = 'provider_pending',
       provider_request_id = p_provider_request_id,
@@ -126,7 +126,7 @@ as $
   returning
     o.id, o.provider_request_id, o.amount_kobo, o.network,
     o.product_type, o.service_id, o.variation_code, o.recipient_phone;
-$;
+$vtu$;
 
 -- PostgreSQL grants EXECUTE on new functions to PUBLIC by default. Restrict it.
 revoke all on function public.claim_vtu_provider_attempt(uuid, text) from public, anon, authenticated;

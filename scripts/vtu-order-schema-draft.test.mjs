@@ -31,8 +31,11 @@ test("order and event tables enable RLS and restrict customer access to owned re
   assert.ok(schema.includes("and o.user_id = (select auth.uid())"));
   assert.ok(schema.includes("revoke all on table public.vtu_orders from anon, authenticated"));
   assert.ok(schema.includes("revoke all on table public.vtu_order_events from anon, authenticated"));
-  assert.ok(schema.includes("grant select on table public.vtu_orders to authenticated"));
-  assert.ok(schema.includes("grant select on table public.vtu_order_events to authenticated"));
+  assert.ok(schema.includes("grant select ("));
+  assert.ok(schema.includes("id, user_id, product_type, network, product_label, recipient_phone,"));
+  assert.ok(schema.includes("amount_kobo, currency, payment_status, order_status, created_at, updated_at, completed_at"));
+  assert.ok(!schema.includes("grant select on table public.vtu_order_events to authenticated"));
+  assert.ok(schema.includes("No direct client SELECT grant on the internal audit/event table."));
   assert.ok(!/grant all|grant insert|grant update/i.test(schema));
   assert.ok(schema.includes("revoke all on function public.claim_vtu_provider_attempt(uuid, text) from public, anon, authenticated"));
   assert.ok(schema.includes("grant execute on function public.claim_vtu_provider_attempt(uuid, text) to service_role"));

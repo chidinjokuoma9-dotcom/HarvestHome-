@@ -4,7 +4,7 @@
 
 Hello VTpass Support,
 
-We are preparing our VTpass integration for HarvestHome and have reviewed the sandbox data and airtime catalogues. Before setting customer prices or enabling live transactions, please clarify the following for our account.
+We are preparing our VTpass integration for HarvestHome and have reviewed the sandbox data and airtime catalogues. We have decided to exclude three ambiguous variation codes from our candidate catalogue. Before setting customer prices or enabling live transactions, please clarify the following for our account.
 
 ## 1. Actual wallet debit and reseller cost
 For each data plan returned by the variations endpoint, what is the exact amount that will be deducted from our VTpass wallet for one successful transaction? Is `variation_amount` the end-user price, the reseller debit, or another reference amount? Please provide the appropriate endpoint/field or account-specific pricing schedule for determining our actual cost.
@@ -14,19 +14,10 @@ For a ₦100 MTN Airtime VTU sandbox request, our response reported `total_amoun
 
 Request ID for the status-only re-query: `2026101808275045f5dbc5`. This was a sandbox transaction; we are not treating it as proof of live commercial terms.
 
-## 3. Conflicting variation codes
-The sandbox catalogue returned the same variation code for different offers:
-
-- MTN: `mtn-xtratalk-300` — N300 Xtratalk Weekly Bundle and N200 Xtratalk - 3 days.
-- Glo: `glo-mega-75000` — 675GB Glo Mega and N100,000 1TB Glo Mega Oneoff.
-- 9mobile: `eti-1000` — 1.5GB for 30 days and 4GB comprising 2GB regular plus 2GB night data.
-
-Please confirm the correct unique variation codes and whether these catalogue entries are valid for our account.
-
-## 4. Eligibility and restrictions
+## 3. Eligibility and restrictions
 Please confirm availability and restrictions for SME, night-data, social/app-specific, TV/VOD, binge, combined data/voice, and long-validity plans (90 days, 180 days and 365 days). We need to display all data restrictions and validity accurately.
 
-## 5. Sandbox versus live
+## 4. Sandbox versus live
 Please confirm whether the variation codes, charges and commissions shown in sandbox match the live products and commercial terms available to our account. Please provide any account-specific setup steps required before live use.
 
 We will keep customer purchases disabled until these points are confirmed and reconciled against transaction status and the actual wallet ledger.

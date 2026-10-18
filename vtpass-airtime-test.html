@@ -30,6 +30,8 @@
 <h2>2. Send the fixed sandbox test</h2>
 <div class="info"><strong>Fixed test details</strong><br>Provider: VTpass sandbox<br>Network: MTN<br>Amount: ₦100<br>Test recipient: 08011111111<br>Customer purchases: disabled</div>
 <button id="test-button" type="button" disabled>Send one VTpass sandbox test</button>
+<label for="request-id">Existing sandbox request ID (status check only)</label><input id="request-id" type="text" inputmode="text" autocomplete="off" spellcheck="false" placeholder="Paste the existing request ID, e.g. 2026101808275045f5dbc5" aria-describedby="request-id-help">
+<p id="request-id-help" class="small">Paste a request ID from a test already sent. This field only checks status; it cannot send another purchase.</p>
 <button id="requery-button" class="secondary" type="button" disabled>Check status (no new purchase)</button>
 <pre id="result" role="status">Sign in first. No airtime request has been sent.</pre>
 <button id="clear-button" class="secondary" type="button" disabled>Clear results and sign out</button>
@@ -47,6 +49,9 @@
   const testButton = document.getElementById("test-button");
   const clearButton = document.getElementById("clear-button");
   const requeryButton = document.getElementById("requery-button");
+  const requestIdInput = document.getElementById("request-id");
+  const validRequestId = (value) => /^\\d{12}[a-f0-9]{10}$/i.test(String(value || "").trim());
+  requestIdInput.addEventListener("input", () => { requeryButton.disabled = !accessToken || !validRequestId(requestIdInput.value); });
   const authStatus = document.getElementById("auth-status");
   const result = document.getElementById("result");
   let client = null;
@@ -88,6 +93,7 @@
       accessToken = data.session.access_token;
       authStatus.textContent = "Signed in. This page can send one fixed sandbox request in this session.";
       testButton.disabled = false;
+      requeryButton.disabled = !validRequestId(requestIdInput.value);
       clearButton.disabled = false;
       result.textContent = "Signed in successfully. No provider request has been sent. Press the test button once when ready.";
     } catch (_) {
@@ -120,7 +126,8 @@
         return;
       }
       lastRequestId = typeof data?.request_id === "string" ? data.request_id : null;
-      requeryButton.disabled = !lastRequestId;
+      if (lastRequestId) requestIdInput.value = lastRequestId;
+      requeryButton.disabled = !validRequestId(requestIdInput.value);
       const provider = data?.providerResponse ?? {};
       const code = String(provider?.code ?? provider?.response_code ?? provider?.responseCode ?? "");
       const description = String(provider?.response_description ?? provider?.responseDescription ?? provider?.message ?? "");
@@ -152,19 +159,23 @@
 
 
   requeryButton.addEventListener("click", async () => {
-    if (!accessToken || !lastRequestId) return;
+    const requestId = String(requestIdInput.value || lastRequestId || "").trim();
+    if (!accessToken || !validRequestId(requestId)) {
+      result.textContent = "Enter a valid existing sandbox request ID. No provider request was sent.";
+      return;
+    }
     requeryButton.disabled = true;
-    result.textContent = "Checking the saved VTpass sandbox request ID. This does not submit another purchase.";
+    result.textContent = "Checking the existing VTpass sandbox request ID. This does not submit another purchase.";
     try {
       const { data, error } = await client.functions.invoke("vtpass-test-airtime-status", {
         method: "POST",
         headers: { Authorization: "Bearer " + accessToken },
-        body: { request_id: lastRequestId }
+        body: { request_id: requestId }
       });
       if (error) {
         result.textContent = JSON.stringify({
           status: "Status not confirmed — do not send another purchase",
-          request_id: lastRequestId,
+          request_id: requestId,
           message: error.message || "Could not read the re-query response."
         }, null, 2);
         return;
@@ -191,7 +202,7 @@
         nextStep: "Check the VTpass sandbox transaction history or function logs before doing anything else."
       }, null, 2);
     } finally {
-      requeryButton.disabled = !lastRequestId;
+      requeryButton.disabled = !accessToken || !validRequestId(requestIdInput.value);
     }
   });
 

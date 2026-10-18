@@ -44,7 +44,7 @@ Do not publish these plans or infer which description is correct. Special, SME, 
 - [x] Correct sandbox host used for the four airtime test requests.
 - [x] One initial successful sandbox airtime response for each of MTN, Airtel, Glo, and 9mobile.
 - [x] Status re-query confirmed delivered for MTN and Airtel without submitting a new purchase.
-- [x] Duplicate variation-code handling and offline regression tests added; latest test workflow must be checked after the commit.
+- [x] Duplicate variation-code handling and offline regression tests pass; GitHub Actions run 39166187558 completed successfully.
 - [x] The isolated preview has no customer checkout/purchase action.
 - [ ] Record a status-only re-query for Glo and 9mobile, without sending new purchases.
 - [ ] VTpass support confirms actual live wallet debit, commission calculations, and the three conflicting catalogue codes.

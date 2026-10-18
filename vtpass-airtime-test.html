@@ -14,8 +14,8 @@
 <body><main>
 <div class="brand">🌿 HarvestHome</div>
 <h1>VTpass airtime — sandbox test only</h1>
-<p class="muted">A restricted development page to test the fixed ₦100 MTN airtime request against the VTpass sandbox from our server.</p>
-<div class="warning"><strong>Read before testing:</strong> This sends one fixed test request to VTpass sandbox for MTN ₦100 and test recipient 08011111111. It does not take a payment and is not customer checkout. Press the test button only once. If the response is pending, times out, or is unclear, stop and inspect the result before retrying.</div>
+<p class="muted">A restricted development page to test one fixed ₦100 airtime request per selected network against the VTpass sandbox from our server.</p>
+<div class="warning"><strong>Read before testing:</strong> This sends one fixed ₦100 test request to VTpass sandbox for the selected network and test recipient 08011111111. It does not take a payment and is not customer checkout. Test each network at most once in this session. If a response is pending, times out, or is unclear, stop and inspect the result before retrying.</div>
 <section class="card">
 <h2>1. Sign in securely</h2>
 <p class="small">Use your HarvestHome account. Your password goes to Supabase Auth and is cleared from the form after sign-in. The session is held in memory only.</p>
@@ -27,16 +27,17 @@
 <p id="auth-status" class="small" role="status">Not signed in. No provider request has been sent.</p>
 </section>
 <section class="card">
-<h2>2. Send the fixed sandbox test</h2>
-<div class="info"><strong>Fixed test details</strong><br>Provider: VTpass sandbox<br>Network: MTN<br>Amount: ₦100<br>Test recipient: 08011111111<br>Customer purchases: disabled</div>
-<button id="test-button" type="button" disabled>Send one VTpass sandbox test</button>
+<h2>2. Send a fixed sandbox test</h2>
+<label for="network">Choose network to test</label><select id="network" required style="width:100%;padding:12px;border:1px solid #bdcdbf;border-radius:10px;font:inherit;background:#fff"><option value="mtn">MTN</option><option value="airtel">Airtel</option><option value="glo">Glo</option><option value="etisalat">9mobile</option></select>
+<div class="info" id="test-details"><strong>Fixed test details</strong><br>Provider: VTpass sandbox<br>Network: MTN<br>Amount: ₦100<br>Test recipient: 08011111111<br>Customer purchases: disabled</div>
+<button id="test-button" type="button" disabled>Send one MTN sandbox test</button>
 <label for="request-id">Existing sandbox request ID (status check only)</label><input id="request-id" type="text" inputmode="text" autocomplete="off" spellcheck="false" placeholder="Paste the existing request ID, e.g. 2026101808275045f5dbc5" aria-describedby="request-id-help">
 <p id="request-id-help" class="small">Paste a request ID from a test already sent. This field only checks status; it cannot send another purchase.</p>
 <button id="requery-button" class="secondary" type="button" disabled>Check status (no new purchase)</button>
 <pre id="result" role="status">Sign in first. No airtime request has been sent.</pre>
 <button id="clear-button" class="secondary" type="button" disabled>Clear results and sign out</button>
 </section>
-<p class="small">The server endpoint uses server-side sandbox credentials and a fixed test payload. After the one test, use “Check status” to re-query the saved request ID; this does not make another purchase. Do not share credentials or full private account details. For launch, we still need duplicate protection, failure/pending handling, reconciliation, pricing approval and separate Paystack payment verification.</p>
+<p class="small">The server endpoint uses server-side sandbox credentials and only permits a fixed ₦100 test for MTN, Airtel, Glo or 9mobile. Each network can be tested once per page session. “Check status” only re-queries an existing request ID and does not make another purchase. Do not share credentials or full private account details. For launch, we still need durable duplicate protection, failure/pending handling, reconciliation, pricing approval and separate Paystack payment verification.</p>
 <p class="small"><a href="/vtu.html">← Back to HarvestHome VTU preview</a></p>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -47,16 +48,27 @@
   const signInForm = document.getElementById("signin-form");
   const signInButton = document.getElementById("signin-button");
   const testButton = document.getElementById("test-button");
+  const networkSelect = document.getElementById("network");
+  const testDetails = document.getElementById("test-details");
+  const networkNames = { mtn: "MTN", airtel: "Airtel", glo: "Glo", etisalat: "9mobile" };
   const clearButton = document.getElementById("clear-button");
   const requeryButton = document.getElementById("requery-button");
   const requestIdInput = document.getElementById("request-id");
   const validRequestId = (value) => /^\d{12}[a-f0-9]{10}$/i.test(String(value || "").trim());
   requestIdInput.addEventListener("input", () => { requeryButton.disabled = !accessToken || !validRequestId(requestIdInput.value); });
+  const attemptedNetworks = new Set();
+  function refreshNetworkDetails() {
+    const network = networkSelect.value;
+    const label = networkNames[network] || "selected network";
+    testDetails.innerHTML = "<strong>Fixed test details</strong><br>Provider: VTpass sandbox<br>Network: " + label + "<br>Amount: ₦100<br>Test recipient: 08011111111<br>Customer purchases: disabled";
+    testButton.textContent = "Send one " + label + " sandbox test";
+    testButton.disabled = !accessToken || attemptedNetworks.has(network);
+  }
+  networkSelect.addEventListener("change", refreshNetworkDetails);
   const authStatus = document.getElementById("auth-status");
   const result = document.getElementById("result");
   let client = null;
   let accessToken = null;
-  let testAttempted = false;
   let lastRequestId = null;
 
   if (!config || !config.SUPABASE_URL || !config.SUPABASE_ANON_KEY || !window.supabase) {
@@ -72,7 +84,6 @@
   signInForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     accessToken = null;
-    testAttempted = false;
     testButton.disabled = true;
     requeryButton.disabled = true;
     lastRequestId = null;
@@ -91,8 +102,8 @@
         return;
       }
       accessToken = data.session.access_token;
-      authStatus.textContent = "Signed in. This page can send one fixed sandbox request in this session.";
-      testButton.disabled = false;
+      authStatus.textContent = "Signed in. Each network can be tested once in this page session.";
+      refreshNetworkDetails();
       requeryButton.disabled = !validRequestId(requestIdInput.value);
       clearButton.disabled = false;
       result.textContent = "Signed in successfully. No provider request has been sent. Press the test button once when ready.";
@@ -106,17 +117,19 @@
   });
 
   testButton.addEventListener("click", async () => {
-    if (!accessToken || testAttempted) return;
-    const confirmed = window.confirm("Send ONE ₦100 MTN airtime test to the VTpass SANDBOX for test number 08011111111? This is not a live customer top-up. Do not continue unless you intend to run this test.");
+    const network = networkSelect.value;
+    const networkName = networkNames[network];
+    if (!accessToken || !networkName || attemptedNetworks.has(network)) return;
+    const confirmed = window.confirm("Send ONE ₦100 " + networkName + " airtime test to the VTpass SANDBOX for test number 08011111111? This is not a live customer top-up. Do not continue unless you intend to run this test.");
     if (!confirmed) return;
-    testAttempted = true;
+    attemptedNetworks.add(network);
     testButton.disabled = true;
-    result.textContent = "Sending the one fixed MTN ₦100 request to VTpass sandbox. Please wait; do not retry if this takes time.";
+    result.textContent = "Sending the one fixed " + networkName + " ₦100 request to VTpass sandbox. Please wait; do not retry if this takes time.";
     try {
       const { data, error } = await client.functions.invoke("vtpass-test-airtime", {
         method: "POST",
         headers: { Authorization: "Bearer " + accessToken },
-        body: {}
+        body: { network }
       });
       if (error) {
         result.textContent = JSON.stringify({
@@ -147,8 +160,8 @@
         providerResponse: provider
       }, null, 2);
       authStatus.textContent = delivered
-        ? "Sandbox response appears successful. One test was sent; no repeat is allowed in this session."
-        : "One test was sent. The outcome requires review; no repeat is allowed in this session.";
+        ? networkName + " sandbox response appears successful. This network cannot be tested again in this page session."
+        : networkName + " test was sent. The outcome needs review; do not repeat this network in this page session.";
     } catch (_) {
       result.textContent = JSON.stringify({
         status: "Request outcome unclear — do not retry yet",
@@ -210,7 +223,6 @@
 
   clearButton.addEventListener("click", async () => {
     accessToken = null;
-    testAttempted = true;
     lastRequestId = null;
     requeryButton.disabled = true;
     document.getElementById("email").value = "";
@@ -218,7 +230,9 @@
     requestIdInput.value = "";
     testButton.disabled = true;
     clearButton.disabled = true;
+    attemptedNetworks.clear();
     authStatus.textContent = "Signed out of this test.";
+    refreshNetworkDetails();
     result.textContent = "Results cleared. No active test session.";
     try { await client.auth.signOut({ scope: "local" }); } catch (_) {}
   });

@@ -57,6 +57,8 @@ These are source drafts only. They have **not** been deployed to Supabase, and n
 - Added `.github/workflows/validate-wallet-drafts.yml` with static safety checks for auth, amount/currency validation, webhook signatures, restricted CORS, and the atomic credit path.
 - These source checks are not a substitute for compiling/deploying to an isolated Supabase environment and running Paystack test-mode end-to-end cases.
 - Deposit verification now rejects intents that are still `pending`; it only attempts a credit after checkout initialization has been durably recorded. This avoids a false success path when checkout setup was not fully saved.
+- Deposit initialization now checks that the pending intent was actually updated and returned by the database before exposing the Paystack checkout URL. A zero-row update now fails closed instead of appearing successful.
+- CI now runs `deno check` on all three wallet Edge Function drafts before the static safety checks. A passing type-check is useful source validation, not proof of Supabase/Paystack runtime integration.
 - `WALLET-DEPOSIT-TEST-CHECKLIST.md` records required negative, duplicate, concurrency, webhook, and reconciliation tests. These tests are not yet run, and customer funding remains blocked.
 
 ## Required isolated-test configuration

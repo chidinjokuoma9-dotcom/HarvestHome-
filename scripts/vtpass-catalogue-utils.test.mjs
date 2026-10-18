@@ -38,6 +38,7 @@ test("deduplicates identical rows and classifies bundle types", () => {
   assert.equal(result.duplicateExactCount, 1);
   assert.equal(result.plans[0].bundleType, "sme");
   assert.equal(classifyBundle("Xtratalk weekly bundle"), "voice");
+  assert.equal(classifyBundle("MTN Xtradata 1GB"), "xtradata");
   assert.equal(classifyBundle("YouTube 500MB"), "app-specific");
   assert.equal(classifyBundle("Glo TV VOD 2GB"), "video-streaming");
   assert.equal(classifyBundle("1GB + 2GB Night"), "night-bonus");

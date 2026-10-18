@@ -25,6 +25,21 @@ function fingerprint(item) {
 }
 
 /**
+ * Extract human-readable size and validity hints for manual review only.
+ * This is deliberately conservative: it does not infer provider eligibility
+ * and does not make a plan publishable.
+ */
+export function extractPlanMetadata(name = "") {
+  const value = String(name);
+  const sizeMatch = value.match(/\\b(\\d+(?:\\.\\d+)?)\\s*(TB|GB|MB|KB)\\b/i);
+  const validityMatch = value.match(/\\b(\\d+)\\s*(days?|d|hours?|hrs?|h|weeks?|wks?|months?|mos?)\\b/i);
+  return {
+    statedSize: sizeMatch ? { value: Number(sizeMatch[1]), unit: sizeMatch[2].toUpperCase() } : null,
+    statedValidity: validityMatch ? { value: Number(validityMatch[1]), unit: validityMatch[2].toLowerCase() } : null
+  };
+}
+
+/**
  * Read only content.variations (never the misspelled duplicate varations field).
  * Conflicting codes are quarantined as a group so no ambiguous item is publishable.
  */
@@ -83,6 +98,10 @@ export function normalizeCatalogue(payload, { network = "", serviceId = "" } = {
 
     duplicateExactCount += Math.max(0, items.length - 1);
     const item = distinct[0];
+    const metadata = extractPlanMetadata(item.name);
+    const reviewFlags = ["verify-provider-eligibility-and-provider-cost"];
+    if (!metadata.statedSize && classifyBundle(item.name) !== "voice") reviewFlags.push("size-not-obvious-in-plan-name");
+    if (!metadata.statedValidity) reviewFlags.push("validity-not-obvious-in-plan-name");
     plans.push({
       network,
       serviceId,
@@ -92,10 +111,12 @@ export function normalizeCatalogue(payload, { network = "", serviceId = "" } = {
       providerAmountRaw: item.providerAmountRaw,
       fixedPrice: item.fixedPrice,
       bundleType: classifyBundle(item.name),
+      statedSize: metadata.statedSize,
+      statedValidity: metadata.statedValidity,
       status: "review-required",
       customerPrice: null,
       publishable: false,
-      reviewFlags: ["verify-size-validity-eligibility-and-provider-cost"]
+      reviewFlags
     });
   }
 

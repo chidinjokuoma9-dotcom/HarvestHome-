@@ -71,6 +71,7 @@ A generated request ID alone is not idempotency. The unique database constraint 
 - Enable RLS on all exposed tables; do not create broad authenticated write policies.
 - Prefer keeping audit and provider-response data in a private schema or deny direct client access entirely.
 - Never expose Supabase service-role keys, Paystack secret keys, or VTpass credentials to the browser.
+- The SQL draft grants authenticated users read access only to an explicit allowlist of customer-safe order columns; provider costs, payment fees, provider request IDs, and raw provider responses are not selectable by customers. The audit/event table has no direct client SELECT grant.
 - A customer-facing status endpoint must return only that customer's own order and only the minimum safe fields.
 - Do not mark an order fulfilled from the browser redirect or client-supplied status.
 

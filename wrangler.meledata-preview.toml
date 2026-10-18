@@ -1,9 +1,0 @@
-# Dedicated Cloudflare Workers configuration for the isolated HarvestHome VTU test site.
-# This file is used only by the preview workflow on the development branch.
-# The production deploy workflow runs from main and does not use this config.
-name = "harvesthome"
-compatibility_date = "2026-10-17"
-assets = { directory = "./.meledata-preview" }
-
-# Required by Wrangler's isolated Worker Preview command.
-[previews]

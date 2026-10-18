@@ -35,11 +35,11 @@ serve(async (req) => {
 
     const userClient = createClient(url, anonKey, { global: { headers: { Authorization: auth } } });
     const { data: { user }, error: authError } = await userClient.auth.getUser();
-    if (authError || !user) return json({ error: "Sign in to verify your wallet deposit." }, 401);
+    if (authError || !user) return json({ error: "Sign in to verify your wallet deposit." }, 401, origin);
 
     const body = await req.json();
     const reference = typeof body.reference === "string" ? body.reference.trim() : "";
-    if (!/^HHW_[a-f0-9]{32}$/i.test(reference)) return json({ error: "Invalid wallet deposit reference." }, 400);
+    if (!/^HHW_[a-f0-9]{32}$/i.test(reference)) return json({ error: "Invalid wallet deposit reference." }, 400, origin);
 
     const serviceClient = createClient(url, serviceKey);
     const { data: intent, error: intentError } = await serviceClient.from("wallet_deposit_intents")

@@ -41,3 +41,12 @@ Status: design and preview only. Do not deploy this to the live database or enab
 ## Launch gate
 
 Do not launch or expose wallet funding on harvesthome.ng until the complete server-side path is implemented, test cases pass, and the owner explicitly approves moving the feature out of preview.
+
+## Deposit implementation drafts added (not deployed)
+
+- `supabase/functions/wallet-deposit-initialize/index.ts`: signed-in-user check, amount bounds (₦100–₦500,000), server-side Paystack initialization, unique HarvestHome reference, and server-side intent storage.
+- `supabase/functions/wallet-deposit-verify/index.ts`: signed-in-user check, server-to-server Paystack verification, exact reference/amount/NGN/user metadata checks, and idempotent credit through the database RPC.
+- `supabase/HarvestHome_Wallet_Deposit_Intents_DRAFT.sql`: pending deposit intent table and replacement credit RPC that binds the wallet credit to a matching verified deposit intent and marks it successful in the same database transaction.
+
+These are source drafts only. They have **not** been deployed to Supabase, and no database schema has been applied. Before deployment, review production CORS origins, callback routing, SQL against the existing schema, webhook reuse of the same credit RPC, and the test checklist. Never enable customer deposits until duplicate/concurrent verification and failure paths have been tested in an isolated environment.
+

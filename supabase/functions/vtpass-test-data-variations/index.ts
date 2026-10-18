@@ -70,17 +70,17 @@ Deno.serve(async (req: Request) => {
     }
 
     const apiKey = Deno.env.get("VTPASS_API_KEY");
-    const secretKey = Deno.env.get("VTPASS_SECRET_KEY");
-    if (!apiKey || !secretKey) {
+    const publicKey = Deno.env.get("VTPASS_PUBLIC_KEY");
+    if (!apiKey || !publicKey) {
       return json({
         ok: false,
         mode: "sandbox",
         readOnly: true,
         purchasesEnabled: false,
-        error: "VTpass sandbox credentials are not fully configured as server secrets.",
+        error: "VTpass sandbox API and public keys are not fully configured as server secrets.",
         missing: [
           ...(!apiKey ? ["VTPASS_API_KEY"] : []),
-          ...(!secretKey ? ["VTPASS_SECRET_KEY"] : []),
+          ...(!publicKey ? ["VTPASS_PUBLIC_KEY"] : []),
         ],
       }, 503, origin);
     }
@@ -90,7 +90,7 @@ Deno.serve(async (req: Request) => {
       method: "GET",
       headers: {
         "api-key": apiKey,
-        "secret-key": secretKey,
+        "public-key": publicKey,
         "Accept": "application/json",
       },
       signal: AbortSignal.timeout(20000),

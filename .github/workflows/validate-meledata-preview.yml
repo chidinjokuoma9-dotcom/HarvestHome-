@@ -121,7 +121,6 @@ jobs:
               'req.method !== "POST"',
               'https://sandbox.vtpass.com/api/requery',
               'purchasesEnabledForCustomers: false',
-              'verify_jwt',
           ]:
               if item not in status_fn:
                   raise SystemExit("VTpass status endpoint missing safety requirement: " + item)

@@ -155,7 +155,8 @@
         }
         const key = code.toLowerCase();
         const fingerprint = JSON.stringify([name, amount, String(row?.fixedPrice ?? "")]);
-        if (!grouped.has(key)) grouped.set(key, { code, variants: new Map() });
+        if (!grouped.has(key)) grouped.set(key, { code, variants: new Map(), validRowCount: 0 });
+        grouped.get(key).validRowCount += 1;
         grouped.get(key).variants.set(fingerprint, {
           code, name, variation_amount: amount, fixedPrice: row?.fixedPrice ?? null
         });
@@ -165,8 +166,7 @@
       let duplicateExactRowsRemoved = 0;
       for (const group of grouped.values()) {
         const variants = [...group.variants.values()];
-        const matchingRows = source.filter(row => String(row?.variation_code ?? "").trim().toLowerCase() === group.code.toLowerCase());
-        duplicateExactRowsRemoved += Math.max(0, matchingRows.length - variants.length);
+        duplicateExactRowsRemoved += Math.max(0, group.validRowCount - variants.length);
         if (variants.length > 1) {
           quarantined.push({
             variation_code: group.code,
@@ -182,9 +182,8 @@
           publishable: false
         });
       }
-      const voiceOnly = plans.filter(plan => /xtratalk|voice|minutes|secs|airtime/i.test(plan.name)
-        && !/(?:\\d+(?:\\.\\d+)?\\s*(?:tb|gb|mb|kb)|data)/i.test(plan.name));
-      const ordinaryDataCandidates = plans.filter(plan => !voiceOnly.includes(plan));
+      const voiceOrCombined = plans.filter(plan => /xtratalk|voice|minutes|secs|airtime|\\b\\d+\\s*(?:seconds?|secs?|mins?|minutes?)\\b/i.test(plan.name));
+      const ordinaryDataCandidates = plans.filter(plan => !voiceOrCombined.includes(plan));
       summary.textContent = "Read-only catalogue normalized: " + ordinaryDataCandidates.length
         + " unique data candidates; " + quarantined.length + " conflicting variation code(s) excluded. All plans remain unpublished pending provider and price verification.";
       result.textContent = JSON.stringify({
@@ -194,12 +193,12 @@
         serviceID,
         sourceCount: source.length,
         uniqueDataCandidateCount: ordinaryDataCandidates.length,
-        voiceOrNonDataRowsSeparatedForReview: voiceOnly.length,
+        voiceOrCombinedRowsSeparatedForReview: voiceOrCombined.length,
         exactDuplicateRowsRemoved: duplicateExactRowsRemoved,
         invalidRowsExcluded,
         quarantinedConflictingCodes: quarantined,
         plans: ordinaryDataCandidates,
-        separatedVoiceOrNonDataRows: voiceOnly.map(plan => ({
+        separatedVoiceOrCombinedRows: voiceOrCombined.map(plan => ({
           variation_code: plan.code,
           name: plan.name,
           variation_amount: plan.variation_amount,

@@ -18,6 +18,7 @@
 ## Offline safeguards added
 
 - scripts/vtu-order-state.mjs expresses conservative state decisions.
+- scripts/vtu-paystack-verification.mjs strictly validates Paystack's server verification response against the stored reference, integer-kobo amount, NGN currency, expected user, order ID, and explicit VTU service metadata. It is pure testable logic and is not yet wired into an Edge Function.
 - scripts/vtu-order-state.test.mjs tests unpaid orders, request-ID prerequisite, successful delivery, pending, failed, contradictory and HTTP-error cases.
 - scripts/vtpass-transaction-utils.mjs and its tests keep provider delivery separate from payment verification.
 - GitHub Actions workflow .github/workflows/vtpass-catalogue-tests.yml runs catalogue, transaction-safety and order-state tests.

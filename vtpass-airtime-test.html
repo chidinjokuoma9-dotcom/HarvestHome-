@@ -47,13 +47,11 @@
   const testButton = document.getElementById("test-button");
   const clearButton = document.getElementById("clear-button");
   const requeryButton = document.getElementById("requery-button");
-  const requeryButton = document.getElementById("requery-button");
   const authStatus = document.getElementById("auth-status");
   const result = document.getElementById("result");
   let client = null;
   let accessToken = null;
   let testAttempted = false;
-  let lastRequestId = null;
   let lastRequestId = null;
 
   if (!config || !config.SUPABASE_URL || !config.SUPABASE_ANON_KEY || !window.supabase) {
@@ -123,8 +121,6 @@
       }
       lastRequestId = typeof data?.request_id === "string" ? data.request_id : null;
       requeryButton.disabled = !lastRequestId;
-      lastRequestId = typeof data?.request_id === "string" ? data.request_id : null;
-      requeryButton.disabled = !lastRequestId;
       const provider = data?.providerResponse ?? {};
       const code = String(provider?.code ?? provider?.response_code ?? provider?.responseCode ?? "");
       const description = String(provider?.response_description ?? provider?.responseDescription ?? provider?.message ?? "");
@@ -151,51 +147,6 @@
         nextStep: "Check Supabase function logs and VTpass transaction status before sending another test."
       }, null, 2);
       authStatus.textContent = "The result needs review. This session cannot send another test.";
-    }
-  });
-
-
-  requeryButton.addEventListener("click", async () => {
-    if (!accessToken || !lastRequestId) return;
-    requeryButton.disabled = true;
-    result.textContent = "Checking the saved VTpass sandbox request ID. This does not submit another purchase.";
-    try {
-      const { data, error } = await client.functions.invoke("vtpass-test-airtime", {
-        method: "POST",
-        headers: { Authorization: "Bearer " + accessToken },
-        body: { action: "requery", request_id: lastRequestId }
-      });
-      if (error) {
-        result.textContent = JSON.stringify({
-          status: "Status not confirmed — do not send another purchase",
-          request_id: lastRequestId,
-          message: error.message || "Could not read the re-query response."
-        }, null, 2);
-        return;
-      }
-      const provider = data?.providerResponse ?? {};
-      const tx = provider?.content?.transactions ?? {};
-      result.textContent = JSON.stringify({
-        mode: data?.mode,
-        action: data?.action,
-        request_id: data?.request_id,
-        providerHttpStatus: data?.providerHttpStatus,
-        providerResult: {
-          code: provider?.code ?? "not returned",
-          description: provider?.response_description ?? "not returned",
-          status: tx?.status ?? provider?.status ?? "not returned"
-        },
-        interpretation: data?.interpretation,
-        providerResponse: provider
-      }, null, 2);
-    } catch (_) {
-      result.textContent = JSON.stringify({
-        status: "Status not confirmed — do not send another purchase",
-        request_id: lastRequestId,
-        nextStep: "Check the VTpass sandbox transaction history or function logs before doing anything else."
-      }, null, 2);
-    } finally {
-      requeryButton.disabled = !lastRequestId;
     }
   });
 

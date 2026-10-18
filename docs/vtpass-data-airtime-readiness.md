@@ -12,6 +12,14 @@
 - **Airtime sandbox test:** A ₦100 MTN airtime sandbox test previously returned provider code '000', status 'delivered', commission '3.5', and total_amount '96.5'. This is evidence that the specific sandbox test worked; it is not proof of live delivery or live commission terms.
 - **Offline helper tests:** The branch contains a Node.js test suite and a GitHub Actions workflow to run it. Do not describe CI as passed unless a completed green run is visible in GitHub Actions.
 
+## Latest engineering checks — 2026-10-18
+
+- The isolated Cloudflare preview deployment completed successfully for commit `63ac2d9ce223e85b79dd58b2d47b10dbdf7cf288`; the latest airtime page with the status-only button is included in that deployment.
+- GitHub Actions validation passed for the preview page and safety guards at commit `b94232d3196e3f9746773b3f9bca203ec409ca2a`.
+- The VTpass catalogue helper test workflow passed for commit `a2395ceb9cd53a6d11b8baf998b1be76b21d95a3`.
+- Supabase lists `vtpass-test-airtime-status` as ACTIVE, version 1, with JWT verification enabled. Its code calls the sandbox `/api/requery` endpoint only and contains no purchase endpoint.
+- **Not yet confirmed:** a live call to the status-only endpoint against the previously returned request ID. No repeat airtime purchase has been sent to verify it. Do not claim status re-query has passed until the provider returns a response for that request ID.
+
 ## Catalogue review snapshot
 
 The user-shared catalogue responses included approximately:

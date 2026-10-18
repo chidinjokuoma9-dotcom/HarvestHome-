@@ -50,7 +50,7 @@
   const clearButton = document.getElementById("clear-button");
   const requeryButton = document.getElementById("requery-button");
   const requestIdInput = document.getElementById("request-id");
-  const validRequestId = (value) => /^\\d{12}[a-f0-9]{10}$/i.test(String(value || "").trim());
+  const validRequestId = (value) => /^\d{12}[a-f0-9]{10}$/i.test(String(value || "").trim());
   requestIdInput.addEventListener("input", () => { requeryButton.disabled = !accessToken || !validRequestId(requestIdInput.value); });
   const authStatus = document.getElementById("auth-status");
   const result = document.getElementById("result");
@@ -213,6 +213,7 @@
     requeryButton.disabled = true;
     document.getElementById("email").value = "";
     document.getElementById("password").value = "";
+    requestIdInput.value = "";
     testButton.disabled = true;
     clearButton.disabled = true;
     authStatus.textContent = "Signed out of this test.";

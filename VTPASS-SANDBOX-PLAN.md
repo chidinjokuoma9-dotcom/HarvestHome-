@@ -1,66 +1,74 @@
 # HarvestHome VTU — VTpass Sandbox Integration Plan
 
-Status: preparation only. This document is on the development branch; it does not enable live transactions.
+Status: **sandbox validation in progress; customer checkout and live purchases remain disabled.** This document and the associated code are on the development branch and isolated preview only.
 
 ## Current safety gates
 
-- Keep all VTU work on `feature/harvesthome-data-airtime-foundation` and the isolated Cloudflare preview.
-- Do not deploy VTU code to the public HarvestHome marketplace yet.
-- Do not put provider credentials, Paystack secret keys, service-role keys, or customer payment details in browser code or GitHub.
+- Keep VTU work on `feature/harvesthome-data-airtime-foundation` and the isolated Cloudflare preview.
+- Do not deploy VTU purchase code to the public HarvestHome marketplace yet.
+- Never put provider credentials, Paystack secret keys, service-role keys, or customer payment details in browser code or GitHub.
 - Do not switch to VTpass live endpoints or fund a live provider wallet during sandbox testing.
-- Do not charge customers or deliver real airtime/data until sandbox results, pricing, payment verification, duplicate protection, and support/refund handling are reviewed.
+- Do not charge customers or deliver real airtime/data until supplier costs, product catalogue, pricing, payment verification, duplicate protection, and support/refund handling are reviewed.
+- Existing HarvestHome marketplace listings, seller verification, chat, payments, and AdSense must remain untouched.
 
-## Why VTpass is the next candidate
+## Completed sandbox evidence (18 October 2026)
 
-VTpass publishes a sandbox environment and API documentation for Nigerian airtime and data. Its official integration guide says to complete sandbox tests before requesting live provisioning. This is a candidate to test, not a claim that it is already approved or reliable for HarvestHome.
+Four fixed ₦100 airtime requests were sent to the VTpass **sandbox** using the test recipient configured in the isolated test page. The responses reported code `000` and status `delivered`.
 
-Official references:
-- https://vtpass.com/documentation/integrating-api/
-- https://vtpass.com/documentation/introduction/
-- https://vtpass.com/documentation/
-- https://sandbox.vtpass.com/
+| Network | Sandbox request ID | Reported commission | Reported `total_amount` | Evidence |
+|---|---|---:|---:|---|
+| MTN | `202610182116aacecef8a1` | Conflicting: initial response about ₦3.50; status response ₦4 | ₦96.50 | Sandbox response and status re-query returned delivered |
+| Airtel | `2026101821392ca6fa8713` | ₦3 (3%) | ₦97 | Sandbox response and status re-query returned delivered |
+| Glo | `20261018215009e7af09ed` | ₦3 (3%) | ₦97 | Initial sandbox response returned delivered; status re-query still to be recorded |
+| 9mobile | `202610182141c09701eabc` | ₦3 (3%) | ₦97 | Initial sandbox response returned delivered; separate status re-query still to be recorded |
 
-## Required account setup
+These are **sandbox-reported values only**. They do not establish live-account debit, live commissions, customer eligibility, or real-world delivery. In particular, VTpass must explain the differing MTN commission fields and confirm how `total_amount` relates to the actual wallet debit.
 
-1. Create a VTpass sandbox account at https://sandbox.vtpass.com/register.
-2. Sign in and request/access the sandbox API credentials from the sandbox developer area.
-3. Keep the credentials private. Never paste them into this file, a GitHub issue, frontend HTML, or a public chat.
-4. Once available, store them only as server-side secrets for the HarvestHome Supabase project, using separate sandbox-only secret names. Do not add live credentials.
-5. Verify the sandbox base URL is `https://sandbox.vtpass.com/api/` before running any request.
+The isolated test page supports one attempted test per network per page session and status-only re-query. This is a testing guard, not durable production idempotency.
 
-HarvestHome still needs to review provider terms, fees, product coverage, funding requirements, and support arrangements before any production decision.
+## Data catalogue duplicate handling
 
-## Integration sequence
+The read-only preview fetches the canonical `content.variations` array only and does not merge the provider's misspelled `varations` alias. Exact duplicate rows are collapsed; conflicting variation codes are quarantined as a whole; ambiguous plans receive no customer price and remain unpublished. The reusable helper now compares variation codes case-insensitively, with regression coverage.
 
-1. Read the current official authentication, request-ID, product variation, purchase, and transaction-requery documentation.
-2. Implement a server-side-only adapter; the browser must never call VTpass with credentials.
-3. Fetch supported product/variation information in sandbox and compare provider cost, plan name, data size, and validity with HarvestHome's catalogue.
-4. Test only with VTpass's documented sandbox scenarios and sandbox credentials. Never send test calls to the live base URL.
-5. Persist an internal transaction reference and use idempotency/duplicate protection before provider requests.
-6. Treat success, pending, timeout, no-response, and failed responses as distinct states. Query status before retrying ambiguous transactions; never blindly repeat a purchase.
-7. Reconcile provider cost and any fees before calculating retail prices. Do not publish prices until provider costs are confirmed.
-8. Only after sandbox evidence is reviewed, design the Paystack payment flow: server-side payment initialization, verified webhook/status, amount matching, one-time fulfillment, and safe handling of pending/failed payments.
-9. Conduct a final review and obtain explicit approval before any production credentials, live provider requests, or customer checkout are enabled.
+Known conflicts quarantined from candidate plans until VTpass clarifies them:
 
-## Sandbox acceptance checklist
+- MTN: `mtn-xtratalk-300` — weekly ₦300 and 3-day ₦200 descriptions share one code.
+- Glo: `glo-mega-75000` — conflicting 675GB/₦75,000 and 1TB/₦100,000 descriptions share one code.
+- 9mobile: `eti-1000` — conflicting 1.5GB/30-day and 4GB (including night data) descriptions share one code.
 
-- [ ] Sandbox credentials are configured as server-side secrets only.
-- [ ] Correct sandbox host and authentication verified.
-- [ ] Airtime test success scenario verified.
-- [ ] Airtime failure and pending scenarios verified.
-- [ ] Timeout/no-response scenario handled without duplicate fulfillment.
-- [ ] Data catalogue/variation list and pricing reconciled.
-- [ ] Transaction requery/status handling verified.
-- [ ] Duplicate submission/idempotency tests pass.
-- [ ] Provider errors do not expose credentials or internal details to customers.
-- [ ] No customer payment or live delivery can be triggered from the preview.
-- [ ] Paystack flow tested separately in its own test mode and server-side verification confirmed.
-- [ ] Manual support, reversal/refund, and reconciliation procedure documented.
+Do not publish these plans or infer which description is correct. Special, SME, night, app-specific, video, voice, and combined bundles need clear labels and provider eligibility confirmation. Catalogue amounts must not be assumed to be wholesale cost just because they are shown as a variation amount or marked fixed-price.
 
-## Current known blocker
+## Acceptance checklist
 
-MELE DATA's sandbox airtime request returned “Insufficient wallet balance” even though its dashboard reported a ₦1,000,000 test balance. That discrepancy remains unresolved, so do not use MELE DATA as the sole launch dependency or switch to live credentials to investigate it.
+- [x] Server-side sandbox requests work without exposing provider credentials in browser code.
+- [x] Correct sandbox host used for the four airtime test requests.
+- [x] One initial successful sandbox airtime response for each of MTN, Airtel, Glo, and 9mobile.
+- [x] Status re-query confirmed delivered for MTN and Airtel without submitting a new purchase.
+- [x] Duplicate variation-code handling and offline regression tests added; latest test workflow must be checked after the commit.
+- [x] The isolated preview has no customer checkout/purchase action.
+- [ ] Record a status-only re-query for Glo and 9mobile, without sending new purchases.
+- [ ] VTpass support confirms actual live wallet debit, commission calculations, and the three conflicting catalogue codes.
+- [ ] Verify eligible product categories and restrictions for SME, night, social/app-specific, TV/VOD, binge, combined, and long-validity bundles.
+- [ ] Review the full data catalogue for sizes, validity, duplicates, and labels.
+- [ ] Confirm provider costs and calculate retail prices after the actual applicable payment fees; target at least ₦30 contribution only where the verified economics permit it.
+- [ ] Exercise provider pending, failed, timeout, and no-response paths without duplicate fulfillment or automatic purchase retries.
+- [ ] Implement persistent server-side order/request IDs, unique constraints/idempotency, safe status re-query, reconciliation, and audit records before any customer purchase.
+- [ ] Integrate Paystack only after the above: server-side initialization, trusted verification/webhook, exact amount matching, one-time fulfillment, and safe pending/failed handling.
+- [ ] Document customer support, refunds/reversals, and reconciliation.
+- [ ] Obtain explicit approval before any live provider credentials, live provider requests, production integration, or customer checkout are enabled.
+
+## Provider support questions still open
+
+A support response received so far only says the complaint was forwarded to the appropriate department. It does not resolve the issues. Follow up for written confirmation of:
+1. Whether `variation_amount` is customer retail amount, reseller debit, or another catalogue value.
+2. The actual wallet debit and commission calculation for airtime, including the MTN discrepancy.
+3. The three duplicate/conflicting variation codes listed above.
+4. Eligibility/restrictions and sandbox-versus-live differences for special bundle categories.
+
+## Previous MELE DATA issue
+
+MELE DATA's sandbox airtime request returned “Insufficient wallet balance” despite the dashboard displaying a ₦1,000,000 test balance. That discrepancy remains unresolved. VTpass is the current sandbox candidate; do not switch to live credentials to investigate the MELE issue.
 
 ## Launch rule
 
-A working-looking page is not proof of a safe VTU service. Keep the customer purchase button disabled until the supplier sandbox, prices, payment verification, transaction-state handling, and support process have all passed review.
+A working-looking page or a successful sandbox response is not proof of a safe live VTU service. Keep customer purchase buttons disabled until the remaining acceptance items above are verified. The public HarvestHome marketplace and its existing live Paystack features must not be changed as part of sandbox work.

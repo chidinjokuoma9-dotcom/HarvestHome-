@@ -67,6 +67,8 @@ Do not approve a retail price until the applicable fee formula and actual provid
 - Deduplicate the repeated `variations`/`varations` payload.
 - Quarantine the conflicting variation codes listed above.
 - Verify plan size, validity, bundle restrictions, provider cost, and code with VTpass.
-- Build and test the catalogue normalisation and pricing calculation in the isolated development branch.
+- Implemented isolated helper functions in `scripts/vtpass-catalogue-utils.mjs` for canonical-array handling, exact-row deduplication, conflicting-code quarantine, bundle-type classification, and minimum retail-price calculation using a caller-supplied fee function.
+- Added offline Node tests in `scripts/vtpass-catalogue-utils.test.mjs`. Run with `node --test scripts/vtpass-catalogue-utils.test.mjs`; six tests passed in local verification. The test uses a sample fee model only, not the official Paystack fee formula.
+- These helpers are not wired into customer-facing pages or purchase endpoints. Keep them isolated until the real catalogue integration and fee model are reviewed.
 - Keep the test page noindex and isolated; do not alter the production marketplace, payments, seller verification, chat, or AdSense.
 - Do not enable customer purchases or switch to live provider credentials without explicit approval.

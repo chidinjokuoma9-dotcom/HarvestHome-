@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { classifyBundle, normalizeCatalogue, minimumRetailPrice } from "./vtpass-catalogue-utils.mjs";
+import { classifyBundle, normalizeCatalogue, minimumRetailPrice, extractPlanMetadata } from "./vtpass-catalogue-utils.mjs";
 
 test("uses canonical variations only and ignores repeated varations alias", () => {
   const payload = {
@@ -123,4 +123,26 @@ test("accepts wrapped provider response and preserves decimal provider amount", 
   assert.equal(result.plans[0].providerAmountRaw, "99.03");
   assert.equal(result.plans[0].customerPrice, null);
   assert.equal(result.plans[0].publishable, false);
+});
+
+
+test("extracts size and validity hints without approving a plan", () => {
+  assert.deepEqual(extractPlanMetadata("1.5GB - 30 days"), {
+    statedSize: { value: 1.5, unit: "GB" },
+    statedValidity: { value: 30, unit: "days" }
+  });
+  assert.deepEqual(extractPlanMetadata("500MB Night Bundle"), {
+    statedSize: { value: 500, unit: "MB" },
+    statedValidity: null
+  });
+  const result = normalizeCatalogue({ content: { variations: [
+    { variation_code: "plan1", name: "1.5GB - 30 days", variation_amount: "100", fixedPrice: "Yes" },
+    { variation_code: "plan2", name: "Special Bundle", variation_amount: "120", fixedPrice: "Yes" }
+  ] } });
+  assert.deepEqual(result.plans[0].statedSize, { value: 1.5, unit: "GB" });
+  assert.deepEqual(result.plans[0].statedValidity, { value: 30, unit: "days" });
+  assert.equal(result.plans[0].publishable, false);
+  assert.ok(result.plans[1].reviewFlags.includes("size-not-obvious-in-plan-name"));
+  assert.ok(result.plans[1].reviewFlags.includes("validity-not-obvious-in-plan-name"));
+  assert.equal(result.plans[1].publishable, false);
 });

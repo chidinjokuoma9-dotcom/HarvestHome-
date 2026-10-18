@@ -107,6 +107,8 @@
 
   testButton.addEventListener("click", async () => {
     if (!accessToken || testAttempted) return;
+    const confirmed = window.confirm("Send ONE ₦100 MTN airtime test to the VTpass SANDBOX for test number 08011111111? This is not a live customer top-up. Do not continue unless you intend to run this test.");
+    if (!confirmed) return;
     testAttempted = true;
     testButton.disabled = true;
     result.textContent = "Sending the one fixed MTN ₦100 request to VTpass sandbox. Please wait; do not retry if this takes time.";

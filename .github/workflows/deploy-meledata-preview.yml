@@ -6,6 +6,7 @@ on:
       - feature/harvesthome-data-airtime-foundation
     paths:
       - "data-airtime-test.html"
+      - "vtpass-data-test.html"
       - "airtime-test.html"
       - "vtu-test.html"
       - "vtu-shop-preview.html"
@@ -31,6 +32,7 @@ jobs:
         run: |
           mkdir -p .meledata-preview
           cp data-airtime-test.html .meledata-preview/index.html
+          cp vtpass-data-test.html .meledata-preview/vtpass-data-test.html
           cp airtime-test.html .meledata-preview/airtime-test.html
           cp vtu-test.html .meledata-preview/vtu.html
           cp vtu-shop-preview.html .meledata-preview/shop.html

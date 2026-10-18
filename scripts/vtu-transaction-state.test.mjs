@@ -30,6 +30,23 @@ test("preserves transaction identity and payment references", () => {
   assert.equal(next.updatedAt, "test-time");
   assert.throws(() => transitionVtuTransaction(original, "provider_pending", { amountKobo: 1 }), /identity field/);
 });
+test("allows a provider request ID to be reserved once, then makes it immutable", () => {
+  const original = {
+    id: "order-2", userId: "user-2", amountKobo: 10000,
+    paymentReference: "pay-2", providerRequestId: null, status: "payment_verified",
+  };
+  const reserved = transitionVtuTransaction(original, "provider_pending", {
+    providerRequestId: "provider-request-2",
+  });
+  assert.equal(reserved.providerRequestId, "provider-request-2");
+  assert.throws(() => transitionVtuTransaction(reserved, "succeeded", {
+    providerRequestId: "replacement-request",
+  }), /providerRequestId/);
+  assert.throws(() => transitionVtuTransaction(reserved, "succeeded", {
+    providerRequestId: null,
+  }), /providerRequestId/);
+});
+
 test("rejects illegal transitions and missing transaction records", () => {
   assert.throws(() => transitionVtuTransaction(null, "failed"), /transaction object/);
   assert.throws(() => transitionVtuTransaction({ status: "succeeded" }, "provider_pending"), /Invalid VTU transaction transition/);

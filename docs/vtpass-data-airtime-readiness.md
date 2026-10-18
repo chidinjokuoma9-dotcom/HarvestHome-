@@ -26,7 +26,20 @@ The user-shared catalogue responses included approximately:
 - Glo: 60+ entries
 - 9mobile data: 18 entries
 
-These are counts from the responses reviewed, not a guarantee that VTpass's current catalogue has the same entries. Use only canonical 'content.variations'; do not merge the repeated misspelled 'varations' property.
+These are counts from the responses reviewed, not a guarantee that VTpass's current catalogue has the same entries. Use only canonical `content.variations`; do not merge the repeated misspelled `varations` property.
+
+### MTN catalogue review — user-shared sandbox response (2026-10-18)
+
+The response's canonical `content.variations` array contains **37 entries**. The repeated misspelled `varations` property was not counted as a second catalogue and must not be merged.
+
+Keep these entries unavailable for publication until checked:
+- **Duplicate-code conflict:** `mtn-xtratalk-300` appears twice: `MTN N300 Xtratalk Weekly Bundle` at ₦300 and `MTN N200 Xtratalk - 3 days` at ₦200. The code cannot safely identify one plan.
+- **Name/code size conflicts:** `mtn-100mb-1000` is named 1.5GB; `mtn-500mb-2000` is named 4.5GB; `mtn-20hrs-1500` is named 6GB; `mtn-1gb-3500` is named 10GB; `mtn-100hr-5000` is named 15GB; and `mtn-3gb-6000` is named 20GB. Confirm provider mapping rather than trusting code fragments.
+- **Amount/code conflict:** `mtn-1tb-110000` is named ₦100,000 for 1TB but the code suggests ₦110,000.
+- **Category separation:** Xtratalk and Xtradata entries are not ordinary data bundles and should be labelled/separated according to their actual service benefit. The `mtn-120gb-22000` plan also mentions 80 minutes and needs accurate combined-plan labelling.
+- **Large/long-validity offers:** SME plans, 100GB/2-month, 160GB/2-month, 400GB/3-month, 600GB/3-month and 1TB/1-year offers need explicit validity/eligibility confirmation.
+
+The catalogue shows `variation_amount` values such as ₦100, ₦1,000 and ₦2,500, but it does **not** establish that these are HarvestHome's wholesale debit costs or our reseller net costs. Keep customer prices null and publication disabled until VTpass confirms the actual amount debited for each variation and the plan identity is verified.
 
 ### Variation codes that must stay quarantined
 

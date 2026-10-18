@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="theme-color" content="#176b3b">
+<title>My Wallet | HarvestHome Preview</title>
+<style>
+:root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#183a25;background:#f4f8f4;--green:#176b3b;--muted:#647367;--line:#dce8dd}
+*{box-sizing:border-box}body{margin:0}a{color:inherit}main{max-width:980px;margin:auto;padding:18px 16px 42px}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.brand{font-weight:900;color:var(--green);font-size:1.1rem;text-decoration:none}.badge{font-size:.74rem;font-weight:850;letter-spacing:.04em;background:#fff1c9;color:#755000;padding:8px 11px;border:1px solid #f0dda6;border-radius:999px}.intro{margin:24px 0 18px}.eyebrow{font-size:.77rem;letter-spacing:.14em;text-transform:uppercase;font-weight:850;color:var(--green)}h1{font-size:clamp(2rem,5vw,3.1rem);line-height:1.05;letter-spacing:-.045em;margin:10px 0}.muted{color:var(--muted);line-height:1.65}.grid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(260px,.8fr);gap:16px}.card{background:#fff;border:1px solid var(--line);border-radius:22px;padding:clamp(18px,3vw,26px);box-shadow:0 8px 28px #17351f08}.balance{background:linear-gradient(135deg,#176b3b,#104c2b);color:white;border:0}.balance .muted{color:#d9eadf}.balance-label{font-size:.92rem;font-weight:700}.amount{font-size:clamp(2.2rem,6vw,3.4rem);font-weight:900;letter-spacing:-.04em;margin:8px 0 16px}.pill{display:inline-flex;background:#ffffff1c;border:1px solid #ffffff38;border-radius:999px;padding:7px 11px;font-size:.78rem;font-weight:800}.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}.btn{display:flex;align-items:center;justify-content:center;min-height:48px;border-radius:12px;padding:12px;text-align:center;text-decoration:none;font-weight:850;border:1px solid transparent}.primary{background:#fff;color:var(--green)}.secondary{background:#e8f4ea;color:var(--green)}.disabled{opacity:.62;cursor:not-allowed}.note{margin-top:14px;background:#fff9e9;color:#674d12;border:1px solid #f0dda6;border-radius:14px;padding:13px;font-size:.87rem;line-height:1.6}.section-title{font-size:1.16rem;margin:0 0 16px}.quick-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.quick{display:flex;align-items:center;gap:11px;text-decoration:none;border:1px solid var(--line);border-radius:15px;padding:13px}.icon{width:40px;height:40px;display:grid;place-items:center;border-radius:12px;background:#e8f5eb;font-size:1.2rem;flex-shrink:0}.quick strong{display:block;font-size:.94rem}.quick small{display:block;color:var(--muted);margin-top:3px}.transaction{display:grid;grid-template-columns:1fr auto;gap:10px;padding:14px 0;border-bottom:1px solid #edf2ed}.transaction:last-child{border-bottom:0;padding-bottom:0}.transaction strong{display:block;font-size:.93rem}.transaction small{display:block;color:var(--muted);margin-top:4px;line-height:1.45}.credit{color:#176b3b;font-weight:850}.debit{color:#344b39;font-weight:850}.status{display:inline-block;margin-top:6px;padding:3px 8px;border-radius:999px;background:#f0f5f0;color:#56675a;font-size:.72rem;font-weight:800}.side{display:grid;gap:16px;align-content:start}footer{text-align:center;padding:25px 8px 0;color:var(--muted);font-size:.84rem;line-height:1.7}
+@media(max-width:720px){.grid{grid-template-columns:1fr}.side{order:2}.quick-grid{grid-template-columns:1fr 1fr}}@media(max-width:380px){.quick-grid,.actions{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+<header class="top"><a class="brand" href="./index.html">🌿 HarvestHome</a><span class="badge">PRIVATE PREVIEW · DEMO ONLY</span></header>
+<section class="intro"><div class="eyebrow">One wallet. More possibilities.</div><h1>My HarvestHome Wallet</h1><p class="muted">A single place to fund your account and pay for supported HarvestHome services—from mobile data and airtime to eligible property promotions.</p></section>
+<div class="grid">
+<section>
+<div class="card balance">
+<div class="balance-label">Available balance <span aria-hidden="true">👛</span></div>
+<div class="amount">₦3,500.00</div>
+<span class="pill">Illustration only · Not a real balance</span>
+<div class="actions"><button class="btn primary disabled" disabled title="Funding is not enabled in this preview">＋ Fund wallet</button><button class="btn secondary disabled" disabled title="Wallet spending is not enabled in this preview">Pay with wallet</button></div>
+</div>
+<div class="note"><strong>Preview notice:</strong> This is a design preview with sample figures. No deposit, withdrawal, purchase, or transfer can happen here. We will connect wallet actions only after payment verification, ledger, and refund safeguards are tested.</div>
+<div class="card" style="margin-top:16px">
+<h2 class="section-title">Use your wallet for</h2>
+<div class="quick-grid">
+<a class="quick" href="./vtu-shop-preview.html"><span class="icon">📶</span><span><strong>Mobile data</strong><small>Network bundles</small></span></a>
+<a class="quick" href="./vtu-shop-preview.html"><span class="icon">📱</span><span><strong>Airtime</strong><small>Top up a number</small></span></a>
+<a class="quick" href="./index.html"><span class="icon">🏡</span><span><strong>Property services</strong><small>Listings & promotions</small></span></a>
+<a class="quick" href="./index.html"><span class="icon">⭐</span><span><strong>Featured listings</strong><small>Eligible seller plans</small></span></a>
+</div>
+<p class="muted" style="font-size:.86rem;margin-bottom:0">Service availability and prices will be confirmed before launch.</p>
+</div>
+</section>
+<aside class="side">
+<div class="card">
+<h2 class="section-title">Recent activity</h2>
+<div class="transaction"><div><strong>Wallet funding</strong><small>Example transaction · 17 Oct 2026</small><span class="status">Demo only</span></div><div class="credit">+₦5,000</div></div>
+<div class="transaction"><div><strong>Mobile data</strong><small>Example purchase · 17 Oct 2026</small><span class="status">Demo only</span></div><div class="debit">−₦1,000</div></div>
+<div class="transaction"><div><strong>Airtime</strong><small>Example purchase · 17 Oct 2026</small><span class="status">Demo only</span></div><div class="debit">−₦500</div></div>
+<p class="muted" style="font-size:.84rem;margin-bottom:0">Your real history will show verified deposits, purchases, refunds, references, and statuses.</p>
+</div>
+<div class="card">
+<h2 class="section-title">Your money, protected</h2>
+<p class="muted" style="margin-top:0">Before wallet funding opens, HarvestHome will verify payments on the server, prevent duplicate credits, protect balances from browser edits, and keep an auditable transaction history.</p>
+<p class="muted" style="margin-bottom:0">Customer wallet funds are customer liabilities—not HarvestHome profit.</p>
+</div>
+</aside>
+</div>
+<footer>HarvestHome — Connecting Africa. Growing Together. 🧡💚<br>Preview only. Wallet payments are not enabled.</footer>
+</main>
+</body>
+</html>

@@ -24,6 +24,16 @@ jobs:
     steps:
       - name: Check out development branch
         uses: actions/checkout@v4
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Type-check wallet Edge Functions
+        run: |
+          deno check --no-lock \
+            supabase/functions/wallet-deposit-initialize/index.ts \
+            supabase/functions/wallet-deposit-verify/index.ts \
+            supabase/functions/wallet-paystack-webhook/index.ts
       - name: Validate wallet source safety gates
         shell: python
         run: |
@@ -42,6 +52,8 @@ jobs:
               (init, 'currency: "NGN"', "Initialization must specify NGN"),
               (init, 'WALLET_ALLOWED_ORIGIN', "Initialization must use explicit origin configuration"),
               (init, 'WALLET_CALLBACK_URL', "Callback URL must be server-controlled"),
+              (init, '.select("reference").maybeSingle()', "Initialization must confirm a persisted intent update"),
+              (init, 'if (updateError || !savedIntent)', "Initialization must fail closed if intent update is not confirmed"),
               (init, 'harvesthome_wallet_deposit', "Wallet-specific payment metadata missing"),
               (verify, 'auth.getUser()', "Verification must authenticate the signed-in user"),
               (verify, 'Number(tx.amount) !== Number(intent.amount_kobo)', "Exact amount verification missing"),

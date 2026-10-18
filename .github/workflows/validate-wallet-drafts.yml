@@ -11,6 +11,7 @@ on:
       - "supabase/HarvestHome_Wallet_Foundation.sql"
       - "supabase/HarvestHome_Wallet_Deposit_Intents_DRAFT.sql"
       - "WALLET-FOUNDATION-PLAN.md"
+      - "WALLET-DEPOSIT-TEST-CHECKLIST.md"
       - ".github/workflows/validate-wallet-drafts.yml"
   workflow_dispatch:
 
@@ -33,6 +34,7 @@ jobs:
           webhook = Path("supabase/functions/wallet-paystack-webhook/index.ts").read_text(encoding="utf-8")
           sql = Path("supabase/HarvestHome_Wallet_Deposit_Intents_DRAFT.sql").read_text(encoding="utf-8")
           plan = Path("WALLET-FOUNDATION-PLAN.md").read_text(encoding="utf-8")
+          checklist = Path("WALLET-DEPOSIT-TEST-CHECKLIST.md").read_text(encoding="utf-8")
 
           checks = [
               (init, 'auth.getUser()', "Initialization must authenticate the signed-in user"),
@@ -45,6 +47,7 @@ jobs:
               (verify, 'Number(tx.amount) !== Number(intent.amount_kobo)', "Exact amount verification missing"),
               (verify, 'String(tx.currency).toUpperCase() !== "NGN"', "Currency verification missing"),
               (verify, 'wallet_credit_deposit', "Verification must use atomic database credit"),
+              (verify, 'intent.status !== "initialized"', "Verification must reject uninitialized deposits"),
               (webhook, 'x-paystack-signature', "Webhook signature header check missing"),
               (webhook, '"SHA-512"', "Webhook HMAC-SHA512 verification missing"),
               (webhook, 'wallet_credit_deposit', "Webhook must use the same idempotent credit path"),
@@ -52,6 +55,8 @@ jobs:
               (sql, "set status = 'success'", "Deposit status must update atomically with credit"),
               (sql, "from public, anon, authenticated", "Public RPC execution must be revoked"),
               (plan, "have **not** been deployed", "Plan must clearly state drafts are not deployed"),
+              (checklist, "NOT READY FOR CUSTOMER PAYMENTS", "Checklist must block customer payments before testing"),
+              (checklist, "Duplicate verification does not credit twice", "Checklist must cover duplicate verification"),
           ]
           for source, needle, message in checks:
               if needle.lower() not in source.lower():

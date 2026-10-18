@@ -1,20 +1,27 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const cors = {
-  "Access-Control-Allow-Origin": "*",
+const allowedOrigin = Deno.env.get("WALLET_ALLOWED_ORIGIN") || "";
+const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Vary": "Origin",
   "Content-Type": "application/json",
 };
 
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), { status, headers: cors });
+function json(body: unknown, status = 200, origin = "") {
+  const headers = new Headers(corsHeaders);
+  if (origin && allowedOrigin && origin === allowedOrigin) headers.set("Access-Control-Allow-Origin", allowedOrigin);
+  return new Response(JSON.stringify(body), { status, headers });
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
-  if (req.method !== "POST") return json({ error: "POST requests only" }, 405);
+  const origin = req.headers.get("Origin") || "";
+  if (origin && (!allowedOrigin || origin !== allowedOrigin)) return json({ error: "Origin not allowed" }, 403, "");
+  const optionsHeaders = new Headers(corsHeaders);
+  if (origin && allowedOrigin && origin === allowedOrigin) optionsHeaders.set("Access-Control-Allow-Origin", allowedOrigin);
+  if (req.method === "OPTIONS") return new Response("ok", { headers: optionsHeaders });
+  if (req.method !== "POST") return json({ error: "POST requests only" }, 405, origin);
 
   try {
     const auth = req.headers.get("Authorization") || "";
@@ -28,14 +35,14 @@ serve(async (req) => {
 
     const userClient = createClient(url, anonKey, { global: { headers: { Authorization: auth } } });
     const { data: { user }, error: authError } = await userClient.auth.getUser();
-    if (authError || !user) return json({ error: "Sign in to fund your wallet." }, 401);
+    if (authError || !user) return json({ error: "Sign in to fund your wallet." }, 401, origin);
 
     const body = await req.json();
     const amountNaira = Number(body.amount_naira);
     if (!Number.isSafeInteger(amountNaira) || amountNaira < 100 || amountNaira > 500000) {
-      return json({ error: "Enter a whole-naira amount between ₦100 and ₦500,000." }, 400);
+      return json({ error: "Enter a whole-naira amount between ₦100 and ₦500,000." }, 400, origin);
     }
-    if (!user.email) return json({ error: "Your account needs a verified email before funding." }, 400);
+    if (!user.email) return json({ error: "Your account needs a verified email before funding." }, 400, origin);
 
     const amountKobo = amountNaira * 100;
     const reference = "HHW_" + crypto.randomUUID().replaceAll("-", "");
@@ -50,9 +57,8 @@ serve(async (req) => {
     });
     if (intentError) throw new Error("Could not create a wallet deposit request.");
 
-    const callbackUrl = typeof body.callback_url === "string" && body.callback_url.startsWith("https://")
-      ? body.callback_url
-      : undefined;
+    // Callback destination is server-controlled to avoid accepting arbitrary redirect URLs.
+    const callbackUrl = Deno.env.get("WALLET_CALLBACK_URL") || "";
 
     const response = await fetch("https://api.paystack.co/transaction/initialize", {
       method: "POST",
@@ -86,9 +92,9 @@ serve(async (req) => {
     }).eq("reference", reference).eq("user_id", user.id).eq("status", "pending");
     if (updateError) throw new Error("Could not save the deposit checkout details.");
 
-    return json({ authorization_url: result.data.authorization_url, reference, amount_kobo: amountKobo, currency: "NGN" });
+    return json({ authorization_url: result.data.authorization_url, reference, amount_kobo: amountKobo, currency: "NGN" }, 200, origin);
   } catch (error) {
     console.error("wallet-deposit-initialize error", error);
-    return json({ error: error instanceof Error ? error.message : "Wallet deposit setup failed." }, 400);
+    return json({ error: error instanceof Error ? error.message : "Wallet deposit setup failed." }, 400, req.headers.get("Origin") || "");
   }
 });

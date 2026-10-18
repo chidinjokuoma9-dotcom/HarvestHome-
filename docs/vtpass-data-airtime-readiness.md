@@ -41,6 +41,18 @@ Keep these entries unavailable for publication until checked:
 
 The catalogue shows `variation_amount` values such as ₦100, ₦1,000 and ₦2,500, but it does **not** establish that these are HarvestHome's wholesale debit costs or our reseller net costs. Keep customer prices null and publication disabled until VTpass confirms the actual amount debited for each variation and the plan identity is verified.
 
+### Airtel catalogue review — user-shared sandbox response (2026-10-18)
+
+The canonical `content.variations` array contains **26 entries**: 22 data/binge-data entries and 4 voice bundles. The repeated misspelled `varations` property duplicates the same catalogue and must not be counted or merged.
+
+Review findings:
+- **Separate voice bundles:** `airt-voice-100`, `airt-voice-200`, `airt-voice-500`, and `airt-voice-1000` are voice bundles, not data plans. Exclude them from the data catalogue.
+- **Keep different validity periods separate:** Examples include 1.5GB for 30 days (`airt-1000`) versus 1.5GB for 7 days (`airt-1000-7)); 7GB for 7 days (`airt-2000-7`) differs from the 4.5GB 30-day plan (`airt-2000`).
+- **Binge plan:** `airt-1500-2` is described as 6GB for 7 days; retain its distinct name/validity rather than merging it with the standard 3GB 30-day `airt-1500`.
+- **Fractional amounts:** Several returned `variation_amount` values are decimals slightly below their rounded marketing amounts (for example, `airt-50` is 49.99 and `airt-200` is 199.03). Preserve the exact returned amount for reconciliation; do not round it or assume it is HarvestHome's wholesale debit cost.
+- **No obvious repeated variation code** appears in the canonical 26-row Airtel array, but this is only a review of the user-shared snapshot; re-check the live sandbox catalogue before publication.
+- **Pricing and plan verification:** The catalogue labels entries `fixedPrice: Yes`, but that does not establish HarvestHome's wholesale cost, net commission, customer price, or final eligibility. Keep all customer prices null and plans unpublished until provider charges, exact bundle terms, and payment fees are confirmed.
+
 ### Variation codes that must stay quarantined
 
 - MTN: 'mtn-xtratalk-300' — two different Xtratalk descriptions/amounts.

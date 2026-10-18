@@ -8,7 +8,7 @@
 - [ ] Use Paystack test credentials only; keep all secrets in server-side environment secrets.
 - [ ] Set `WALLET_ALLOWED_ORIGIN` to the exact test preview origin and `WALLET_CALLBACK_URL` to a HarvestHome-owned HTTPS URL.
 - [ ] Confirm live marketplace payment functions and the existing Paystack webhook are unchanged.
-- [ ] Compile/lint the Edge Functions using a pinned, reviewed toolchain.
+- [ ] Confirm the development CI Deno type-check passes; pin and review the exact Deno version before any production deployment.
 
 ## Deposit initialization tests
 - [ ] Unauthenticated request is rejected.

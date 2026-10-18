@@ -83,6 +83,50 @@ create policy "Customers can read their own VTU order events"
       and o.user_id = (select auth.uid())
   ));
 
+-- Atomic single-attempt reservation. A trusted server handler must call this and
+-- confirm exactly one row was returned before it sends the VTpass purchase.
+-- The unique request ID is persisted first. Repeated/concurrent calls return no row.
+-- This function is part of the review draft only; do not deploy before code review.
+create or replace function public.claim_vtu_provider_attempt(
+  p_order_id uuid,
+  p_provider_request_id text
+)
+returns table (
+  order_id uuid,
+  provider_request_id text,
+  amount_kobo bigint,
+  network text,
+  product_type text,
+  service_id text,
+  variation_code text,
+  recipient_phone text
+)
+language sql
+security invoker
+set search_path = ''
+as $
+  update public.vtu_orders as o
+  set order_status = 'provider_pending',
+      provider_request_id = p_provider_request_id,
+      provider_attempt_count = 1,
+      updated_at = now()
+  where o.id = p_order_id
+    and o.payment_status = 'verified'
+    and o.payment_verified_at is not null
+    and o.order_status = 'payment_verified'
+    and o.provider_request_id is null
+    and o.provider_attempt_count = 0
+    and p_provider_request_id is not null
+    and length(trim(p_provider_request_id)) > 0
+  returning
+    o.id, o.provider_request_id, o.amount_kobo, o.network,
+    o.product_type, o.service_id, o.variation_code, o.recipient_phone;
+$;
+
+-- PostgreSQL grants EXECUTE on new functions to PUBLIC by default. Restrict it.
+revoke all on function public.claim_vtu_provider_attempt(uuid, text) from public, anon, authenticated;
+grant execute on function public.claim_vtu_provider_attempt(uuid, text) to service_role;
+
 -- Before production use, review table grants/Data API exposure, RLS advisors,
 -- phone-number retention, refund workflow, provider request-ID format, and atomic
 -- request creation. Do not grant direct table writes to anon/authenticated.

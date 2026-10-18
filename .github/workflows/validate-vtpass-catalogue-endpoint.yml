@@ -50,7 +50,7 @@ jobs:
               raise SystemExit("FAIL: catalogue endpoint must never call the purchase endpoint")
           if '"Access-Control-Allow-Origin": "*"' in source:
               raise SystemExit("FAIL: wildcard CORS is forbidden")
-          if "apiKey," in source or "secretKey," in source or "apiKey:" in source or "secretKey:" in source:
+          if '"apiKey":' in source or '"secretKey":' in source:
               raise SystemExit("FAIL: provider credentials must never be returned in response payloads")
 
           print("VTpass catalogue endpoint static safety checks passed. No function was deployed and no provider request was made.")

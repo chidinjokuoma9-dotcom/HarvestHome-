@@ -38,6 +38,10 @@ Known conflicts quarantined from candidate plans until VTpass clarifies them:
 
 Do not publish these plans or infer which description is correct. Special, SME, night, app-specific, video, voice, and combined bundles need clear labels and provider eligibility confirmation. Catalogue amounts must not be assumed to be wholesale cost just because they are shown as a variation amount or marked fixed-price.
 
+## Persistent-order design draft (not deployed)
+
+Added `docs/VTU-ORDER-SCHEMA-DRAFT.sql` as a review-only design for direct per-order checkout. It outlines unique internal idempotency keys, unique payment references/provider request IDs, positive amount checks, one-attempt guard, controlled statuses, order event audit records, and owner-only read policies. It is deliberately outside `supabase/migrations` and has **not** been executed against Supabase. It must be reviewed against the existing project schema, grants, RLS advisors, and the actual Paystack/VTPass handler design before any migration or deployment.
+
 ## Transaction lifecycle safety work (development branch only)
 
 Added pure review helpers in `scripts/vtu-transaction-state.mjs` and offline regression tests in `scripts/vtu-transaction-state.test.mjs`. The helpers define allowed state transitions, preserve core transaction identity fields, require verified payment and an exact amount match before a provider attempt, reject a second attempt when a provider request already exists, and direct pending/timeouts to status re-query rather than automatic resubmission. The local Node test run passed all 9 tests.

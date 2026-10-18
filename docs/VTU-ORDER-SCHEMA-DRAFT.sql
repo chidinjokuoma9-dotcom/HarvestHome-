@@ -70,6 +70,11 @@ grant select (
   amount_kobo, currency, payment_status, order_status, created_at, updated_at, completed_at
 ) on table public.vtu_orders to authenticated;
 -- No direct client SELECT grant on the internal audit/event table.
+-- The trusted Edge Function service role needs only the operations used by the
+-- server-side order and audit handlers. Never expose this role to a browser.
+grant select, insert, update on table public.vtu_orders to service_role;
+grant select, insert on table public.vtu_order_events to service_role;
+grant usage, select on sequence public.vtu_order_events_id_seq to service_role;
 
 -- Customers can inspect only their own order records. Do not add client INSERT/UPDATE
 -- policies: order creation, payment verification, provider calls and state changes

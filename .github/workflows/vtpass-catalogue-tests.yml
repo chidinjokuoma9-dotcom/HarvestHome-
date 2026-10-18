@@ -13,6 +13,8 @@ on:
       - "scripts/vtu-order-state.test.mjs"
       - "scripts/vtu-transaction-state.mjs"
       - "scripts/vtu-transaction-state.test.mjs"
+      - "scripts/vtu-order-schema-draft.test.mjs"
+      - "docs/VTU-ORDER-SCHEMA-DRAFT.sql"
       - ".github/workflows/vtpass-catalogue-tests.yml"
   workflow_dispatch:
 
@@ -37,3 +39,5 @@ jobs:
         run: node --test scripts/vtu-order-state.test.mjs
       - name: Run VTU transaction lifecycle safety tests
         run: node --test scripts/vtu-transaction-state.test.mjs
+      - name: Check review-only VTU schema draft safety
+        run: node --test scripts/vtu-order-schema-draft.test.mjs

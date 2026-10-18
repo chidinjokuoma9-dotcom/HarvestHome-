@@ -75,16 +75,19 @@ export function normalizeCatalogue(payload, { network = "", serviceId = "" } = {
       continue;
     }
     const item = { code, name, providerAmount: amount, providerAmountRaw: String(raw.variation_amount), fixedPrice: raw.fixedPrice ?? null };
-    const list = byCode.get(code) ?? [];
-    list.push(item);
-    byCode.set(code, list);
+    // Provider variation codes are identifiers; compare case-insensitively so
+    // case-only differences cannot slip through as separate purchasable plans.
+    const codeKey = code.toLowerCase();
+    const group = byCode.get(codeKey) ?? { code, items: [] };
+    group.items.push(item);
+    byCode.set(codeKey, group);
   }
 
   const plans = [];
   let duplicateExactCount = 0;
   const conflictCodes = [];
 
-  for (const [code, items] of byCode) {
+  for (const { code, items } of byCode.values()) {
     const uniqueByFingerprint = new Map();
     for (const item of items) uniqueByFingerprint.set(fingerprint({
       name: item.name, variation_amount: item.providerAmount, fixedPrice: item.fixedPrice

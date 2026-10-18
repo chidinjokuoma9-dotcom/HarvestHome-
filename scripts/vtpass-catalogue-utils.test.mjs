@@ -135,6 +135,18 @@ test("quarantines the three known VTpass sandbox code conflicts", () => {
   }
 });
 
+test("quarantines conflicting variation codes even when code casing differs", () => {
+  const result = normalizeCatalogue({ content: { variations: [
+    { variation_code: "Plan-X", name: "1GB - 30 days", variation_amount: "100", fixedPrice: "Yes" },
+    { variation_code: "plan-x", name: "2GB - 30 days", variation_amount: "100", fixedPrice: "Yes" },
+    { variation_code: "PLAN-Y", name: "500MB - 7 days", variation_amount: "50", fixedPrice: "Yes" }
+  ] } });
+  assert.deepEqual(result.conflictCodes, ["Plan-X"]);
+  assert.equal(result.plans.length, 1);
+  assert.equal(result.plans[0].code, "PLAN-Y");
+  assert.equal(result.plans.some(plan => plan.code.toLowerCase() === "plan-x"), false);
+});
+
 test("accepts wrapped provider response and preserves decimal provider amount", () => {
   const result = normalizeCatalogue({
     providerResponse: {

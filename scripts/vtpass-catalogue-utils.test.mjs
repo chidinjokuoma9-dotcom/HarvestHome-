@@ -46,6 +46,30 @@ test("deduplicates identical rows and classifies bundle types", () => {
   assert.equal(classifyBundle("300 seconds voice bundle"), "voice");
 });
 
+test("normalizes mixed data-and-voice bundles into their own review category", () => {
+  const result = normalizeCatalogue({ content: { variations: [
+    {
+      variation_code: "eti-combo-test",
+      name: "200MB (100MB + 100MB Night) + 300 seconds",
+      variation_amount: "150",
+      fixedPrice: "Yes"
+    },
+    {
+      variation_code: "voice-test",
+      name: "300 seconds voice bundle",
+      variation_amount: "100",
+      fixedPrice: "Yes"
+    }
+  ] } }, { network: "9mobile", serviceId: "etisalat-data" });
+
+  const combined = result.plans.find(plan => plan.code === "eti-combo-test");
+  const voiceOnly = result.plans.find(plan => plan.code === "voice-test");
+  assert.equal(combined.bundleType, "combined-data-voice");
+  assert.equal(voiceOnly.bundleType, "voice");
+  assert.equal(combined.customerPrice, null);
+  assert.equal(combined.publishable, false);
+});
+
 test("pricing helper uses caller-supplied fee model and targets minimum contribution", () => {
   const result = minimumRetailPrice({
     providerCost: 100,

@@ -53,6 +53,8 @@ Calculate only after confirming the actual provider cost and current applicable 
 
 Use tiered pricing rather than one flat markup. Keep original decimal provider amounts for reconciliation. Do not mark prices final based solely on catalogue amounts or the sample fee function in the offline unit test.
 
+Paystack's official Nigeria pricing currently states local transactions are 1.5% + ₦100, with the ₦100 component waived for transactions under ₦2,500 and local transaction fees capped at ₦2,000. The exact fee must still be verified against HarvestHome's configured payment channel and checkout behavior before final prices are published. Official reference: https://support.paystack.com/en/articles/2130306
+
 ## Before customer-facing launch
 
 1. Re-fetch and compare each complete canonical catalogue against the saved review; quarantine any newly conflicting variation codes.

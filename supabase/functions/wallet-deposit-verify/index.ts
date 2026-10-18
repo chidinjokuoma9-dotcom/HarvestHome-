@@ -1,20 +1,27 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const cors = {
-  "Access-Control-Allow-Origin": "*",
+const allowedOrigin = Deno.env.get("WALLET_ALLOWED_ORIGIN") || "";
+const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Vary": "Origin",
   "Content-Type": "application/json",
 };
 
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), { status, headers: cors });
+function json(body: unknown, status = 200, origin = "") {
+  const headers = new Headers(corsHeaders);
+  if (origin && allowedOrigin && origin === allowedOrigin) headers.set("Access-Control-Allow-Origin", allowedOrigin);
+  return new Response(JSON.stringify(body), { status, headers });
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
-  if (req.method !== "POST") return json({ error: "POST requests only" }, 405);
+  const origin = req.headers.get("Origin") || "";
+  if (origin && (!allowedOrigin || origin !== allowedOrigin)) return json({ error: "Origin not allowed" }, 403, "");
+  const optionsHeaders = new Headers(corsHeaders);
+  if (origin && allowedOrigin && origin === allowedOrigin) optionsHeaders.set("Access-Control-Allow-Origin", allowedOrigin);
+  if (req.method === "OPTIONS") return new Response("ok", { headers: optionsHeaders });
+  if (req.method !== "POST") return json({ error: "POST requests only" }, 405, origin);
 
   try {
     const auth = req.headers.get("Authorization") || "";
@@ -39,14 +46,14 @@ serve(async (req) => {
       .select("reference,user_id,amount_kobo,currency,status,provider_reference")
       .eq("reference", reference).eq("user_id", user.id).maybeSingle();
     if (intentError) throw intentError;
-    if (!intent) return json({ error: "This deposit request was not found for your account." }, 404);
+    if (!intent) return json({ error: "This deposit request was not found for your account." }, 404, origin);
     if (intent.status === "success") {
       const { data: wallet } = await serviceClient.from("wallet_accounts")
         .select("balance_kobo,currency").eq("user_id", user.id).maybeSingle();
-      return json({ success: true, status: "success", reference, balance_kobo: wallet?.balance_kobo ?? null, idempotent: true });
+      return json({ success: true, status: "success", reference, balance_kobo: wallet?.balance_kobo ?? null, idempotent: true }, 200, origin);
     }
     if (!["initialized", "pending"].includes(intent.status)) {
-      return json({ error: "This deposit is not awaiting verification.", status: intent.status }, 409);
+      return json({ error: "This deposit is not awaiting verification.", status: intent.status }, 409, origin);
     }
 
     const response = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`, {
@@ -59,7 +66,7 @@ serve(async (req) => {
     const tx = result.data;
     if (String(tx.reference) !== reference) throw new Error("Paystack reference does not match this deposit.");
     if (String(tx.status) !== "success") {
-      return json({ success: false, status: String(tx.status || "pending"), reference, message: "Payment is not confirmed yet. No wallet balance has been added." }, 202);
+      return json({ success: false, status: String(tx.status || "pending"), reference, message: "Payment is not confirmed yet. No wallet balance has been added." }, 202, origin);
     }
     if (Number(tx.amount) !== Number(intent.amount_kobo)) throw new Error("Paid amount does not match the deposit request.");
     if (String(tx.currency).toUpperCase() !== "NGN" || intent.currency !== "NGN") throw new Error("Deposit currency must be NGN.");
@@ -87,9 +94,9 @@ serve(async (req) => {
       balance_kobo: wallet?.balance_kobo ?? credited?.balance_after_kobo ?? null,
       currency: "NGN",
       idempotent: Boolean(credited?.idempotent),
-    });
+    }, 200, origin);
   } catch (error) {
     console.error("wallet-deposit-verify error", error);
-    return json({ error: error instanceof Error ? error.message : "Wallet deposit verification failed." }, 400);
+    return json({ error: error instanceof Error ? error.message : "Wallet deposit verification failed." }, 400, req.headers.get("Origin") || "");
   }
 });

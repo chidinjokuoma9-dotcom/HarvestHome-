@@ -39,11 +39,16 @@ test("order and event tables enable RLS and restrict customer access to owned re
   assert.ok(!/grant all|grant insert|grant update/i.test(schema));
   assert.ok(schema.includes("revoke all on function public.claim_vtu_provider_attempt(uuid, text) from public, anon, authenticated"));
   assert.ok(schema.includes("grant execute on function public.claim_vtu_provider_attempt(uuid, text) to service_role"));
+  assert.ok(schema.includes("grant select, insert, update on table public.vtu_orders to service_role"));
+  assert.ok(schema.includes("grant select, insert on table public.vtu_order_events to service_role"));
+  assert.ok(schema.includes("grant usage, select on sequence public.vtu_order_events_id_seq to service_role"));
 });
 
 test("provider attempt reservation is atomic, one-time, and service-role only", () => {
   assert.ok(schema.includes("create or replace function public.claim_vtu_provider_attempt("));
   assert.ok(schema.includes("security invoker"));
+  assert.ok(schema.includes("as $vtu$"));
+  assert.ok(schema.includes("$vtu$;"));
   assert.ok(schema.includes("set search_path = ''"));
   assert.ok(schema.includes("and o.order_status = 'payment_verified'"));
   assert.ok(schema.includes("and o.provider_request_id is null"));

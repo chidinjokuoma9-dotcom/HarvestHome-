@@ -34,6 +34,19 @@ test("order and event tables enable RLS and restrict customer access to owned re
   assert.ok(schema.includes("grant select on table public.vtu_orders to authenticated"));
   assert.ok(schema.includes("grant select on table public.vtu_order_events to authenticated"));
   assert.ok(!/grant all|grant insert|grant update/i.test(schema));
+  assert.ok(schema.includes("revoke all on function public.claim_vtu_provider_attempt(uuid, text) from public, anon, authenticated"));
+  assert.ok(schema.includes("grant execute on function public.claim_vtu_provider_attempt(uuid, text) to service_role"));
+});
+
+test("provider attempt reservation is atomic, one-time, and service-role only", () => {
+  assert.ok(schema.includes("create or replace function public.claim_vtu_provider_attempt("));
+  assert.ok(schema.includes("security invoker"));
+  assert.ok(schema.includes("set search_path = ''"));
+  assert.ok(schema.includes("and o.order_status = 'payment_verified'"));
+  assert.ok(schema.includes("and o.provider_request_id is null"));
+  assert.ok(schema.includes("and o.provider_attempt_count = 0"));
+  assert.ok(schema.includes("provider_attempt_count = 1"));
+  assert.ok(schema.includes("returning"));
 });
 
 test("phase-one order design does not introduce a customer or reseller wallet", () => {

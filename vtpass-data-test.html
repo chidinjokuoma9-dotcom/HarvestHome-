@@ -107,22 +107,19 @@
     summary.textContent = "Checking " + networkSelect.options[networkSelect.selectedIndex].text + "…";
     result.textContent = "Reading " + serviceID + " variations. This is a GET/read-only request.";
     try {
-      const { data, error } = await client.functions.invoke("vtpass-test-data-variations", {
+      let data;
+      const response = await fetch(config.SUPABASE_URL + "/functions/v1/vtpass-test-data-variations?serviceID=" + encodeURIComponent(serviceID), {
         method: "GET",
-        queryParams: { serviceID },
-        headers: { Authorization: "Bearer " + accessToken }
+        headers: {
+          "apikey": config.SUPABASE_ANON_KEY,
+          "Authorization": "Bearer " + accessToken,
+          "Accept": "application/json"
+        }
       });
-      if (error) {
-        let detail = { error: error.message || "Function request failed." };
-        try {
-          if (error.context && typeof error.context.clone === "function") {
-            const response = error.context.clone();
-            detail.http_status = response.status;
-            detail.response = await response.json().catch(async () => ({ text: (await response.text()).slice(0, 1000) }));
-          }
-        } catch (_) {}
+      data = await response.json().catch(() => ({ ok: false, message: "Endpoint returned a non-JSON response." }));
+      if (!response.ok || !data) {
         summary.textContent = "Endpoint check failed. No purchase was attempted.";
-        result.textContent = JSON.stringify(detail, null, 2);
+        result.textContent = JSON.stringify({ http_status: response.status, response: data }, null, 2);
         return;
       }
       const safeMode = data?.mode === "sandbox" || data?.mode === "test";

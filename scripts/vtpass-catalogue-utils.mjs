@@ -22,6 +22,14 @@ export function classifyBundle(name = "") {
   return "standard-data";
 }
 
+// Owner decision: exclude these ambiguous codes even if a later catalogue response
+// returns only one row for them. Re-enable only after an explicit owner decision.
+const OWNER_EXCLUDED_CODES = new Set([
+  "mtn-xtratalk-300",
+  "glo-mega-75000",
+  "eti-1000"
+]);
+
 function fingerprint(item) {
   return JSON.stringify([
     String(item.name ?? "").trim(),
@@ -86,8 +94,19 @@ export function normalizeCatalogue(payload, { network = "", serviceId = "" } = {
   const plans = [];
   let duplicateExactCount = 0;
   const conflictCodes = [];
+  const excludedCodes = [];
 
   for (const { code, items } of byCode.values()) {
+    if (OWNER_EXCLUDED_CODES.has(code.toLowerCase())) {
+      excludedCodes.push(code);
+      quarantined.push({
+        code,
+        reason: "owner-excluded-conflicting-code",
+        candidates: items.map(({ name, providerAmount, providerAmountRaw, fixedPrice }) =>
+          ({ name, providerAmount, providerAmountRaw, fixedPrice }))
+      });
+      continue;
+    }
     const uniqueByFingerprint = new Map();
     for (const item of items) uniqueByFingerprint.set(fingerprint({
       name: item.name, variation_amount: item.providerAmount, fixedPrice: item.fixedPrice
@@ -135,6 +154,7 @@ export function normalizeCatalogue(payload, { network = "", serviceId = "" } = {
     duplicateExactCount,
     invalidCount,
     conflictCodes,
+    excludedCodes,
     plans,
     quarantined
   };

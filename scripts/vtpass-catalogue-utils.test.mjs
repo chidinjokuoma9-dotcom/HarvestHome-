@@ -54,7 +54,7 @@ test("pricing helper uses caller-supplied fee model and targets minimum contribu
 });
 
 test("pricing helper validates missing fee calculator and returns null when cap is too low", () => {
-  assert.throws(() => minimumRetailPrice({ providerCost: 100 }), /fee calculator/);
+  assert.throws(() => minimumRetailPrice({ providerCost: 100 }), /must be a function/);
   assert.equal(minimumRetailPrice({
     providerCost: 100, maxPrice: 120, estimatePaymentFee: () => 5, targetProfit: 30
   }), null);

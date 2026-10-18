@@ -143,7 +143,7 @@ jobs:
           for item in [
               'name="robots" content="noindex,nofollow,noarchive"',
               'href="/vtpass-airtime-test.html"',
-              'href="/"',
+              'href="/vtpass-data-test.html"',
               "No customer checkout or live purchase is available here",
           ]:
               if item not in hub:

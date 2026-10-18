@@ -53,6 +53,19 @@ Review findings:
 - **No obvious repeated variation code** appears in the canonical 26-row Airtel array, but this is only a review of the user-shared snapshot; re-check the live sandbox catalogue before publication.
 - **Pricing and plan verification:** The catalogue labels entries `fixedPrice: Yes`, but that does not establish HarvestHome's wholesale cost, net commission, customer price, or final eligibility. Keep all customer prices null and plans unpublished until provider charges, exact bundle terms, and payment fees are confirmed.
 
+### Glo catalogue review — user-shared sandbox response (2026-10-18)
+
+The canonical `content.variations` array was reviewed from the user's sandbox response. The repeated misspelled `varations` property duplicates the same catalogue and must not be counted or merged. This response contains a mixed catalogue, not just ordinary data bundles.
+
+Review findings:
+- **Critical duplicate-code conflict:** `glo-mega-75000` appears for both `N75000 675GB` (₦75,000) and `N100000 1TB` (₦100,000). Quarantine both rows until VTpass confirms the correct unique variation code for each plan. Never choose one automatically.
+- **Keep SME separate:** Codes such as `glo-dg-70`, `glo-dg-320`, `glo-dg-960`, `glo-dg-3100`, `glo-dg-640`, `glo-dg-160-14`, and `glo-dg-1600` are explicitly labelled SME and should be identified as such, with eligibility/transfer restrictions confirmed before sale.
+- **Separate night and time-limited offers:** `glo-daily-*`, `glo-2days-*`, `glo-2weeks-*`, and `glo-monthly-*` include combined day/night data or specific one-off validity. Do not advertise combined data as fully anytime data; verify the validity wording.
+- **Separate special, weekend, and mega offers:** `glo-special-*`, `glo-weekend-500`, and `glo-mega-*` should retain their category and restrictions in the customer-facing label.
+- **Exclude non-general-data products from ordinary data bundles:** `glo-tv-*` are TV/VOD offers; `glo-wtf-*`, `glo-telegram-*`, `glo-insta-*`, `glo-tiktok-*`, `glo-opera-*`, `glo-youtube-*`, and `glo-social-oneoff-*` are app-, service-, or social-specific offers and need clear category labels. Do not mix them into a plain anytime-data list.
+- **Price is not wholesale cost:** Even where `variation_amount` is a round naira amount and `fixedPrice` is `Yes`, this response does not prove HarvestHome's provider debit or net reseller cost. Keep customer prices null and publication disabled pending provider confirmation.
+- **No other duplicate code was confirmed in this snapshot** beyond `glo-mega-75000`; re-check the canonical array before publication.
+
 ### Variation codes that must stay quarantined
 
 - MTN: 'mtn-xtratalk-300' — two different Xtratalk descriptions/amounts.

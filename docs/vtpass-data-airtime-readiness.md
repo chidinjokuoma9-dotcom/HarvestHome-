@@ -92,6 +92,18 @@ Additional review flags:
 - Glo TV/VOD, social/app-specific, night, SME, special and voice-style bundles must be correctly separated and labelled.
 - Confirm plan capacity, validity, restrictions, variation code and actual provider charge with VTpass before publishing.
 
+## VTpass clarification required before final prices
+
+Ask VTpass support to confirm these items in writing before customer prices or live transactions are enabled:
+
+1. For each data `variation_code`, is `variation_amount` the end-user retail amount, the reseller debit, or another reference amount? What exact amount will be deducted from HarvestHome's VTpass wallet for one successful vend?
+2. What is HarvestHome's actual airtime commission/net debit on a ₦100 MTN VTU transaction? The sandbox re-query returned `total_amount: 96.5` but `commission: 4` and `commission_details.rate: 3.50`; please explain which ledger field determines the actual wallet debit.
+3. Please provide corrected, unique variation codes for the conflicting catalogue entries: MTN `mtn-xtratalk-300`, Glo `glo-mega-75000`, and 9mobile `eti-1000`.
+4. Confirm whether the SME, night-data, social/app-specific, TV/VOD, binge, combined data/voice and long-validity offers are available to this account and disclose their exact restrictions.
+5. Confirm whether sandbox commission and variation values match live account pricing, and provide the live fee/commission schedule for this account.
+
+Until these answers are received and reconciled against a test transaction's actual wallet ledger, the catalogue helper must keep customer prices null and all plans unpublished.
+
 ## Pricing gate
 
 HarvestHome's target is at least **₦30 contribution on eligible plans after applicable Paystack fees and other transaction costs**, while remaining competitive. This is a target, not a promise that every catalogue item can meet it.

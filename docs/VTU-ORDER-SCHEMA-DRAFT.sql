@@ -58,6 +58,14 @@ create index if not exists vtu_order_events_order_created_idx
 alter table public.vtu_orders enable row level security;
 alter table public.vtu_order_events enable row level security;
 
+-- Explicitly remove default/direct client write privileges. Only trusted server-side
+-- functions should mutate orders and append audit events. Authenticated clients get
+-- read permission only, then RLS limits reads to their own order.
+revoke all on table public.vtu_orders from anon, authenticated;
+revoke all on table public.vtu_order_events from anon, authenticated;
+grant select on table public.vtu_orders to authenticated;
+grant select on table public.vtu_order_events to authenticated;
+
 -- Customers can inspect only their own order records. Do not add client INSERT/UPDATE
 -- policies: order creation, payment verification, provider calls and state changes
 -- must be performed by trusted server-side handlers.

@@ -144,6 +144,8 @@
         return;
       }
       const grouped = new Map();
+      const ownerExcludedCodes = new Set(["mtn-xtratalk-300", "glo-mega-75000", "eti-1000"]);
+      const ownerExcludedRows = [];
       let invalidRowsExcluded = 0;
       for (const row of source) {
         const code = String(row?.variation_code ?? "").trim();
@@ -151,6 +153,10 @@
         const amount = Number(row?.variation_amount);
         if (!code || !name || !Number.isFinite(amount) || amount < 0) {
           invalidRowsExcluded += 1;
+          continue;
+        }
+        if (ownerExcludedCodes.has(code.toLowerCase())) {
+          ownerExcludedRows.push({ variation_code: code, name, variation_amount: amount, reason: "owner-excluded-conflicting-code" });
           continue;
         }
         const key = code.toLowerCase();
@@ -185,7 +191,8 @@
       const voiceOrCombined = plans.filter(plan => /xtratalk|voice|minutes|secs|airtime|\b\d+\s*(?:seconds?|secs?|mins?|minutes?)\b/i.test(plan.name));
       const ordinaryDataCandidates = plans.filter(plan => !voiceOrCombined.includes(plan));
       summary.textContent = "Read-only catalogue normalized: " + ordinaryDataCandidates.length
-        + " unique data candidates; " + quarantined.length + " conflicting variation code(s) excluded. All plans remain unpublished pending provider and price verification.";
+        + " unique data candidates; " + quarantined.length + " newly conflicting code(s) excluded; "
+        + ownerExcludedCodes.size + " owner-blocked code(s) excluded. All plans remain unpublished pending provider and price verification.";
       result.textContent = JSON.stringify({
         mode: data?.mode,
         readOnly: data?.readOnly === true,
@@ -197,6 +204,8 @@
         exactDuplicateRowsRemoved: duplicateExactRowsRemoved,
         invalidRowsExcluded,
         quarantinedConflictingCodes: quarantined,
+        ownerExcludedCodes: [...ownerExcludedCodes],
+        ownerExcludedRows,
         plans: ordinaryDataCandidates,
         separatedVoiceOrCombinedRows: voiceOrCombined.map(plan => ({
           variation_code: plan.code,
@@ -205,7 +214,7 @@
           status: "review-required",
           publishable: false
         })),
-        note: "Only canonical content.variations was read. Conflicting variation codes are omitted entirely, exact duplicate rows are collapsed, no customer prices are assigned, and no plan is approved or published."
+        note: "Only canonical content.variations was read. The three owner-blocked codes are excluded even if only one row is returned; newly conflicting variation codes are also omitted, exact duplicate rows are collapsed, no customer prices are assigned, and no plan is approved or published."
       }, null, 2);
     } catch (_) {
       summary.textContent = "Request failed. No purchase was attempted.";

@@ -131,3 +131,11 @@ Paystack's official Nigeria pricing currently states local transactions are 1.5%
 ## Scope protection
 
 This review is documentation only. Do not alter HarvestHome's existing marketplace listings, Paystack feature-listing payments, seller verification, chat, or AdSense integration as part of VTpass testing.
+
+
+## Additional transaction-outcome safeguards — 2026-10-18
+
+- Added pure helper `scripts/vtpass-transaction-utils.mjs` and offline tests. The helper classifies a response as delivered only when the HTTP request succeeded, provider code is `000`, and provider status is `delivered`.
+- Pending/in-progress responses require status re-query; provider-reported failed responses are not marked delivered; contradictory or incomplete responses remain in review. Automatic retry is always disallowed by this helper to avoid duplicate transactions.
+- This is a tested safety utility, not yet wired into customer checkout or production fulfilment. It does not verify Paystack payment, prove a provider wallet debit, or authorize live purchases. Existing marketplace and production configuration remain unchanged.
+- The GitHub Actions workflow now runs both catalogue helper tests and transaction-outcome safety tests on relevant development-branch changes.

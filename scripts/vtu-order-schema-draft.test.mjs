@@ -30,7 +30,7 @@ test("order and event tables enable RLS and restrict customer access to owned re
   assert.match(schema, /auth\\.uid\\(\\)\\) = user_id/i);
   assert.match(schema, /o\\.user_id = \\(select auth\\.uid\\(\\)\\)/i);
   assert.doesNotMatch(schema, /for (insert|update|delete) to authenticated/i);
-  assert.doesNotMatch(schema, /grant all|grant insert|grant update/i);
+  assert.match(schema, /revoke all on table public\\.vtu_orders from anon, authenticated/i);\n  assert.match(schema, /revoke all on table public\\.vtu_order_events from anon, authenticated/i);\n  assert.match(schema, /grant select on table public\\.vtu_orders to authenticated/i);\n  assert.match(schema, /grant select on table public\\.vtu_order_events to authenticated/i);\n  assert.doesNotMatch(schema, /grant all|grant insert|grant update/i);
 });
 
 test("phase-one order design does not introduce a customer or reseller wallet", () => {

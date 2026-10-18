@@ -9,6 +9,7 @@ on:
       - "airtime-test.html"
       - "vtu-test.html"
       - "vtu-shop-preview.html"
+      - "wallet-preview.html"
       - "Config.js"
       - "wrangler.meledata-preview.toml"
       - ".github/workflows/deploy-meledata-preview.yml"
@@ -33,6 +34,7 @@ jobs:
           cp airtime-test.html .meledata-preview/airtime-test.html
           cp vtu-test.html .meledata-preview/vtu.html
           cp vtu-shop-preview.html .meledata-preview/shop.html
+          cp wallet-preview.html .meledata-preview/wallet-preview.html
           cp Config.js .meledata-preview/Config.js
 
       - name: Create Cloudflare Worker Preview (not production)

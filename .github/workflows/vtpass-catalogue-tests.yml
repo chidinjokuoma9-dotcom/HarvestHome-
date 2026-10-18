@@ -1,4 +1,4 @@
-name: VTpass Catalogue Helper Tests
+name: VTpass Catalogue and Transaction Safety Tests
 
 on:
   push:
@@ -7,6 +7,8 @@ on:
     paths:
       - "scripts/vtpass-catalogue-utils.mjs"
       - "scripts/vtpass-catalogue-utils.test.mjs"
+      - "scripts/vtpass-transaction-utils.mjs"
+      - "scripts/vtpass-transaction-utils.test.mjs"
       - ".github/workflows/vtpass-catalogue-tests.yml"
   workflow_dispatch:
 
@@ -25,3 +27,5 @@ jobs:
           node-version: "22"
       - name: Run offline catalogue helper tests
         run: node --test scripts/vtpass-catalogue-utils.test.mjs
+      - name: Run transaction outcome safety tests
+        run: node --test scripts/vtpass-transaction-utils.test.mjs

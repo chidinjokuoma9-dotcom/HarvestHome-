@@ -3,7 +3,7 @@
  * Pure helper for tests/review only; it does not call providers, process payment,
  * fulfil customer orders, or authorize automatic retries.
  */
-export function interpretVtpassResult({ httpOk = false, providerResponse = {} } = {}) {
+export function interpretVtpassResult({ httpOk = false, providerResponse = {}, paymentVerified = false } = {}) {
   const response = providerResponse && typeof providerResponse === "object" ? providerResponse : {};
   const tx = response?.content?.transactions && typeof response.content.transactions === "object"
     ? response.content.transactions
@@ -22,7 +22,9 @@ export function interpretVtpassResult({ httpOk = false, providerResponse = {} } 
     reason = "HTTP request was not successful; provider transaction outcome is not established.";
   } else if (code === "000" && status === "delivered") {
     decision = "delivered";
-    reason = "Provider reports code 000 and delivered status. This alone does not prove customer payment was verified.";
+    reason = paymentVerified === true
+      ? "Provider reports delivery and payment is marked verified by the caller; reconcile both records before final fulfilment."
+      : "Provider reports delivery, but payment verification was not supplied. Do not mark the customer order fulfilled from provider status alone.";
   } else if (["pending", "initiated", "processing", "in progress"].includes(status)) {
     decision = "pending";
     reason = "Provider reports a pending/in-progress state. Re-query the same request ID; do not submit a duplicate.";
@@ -34,12 +36,15 @@ export function interpretVtpassResult({ httpOk = false, providerResponse = {} } 
     reason = "Provider code conflicts with delivered status. Do not fulfil or retry automatically; reconcile the transaction.";
   }
 
+  const providerReportsDelivered = decision === "delivered";
   return {
     decision,
     providerCode: code || null,
     providerStatus: status || null,
     description: description || null,
-    customerMayBeMarkedDelivered: decision === "delivered",
+    providerReportsDelivered,
+    paymentVerified: paymentVerified === true,
+    customerMayBeMarkedDelivered: providerReportsDelivered && paymentVerified === true,
     requiresStatusRequery: decision === "pending" || decision === "review",
     automaticRetryAllowed: false,
     reason

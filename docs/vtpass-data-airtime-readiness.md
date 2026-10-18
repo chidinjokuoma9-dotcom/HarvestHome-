@@ -14,12 +14,9 @@
 
 ## Latest engineering checks — 2026-10-18
 
-- The isolated Cloudflare preview deployment completed successfully for commit `56807d2e5bfaf239291fc509ebac721a0dafb0cd`; the latest airtime page includes an input for an existing request ID so status can be checked after clearing the page/session.
-- GitHub Actions validation passed for commit `56807d2e5bfaf239291fc509ebac721a0dafb0cd`.
-- GitHub Actions deployment for the isolated preview also completed successfully for commit `56807d2e5bfaf239291fc509ebac721a0dafb0cd`.
-- The VTpass catalogue helper test workflow passed for commit `a2395ceb9cd53a6d11b8baf998b1be76b21d95a3`.
-- Supabase lists `vtpass-test-airtime-status` as ACTIVE, version 1, with JWT verification enabled. Its code calls the sandbox `/api/requery` endpoint only and contains no purchase endpoint.
-- **Not yet confirmed:** a real status-only call to VTpass for request ID `2026101808275045f5dbc5`. The status page now allows this existing ID to be pasted after sign-in; use **Check status (no new purchase)**. Do not send another purchase, and do not claim status re-query passed until the provider returns the status response.
+- The VTU hub link was corrected so the data catalogue button opens `/vtpass-data-test.html` instead of the old root page.
+- The preview deployment completed successfully for commit `8eccf5e17382211454dae92c86befd3168d80802`; the updated VTU hub is included in the isolated preview. The production Worker and `harvesthome.ng` were not deployed.
+- The first validation run after the hub-link correction failed because the safety validator still expected the old root-page link. The validator was updated to require the correct VTpass data test link, and the new validation run passed for commit `2f5ff9b327ba9672ca013021203d7fb5242b0e6b`.
 
 ## Catalogue review snapshot
 

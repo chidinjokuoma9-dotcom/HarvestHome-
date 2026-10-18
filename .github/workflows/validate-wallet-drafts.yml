@@ -56,7 +56,7 @@ jobs:
               (sql, "from public, anon, authenticated", "Public RPC execution must be revoked"),
               (plan, "have **not** been deployed", "Plan must clearly state drafts are not deployed"),
               (checklist, "NOT READY FOR CUSTOMER PAYMENTS", "Checklist must block customer payments before testing"),
-              (checklist, "Duplicate verification does not credit twice", "Checklist must cover duplicate verification"),
+              (checklist, "Repeating verification does not credit twice", "Checklist must cover duplicate verification"),
           ]
           for source, needle, message in checks:
               if needle.lower() not in source.lower():

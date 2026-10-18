@@ -1,0 +1,139 @@
+/**
+ * HarvestHome VTpass catalogue review helpers.
+ * Pure functions only: no network requests, credentials, payments, provider calls,
+ * or production integration. Deliberately fails closed on conflicting variation codes.
+ */
+
+/** Classify a provider bundle for display/review. This is a heuristic, not provider validation. */
+export function classifyBundle(name = "") {
+  const value = String(name).toLowerCase();
+  if (/xtratalk|voice|minutes|secs|airtime/.test(value)) return "voice";
+  if (/whatsapp|instagram|tiktok|telegram|youtube|opera|social|\bwtf\b/.test(value)) return "app-specific";
+  if (/glo tv|\btv\b|vod|streaming/.test(value)) return "video-streaming";
+  if (/night/.test(value)) return "night-bonus";
+  if (/\bsme\b/.test(value)) return "sme";
+  if (/special|weekend|mega/.test(value)) return "special";
+  return "standard-data";
+}
+
+function fingerprint(item) {
+  return JSON.stringify([
+    String(item.name ?? "").trim(),
+    Number(item.variation_amount),
+    String(item.fixedPrice ?? "")
+  ]);
+}
+
+/**
+ * Read only content.variations (never the misspelled duplicate varations field).
+ * Conflicting codes are quarantined as a group so no ambiguous item is publishable.
+ */
+export function normalizeCatalogue(payload, { network = "", serviceId = "" } = {}) {
+  const source = payload?.providerResponse?.content?.variations
+    ?? payload?.content?.variations;
+
+  if (!Array.isArray(source)) {
+    return {
+      network, serviceId, sourceCount: 0, uniqueCount: 0,
+      plans: [], quarantined: [{ reason: "missing-canonical-variations-array" }]
+    };
+  }
+
+  const byCode = new Map();
+  const quarantined = [];
+  let invalidCount = 0;
+
+  for (const raw of source) {
+    const code = String(raw?.variation_code ?? "").trim();
+    const amount = Number(raw?.variation_amount);
+    const name = String(raw?.name ?? "").trim();
+
+    if (!code || !name || !Number.isFinite(amount) || amount < 0) {
+      invalidCount += 1;
+      quarantined.push({ code: code || null, name: name || null, reason: "invalid-code-name-or-amount" });
+      continue;
+    }
+    const item = { code, name, providerAmount: amount, providerAmountRaw: String(raw.variation_amount), fixedPrice: raw.fixedPrice ?? null };
+    const list = byCode.get(code) ?? [];
+    list.push(item);
+    byCode.set(code, list);
+  }
+
+  const plans = [];
+  let duplicateExactCount = 0;
+  const conflictCodes = [];
+
+  for (const [code, items] of byCode) {
+    const uniqueByFingerprint = new Map();
+    for (const item of items) uniqueByFingerprint.set(fingerprint({
+      name: item.name, variation_amount: item.providerAmount, fixedPrice: item.fixedPrice
+    }), item);
+    const distinct = [...uniqueByFingerprint.values()];
+
+    if (distinct.length > 1) {
+      conflictCodes.push(code);
+      quarantined.push({
+        code,
+        reason: "conflicting-variation-code",
+        candidates: distinct.map(({ name, providerAmount, providerAmountRaw, fixedPrice }) =>
+          ({ name, providerAmount, providerAmountRaw, fixedPrice }))
+      });
+      continue;
+    }
+
+    duplicateExactCount += Math.max(0, items.length - 1);
+    const item = distinct[0];
+    plans.push({
+      network,
+      serviceId,
+      code: item.code,
+      name: item.name,
+      providerAmount: item.providerAmount,
+      providerAmountRaw: item.providerAmountRaw,
+      fixedPrice: item.fixedPrice,
+      bundleType: classifyBundle(item.name),
+      status: "review-required",
+      customerPrice: null,
+      publishable: false,
+      reviewFlags: ["verify-size-validity-eligibility-and-provider-cost"]
+    });
+  }
+
+  return {
+    network, serviceId, sourceCount: source.length,
+    uniqueCount: plans.length,
+    duplicateExactCount,
+    invalidCount,
+    conflictCodes,
+    plans,
+    quarantined
+  };
+}
+
+/**
+ * Finds the lowest whole-naira retail price that meets a target contribution.
+ * Caller must supply an up-to-date fee calculator; no Paystack fee is assumed.
+ * Returns null if no price is found within maxPrice.
+ */
+export function minimumRetailPrice({
+  providerCost,
+  estimatePaymentFee,
+  targetProfit = 30,
+  maxPrice = 1000000
+}) {
+  const cost = Number(providerCost);
+  if (!Number.isFinite(cost) || cost < 0) throw new TypeError("providerCost must be a non-negative number");
+  if (typeof estimatePaymentFee !== "function") throw new TypeError("estimatePaymentFee must be a function");
+  if (!Number.isFinite(targetProfit) || targetProfit < 0) throw new TypeError("targetProfit must be non-negative");
+  if (!Number.isFinite(maxPrice) || maxPrice < cost) return null;
+
+  for (let price = Math.ceil(cost); price <= maxPrice; price += 1) {
+    const fee = Number(estimatePaymentFee(price));
+    if (!Number.isFinite(fee) || fee < 0) throw new TypeError("fee calculator must return a non-negative number");
+    const contribution = price - cost - fee;
+    if (contribution + 1e-9 >= targetProfit) {
+      return { customerPrice: price, estimatedFee: fee, estimatedContribution: contribution };
+    }
+  }
+  return null;
+}

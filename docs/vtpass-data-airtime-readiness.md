@@ -47,7 +47,7 @@ The canonical `content.variations` array contains **26 entries**: 22 data/binge-
 
 Review findings:
 - **Separate voice bundles:** `airt-voice-100`, `airt-voice-200`, `airt-voice-500`, and `airt-voice-1000` are voice bundles, not data plans. Exclude them from the data catalogue.
-- **Keep different validity periods separate:** Examples include 1.5GB for 30 days (`airt-1000`) versus 1.5GB for 7 days (`airt-1000-7)); 7GB for 7 days (`airt-2000-7`) differs from the 4.5GB 30-day plan (`airt-2000`).
+- **Keep different validity periods separate:** Examples include 1.5GB for 30 days (`airt-1000`) versus 1.5GB for 7 days (`airt-1000-7`); 7GB for 7 days (`airt-2000-7`) differs from the 4.5GB 30-day plan (`airt-2000`).
 - **Binge plan:** `airt-1500-2` is described as 6GB for 7 days; retain its distinct name/validity rather than merging it with the standard 3GB 30-day `airt-1500`.
 - **Fractional amounts:** Several returned `variation_amount` values are decimals slightly below their rounded marketing amounts (for example, `airt-50` is 49.99 and `airt-200` is 199.03). Preserve the exact returned amount for reconciliation; do not round it or assume it is HarvestHome's wholesale debit cost.
 - **No obvious repeated variation code** appears in the canonical 26-row Airtel array, but this is only a review of the user-shared snapshot; re-check the live sandbox catalogue before publication.

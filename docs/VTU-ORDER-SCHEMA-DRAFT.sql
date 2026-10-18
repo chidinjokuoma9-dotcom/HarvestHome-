@@ -93,6 +93,119 @@ create policy "Customers can read their own VTU order events"
       and o.user_id = (select auth.uid())
   ));
 
+-- Idempotent order creation plus initial audit event. The caller must be a trusted
+-- Edge Function that authenticates the user and resolves an approved catalogue row
+-- and server-calculated price before calling this function. This SQL function does
+-- not itself approve catalogue entries or determine retail prices.
+create or replace function public.create_vtu_order(
+  p_user_id uuid,
+  p_idempotency_key text,
+  p_network text,
+  p_product_type text,
+  p_service_id text,
+  p_variation_code text,
+  p_product_label text,
+  p_recipient_phone text,
+  p_amount_kobo bigint
+)
+returns table (
+  order_id uuid,
+  order_status text,
+  payment_status text,
+  amount_kobo bigint,
+  currency text,
+  created_at timestamptz,
+  was_created boolean
+)
+language plpgsql
+security invoker
+set search_path = ''
+as $vtu$
+declare
+  created public.vtu_orders%rowtype;
+  existing public.vtu_orders%rowtype;
+begin
+  if p_user_id is null
+     or p_idempotency_key is null
+     or length(trim(p_idempotency_key)) < 16
+     or length(trim(p_idempotency_key)) > 160
+     or p_network not in ('MTN', 'AIRTEL', 'GLO', '9MOBILE')
+     or p_product_type not in ('data', 'airtime')
+     or p_service_id is null or length(trim(p_service_id)) = 0
+     or p_product_label is null or length(trim(p_product_label)) = 0
+     or p_recipient_phone is null or length(trim(p_recipient_phone)) = 0
+     or p_amount_kobo is null or p_amount_kobo <= 0
+     or (p_product_type = 'data' and (p_variation_code is null or length(trim(p_variation_code)) = 0))
+     or (p_product_type = 'airtime' and p_variation_code is not null)
+  then
+    raise exception 'Invalid VTU order input';
+  end if;
+
+  insert into public.vtu_orders (
+    user_id, idempotency_key, network, product_type, service_id,
+    variation_code, product_label, recipient_phone, amount_kobo
+  ) values (
+    p_user_id, trim(p_idempotency_key), p_network, p_product_type, trim(p_service_id),
+    nullif(trim(coalesce(p_variation_code, '')), ''), trim(p_product_label),
+    trim(p_recipient_phone), p_amount_kobo
+  )
+  on conflict (idempotency_key) do nothing
+  returning * into created;
+
+  if found then
+    insert into public.vtu_order_events (
+      order_id, event_key, event_type, source, details
+    ) values (
+      created.id,
+      'order_created',
+      'order_created',
+      'system',
+      jsonb_build_object(
+        'product_type', created.product_type,
+        'network', created.network,
+        'amount_kobo', created.amount_kobo,
+        'currency', created.currency
+      )
+    );
+
+    return query select created.id, created.order_status, created.payment_status,
+      created.amount_kobo, created.currency, created.created_at, true;
+    return;
+  end if;
+
+  -- A repeated idempotency key returns the existing order only when every
+  -- material field matches. Reusing a key for a different purchase is rejected.
+  select o.* into existing
+  from public.vtu_orders as o
+  where o.idempotency_key = trim(p_idempotency_key)
+  for update;
+
+  if not found then
+    raise exception 'Could not resolve existing VTU order for idempotency key';
+  end if;
+
+  if existing.user_id is distinct from p_user_id
+     or existing.network is distinct from p_network
+     or existing.product_type is distinct from p_product_type
+     or existing.service_id is distinct from trim(p_service_id)
+     or existing.variation_code is distinct from nullif(trim(coalesce(p_variation_code, '')), '')
+     or existing.product_label is distinct from trim(p_product_label)
+     or existing.recipient_phone is distinct from trim(p_recipient_phone)
+     or existing.amount_kobo is distinct from p_amount_kobo
+  then
+    raise exception 'Idempotency key was already used for a different VTU order';
+  end if;
+
+  return query select existing.id, existing.order_status, existing.payment_status,
+    existing.amount_kobo, existing.currency, existing.created_at, false;
+end;
+$vtu$;
+
+revoke all on function public.create_vtu_order(uuid, text, text, text, text, text, text, text, bigint)
+  from public, anon, authenticated;
+grant execute on function public.create_vtu_order(uuid, text, text, text, text, text, text, text, bigint)
+  to service_role;
+
 -- Atomic single-attempt reservation plus audit event. A trusted server handler
 -- must confirm exactly one row was returned before it sends the VTpass purchase.
 -- The request ID is reserved, not yet marked as submitted. The order update and

@@ -129,7 +129,85 @@
       } else {
         summary.innerHTML = '<span class="bad">Safety status not confirmed. Treat this response as unapproved and do not proceed to purchases.</span>';
       }
-      result.textContent = JSON.stringify(data, null, 2);
+      // Normalize only the canonical variations array. Never merge the provider's misspelled "varations" alias.
+      // A variation code with conflicting names or amounts is excluded as a whole.
+      const source = data?.providerResponse?.content?.variations;
+      if (!Array.isArray(source)) {
+        result.textContent = JSON.stringify({
+          mode: data?.mode,
+          serviceID,
+          readOnly: data?.readOnly === true,
+          purchasesEnabled: data?.purchasesEnabled,
+          status: "Catalogue not normalized: canonical content.variations array was missing.",
+          note: "No plans were approved or published."
+        }, null, 2);
+        return;
+      }
+      const grouped = new Map();
+      let invalidRowsExcluded = 0;
+      for (const row of source) {
+        const code = String(row?.variation_code ?? "").trim();
+        const name = String(row?.name ?? "").trim();
+        const amount = Number(row?.variation_amount);
+        if (!code || !name || !Number.isFinite(amount) || amount < 0) {
+          invalidRowsExcluded += 1;
+          continue;
+        }
+        const key = code.toLowerCase();
+        const fingerprint = JSON.stringify([name, amount, String(row?.fixedPrice ?? "")]);
+        if (!grouped.has(key)) grouped.set(key, { code, variants: new Map() });
+        grouped.get(key).variants.set(fingerprint, {
+          code, name, variation_amount: amount, fixedPrice: row?.fixedPrice ?? null
+        });
+      }
+      const plans = [];
+      const quarantined = [];
+      let duplicateExactRowsRemoved = 0;
+      for (const group of grouped.values()) {
+        const variants = [...group.variants.values()];
+        const matchingRows = source.filter(row => String(row?.variation_code ?? "").trim().toLowerCase() === group.code.toLowerCase());
+        duplicateExactRowsRemoved += Math.max(0, matchingRows.length - variants.length);
+        if (variants.length > 1) {
+          quarantined.push({
+            variation_code: group.code,
+            reason: "conflicting-variation-code — excluded from candidate plans",
+            conflicting_variants: variants
+          });
+          continue;
+        }
+        plans.push({
+          ...variants[0],
+          status: "review-required",
+          customerPrice: null,
+          publishable: false
+        });
+      }
+      const voiceOnly = plans.filter(plan => /xtratalk|voice|minutes|secs|airtime/i.test(plan.name)
+        && !/(?:\\d+(?:\\.\\d+)?\\s*(?:tb|gb|mb|kb)|data)/i.test(plan.name));
+      const ordinaryDataCandidates = plans.filter(plan => !voiceOnly.includes(plan));
+      summary.textContent = "Read-only catalogue normalized: " + ordinaryDataCandidates.length
+        + " unique data candidates; " + quarantined.length + " conflicting variation code(s) excluded. All plans remain unpublished pending provider and price verification.";
+      result.textContent = JSON.stringify({
+        mode: data?.mode,
+        readOnly: data?.readOnly === true,
+        purchasesEnabled: data?.purchasesEnabled,
+        serviceID,
+        sourceCount: source.length,
+        uniqueDataCandidateCount: ordinaryDataCandidates.length,
+        voiceOrNonDataRowsSeparatedForReview: voiceOnly.length,
+        exactDuplicateRowsRemoved: duplicateExactRowsRemoved,
+        invalidRowsExcluded,
+        quarantinedConflictingCodes: quarantined,
+        plans: ordinaryDataCandidates,
+        separatedVoiceOrNonDataRows: voiceOnly.map(plan => ({
+          variation_code: plan.code,
+          name: plan.name,
+          variation_amount: plan.variation_amount,
+          status: "review-required",
+          publishable: false
+        })),
+        note: "Only canonical content.variations was read. Conflicting variation codes are omitted entirely, exact duplicate rows are collapsed, no customer prices are assigned, and no plan is approved or published."
+      }, null, 2);
     } catch (_) {
       summary.textContent = "Request failed. No purchase was attempted.";
       result.textContent = "Could not read the test endpoint. Check Supabase function logs; do not retry any purchase because this page has no purchase action.";

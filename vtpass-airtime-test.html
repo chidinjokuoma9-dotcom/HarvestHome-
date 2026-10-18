@@ -32,7 +32,15 @@
 <div class="info" id="test-details"><strong>Fixed test details</strong><br>Provider: VTpass sandbox<br>Network: MTN<br>Amount: ₦100<br>Test recipient: 08011111111<br>Customer purchases: disabled</div>
 <button id="test-button" type="button" disabled>Send one MTN sandbox test</button>
 <label for="request-id">Existing sandbox request ID (status check only)</label><input id="request-id" type="text" inputmode="text" autocomplete="off" spellcheck="false" placeholder="Paste the existing request ID, e.g. 2026101808275045f5dbc5" aria-describedby="request-id-help">
-<p id="request-id-help" class="small">Paste a request ID from a test already sent. This field only checks status; it cannot send another purchase.</p>
+<p id="request-id-help" class="small">Paste a request ID from a test already sent. This field only checks status; it cannot send another purchase. For the two outstanding checks, choose the saved Glo or 9mobile request below.</p>
+<label for="saved-request">Previously sent test (status check only)</label>
+<select id="saved-request" style="width:100%;padding:12px;border:1px solid #bdcdbf;border-radius:10px;font:inherit;background:#fff">
+<option value="">Choose an existing test…</option>
+<option value="20261018215009e7af09ed">Glo — existing ₦100 sandbox test</option>
+<option value="202610182141c09701eabc">9mobile — existing ₦100 sandbox test</option>
+<option value="202610182116aacecef8a1">MTN — already checked</option>
+<option value="2026101821392ca6fa8713">Airtel — already checked</option>
+</select>
 <button id="requery-button" class="secondary" type="button" disabled>Check status (no new purchase)</button>
 <pre id="result" role="status">Sign in first. No airtime request has been sent.</pre>
 <button id="clear-button" class="secondary" type="button" disabled>Clear results and sign out</button>
@@ -54,8 +62,16 @@
   const clearButton = document.getElementById("clear-button");
   const requeryButton = document.getElementById("requery-button");
   const requestIdInput = document.getElementById("request-id");
+  const savedRequestSelect = document.getElementById("saved-request");
   const validRequestId = (value) => /^\d{12}[a-f0-9]{10}$/i.test(String(value || "").trim());
-  requestIdInput.addEventListener("input", () => { requeryButton.disabled = !accessToken || !validRequestId(requestIdInput.value); });
+  savedRequestSelect.addEventListener("change", () => {
+    if (savedRequestSelect.value) requestIdInput.value = savedRequestSelect.value;
+    requeryButton.disabled = !accessToken || !validRequestId(requestIdInput.value);
+  });
+  requestIdInput.addEventListener("input", () => {
+    savedRequestSelect.value = "";
+    requeryButton.disabled = !accessToken || !validRequestId(requestIdInput.value);
+  });
   const attemptedNetworks = new Set();
   function refreshNetworkDetails() {
     const network = networkSelect.value;

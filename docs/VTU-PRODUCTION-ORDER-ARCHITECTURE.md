@@ -4,6 +4,18 @@ Status: **design only — not deployed, not a migration, and not enabled for cus
 
 This draft records the minimum server-side controls required before any live VTpass order is accepted. It is deliberately separate from the working property marketplace and existing Paystack payment flows.
 
+## Read-only project inventory (18 October 2026)
+
+The connected HarvestHome Supabase project was inspected read-only before any schema implementation:
+
+- The existing `public.payments` table is the marketplace's generic Paystack ledger. It has a unique nullable `reference`, integer `amount`, currency/status fields, and listing/seller references. Keep it and its existing payment handlers unchanged; do not repurpose its records for VTU purchases without a separate compatibility review.
+- No existing public VTU order, provider-attempt, or customer-wallet tables were present in the public schema inventory.
+- The active Edge Function list includes the sandbox-only `vtpass-test-airtime`, `vtpass-test-catalog`, and `vtpass-test-data-variations` functions, plus the status-only test function. No production VTpass customer-purchase function was listed.
+- The existing `paystack-initialize`, `paystack-verify`, and `paystack-webhook` functions are active and serve existing HarvestHome flows. Do not modify them as part of VTU work until a separate integration design has been reviewed.
+- The Supabase security advisor also reports existing marketplace-wide findings unrelated to VTU. They are not changed by this work and should not be bulk-fixed during this isolated integration.
+
+This inventory was read-only. No table, policy, function, secret, or production setting was changed.
+
 ## Order record
 
 Use one durable order row per intended customer purchase. Suggested fields:

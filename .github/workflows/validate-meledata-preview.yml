@@ -107,9 +107,12 @@ jobs:
               if item not in vtpass_airtime_page:
                   raise SystemExit("VTpass airtime test page missing safety requirement: " + item)
           for item in [
+              'id="request-id"',
+              'const validRequestId =',
               'id="requery-button"',
               'Check status (no new purchase)',
               'functions.invoke("vtpass-test-airtime-status"',
+              'body: { request_id: requestId }',
               'action: "status re-query only"',
           ]:
               if item not in vtpass_airtime_page:
@@ -126,6 +129,8 @@ jobs:
                   raise SystemExit("VTpass status endpoint missing safety requirement: " + item)
           if "https://sandbox.vtpass.com/api/pay" in status_fn:
               raise SystemExit("Status-only endpoint must never submit a purchase.")
+          if "requestId))" not in status_fn or "request_id: requestId" not in status_fn:
+              raise SystemExit("VTpass status endpoint must validate and return the existing request ID.")
           vtpass_scripts = re.findall(r"<script>([\s\S]*?)</script>", vtpass_airtime_page, re.IGNORECASE)
           if not vtpass_scripts:
               raise SystemExit("No inline JavaScript was found in the VTpass airtime test page.")

@@ -63,10 +63,11 @@ export function buildVtuIdempotencyKey(orderId) {
 }
 /** Decide whether to inspect status or require reconciliation. Never auto-resubmit. */
 export function nextActionForVtuResult({ status, providerStatus, timedOut = false } = {}) {
-  if (timedOut || status === "provider_pending") return "requery_existing_request";
+  if (timedOut) return "requery_existing_request";
   if (status === "manual_review") return "manual_reconciliation";
-  if (providerStatus === "delivered" && status === "provider_pending") return "mark_succeeded_after_verification";
-  if (providerStatus === "failed" && status === "provider_pending") return "verify_failure_and_refund_policy";
   if (status === "succeeded" || status === "refunded") return "no_purchase_action";
+  if (status === "provider_pending" && providerStatus === "delivered") return "mark_succeeded_after_verification";
+  if (status === "provider_pending" && providerStatus === "failed") return "verify_failure_and_refund_policy";
+  if (status === "provider_pending") return "requery_existing_request";
   return "inspect_transaction_without_resubmitting";
 }

@@ -100,8 +100,26 @@ Deno.serve(async (req: Request) => {
     }
   }
 
+  const networkInput = typeof input.network === "string" ? input.network.toLowerCase() : "mtn";
+  const networkConfig: Record<string, { serviceID: string; label: string }> = {
+    mtn: { serviceID: "mtn", label: "MTN" },
+    airtel: { serviceID: "airtel", label: "Airtel" },
+    glo: { serviceID: "glo", label: "Glo" },
+    etisalat: { serviceID: "etisalat", label: "9mobile" },
+  };
+  const selectedNetwork = networkConfig[networkInput];
+  if (!selectedNetwork) {
+    return json({
+      ok: false,
+      mode: "sandbox",
+      testOnly: true,
+      purchasesEnabledForCustomers: false,
+      error: "Unsupported network. Choose mtn, airtel, glo, or etisalat. No provider request was sent.",
+    }, 400);
+  }
+
   const requestId = lagosRequestId();
-  const payload = { request_id: requestId, serviceID: "mtn", amount: 100, phone: "08011111111" };
+  const payload = { request_id: requestId, serviceID: selectedNetwork.serviceID, amount: 100, phone: "08011111111" };
   try {
     const upstream = await fetch("https://sandbox.vtpass.com/api/pay", {
       method: "POST",
@@ -122,7 +140,7 @@ Deno.serve(async (req: Request) => {
       mode: "sandbox",
       testOnly: true,
       purchasesEnabledForCustomers: false,
-      test: { network: "MTN", amount: 100, phone: "08011111111" },
+      test: { network: selectedNetwork.label, serviceID: selectedNetwork.serviceID, amount: 100, phone: "08011111111" },
       request_id: requestId,
       providerHttpStatus: upstream.status,
       message: upstream.ok

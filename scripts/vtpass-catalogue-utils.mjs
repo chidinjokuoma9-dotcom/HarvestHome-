@@ -31,8 +31,8 @@ function fingerprint(item) {
  */
 export function extractPlanMetadata(name = "") {
   const value = String(name);
-  const sizeMatch = value.match(/\\b(\\d+(?:\\.\\d+)?)\\s*(TB|GB|MB|KB)\\b/i);
-  const validityMatch = value.match(/\\b(\\d+)\\s*(days?|d|hours?|hrs?|h|weeks?|wks?|months?|mos?)\\b/i);
+  const sizeMatch = value.match(/\b(\d+(?:\.\d+)?)\s*(TB|GB|MB|KB)\b/i);
+  const validityMatch = value.match(/\b(\d+)\s*(days?|d|hours?|hrs?|h|weeks?|wks?|months?|mos?)\b/i);
   return {
     statedSize: sizeMatch ? { value: Number(sizeMatch[1]), unit: sizeMatch[2].toUpperCase() } : null,
     statedValidity: validityMatch ? { value: Number(validityMatch[1]), unit: validityMatch[2].toLowerCase() } : null

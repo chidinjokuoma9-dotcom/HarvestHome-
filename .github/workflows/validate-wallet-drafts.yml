@@ -1,0 +1,67 @@
+name: Validate HarvestHome wallet drafts
+
+on:
+  push:
+    branches:
+      - feature/harvesthome-data-airtime-foundation
+    paths:
+      - "supabase/functions/wallet-deposit-initialize/index.ts"
+      - "supabase/functions/wallet-deposit-verify/index.ts"
+      - "supabase/functions/wallet-paystack-webhook/index.ts"
+      - "supabase/HarvestHome_Wallet_Foundation.sql"
+      - "supabase/HarvestHome_Wallet_Deposit_Intents_DRAFT.sql"
+      - "WALLET-FOUNDATION-PLAN.md"
+      - ".github/workflows/validate-wallet-drafts.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  wallet-draft-safety:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out development branch
+        uses: actions/checkout@v4
+      - name: Validate wallet source safety gates
+        shell: python
+        run: |
+          from pathlib import Path
+
+          init = Path("supabase/functions/wallet-deposit-initialize/index.ts").read_text(encoding="utf-8")
+          verify = Path("supabase/functions/wallet-deposit-verify/index.ts").read_text(encoding="utf-8")
+          webhook = Path("supabase/functions/wallet-paystack-webhook/index.ts").read_text(encoding="utf-8")
+          sql = Path("supabase/HarvestHome_Wallet_Deposit_Intents_DRAFT.sql").read_text(encoding="utf-8")
+          plan = Path("WALLET-FOUNDATION-PLAN.md").read_text(encoding="utf-8")
+
+          checks = [
+              (init, 'auth.getUser()', "Initialization must authenticate the signed-in user"),
+              (init, 'amountNaira < 100 || amountNaira > 500000', "Initialization amount limits missing"),
+              (init, 'currency: "NGN"', "Initialization must specify NGN"),
+              (init, 'WALLET_ALLOWED_ORIGIN', "Initialization must use explicit origin configuration"),
+              (init, 'WALLET_CALLBACK_URL', "Callback URL must be server-controlled"),
+              (init, 'harvesthome_wallet_deposit', "Wallet-specific payment metadata missing"),
+              (verify, 'auth.getUser()', "Verification must authenticate the signed-in user"),
+              (verify, 'Number(tx.amount) !== Number(intent.amount_kobo)', "Exact amount verification missing"),
+              (verify, 'String(tx.currency).toUpperCase() !== "NGN"', "Currency verification missing"),
+              (verify, 'wallet_credit_deposit', "Verification must use atomic database credit"),
+              (webhook, 'x-paystack-signature', "Webhook signature header check missing"),
+              (webhook, '"SHA-512"', "Webhook HMAC-SHA512 verification missing"),
+              (webhook, 'wallet_credit_deposit', "Webhook must use the same idempotent credit path"),
+              (sql, "for update", "Deposit intent must be locked during credit"),
+              (sql, "set status = 'success'", "Deposit status must update atomically with credit"),
+              (sql, "from public, anon, authenticated", "Public RPC execution must be revoked"),
+              (plan, "not been deployed", "Plan must clearly state drafts are not deployed"),
+          ]
+          for source, needle, message in checks:
+              if needle.lower() not in source.lower():
+                  raise SystemExit("FAIL: " + message)
+
+          for source, label in [(init, "initialize"), (verify, "verify")]:
+              if '"Access-Control-Allow-Origin": "*"' in source:
+                  raise SystemExit("FAIL: wildcard CORS found in " + label)
+
+          if "body.callback_url" in init:
+              raise SystemExit("FAIL: client-controlled callback URL is forbidden")
+
+          print("Wallet draft static safety checks passed. No database migration, function deployment, or payment was performed.")

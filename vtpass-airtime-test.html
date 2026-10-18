@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="theme-color" content="#176b3b">
+<title>VTpass Airtime Sandbox Test — HarvestHome</title>
+<style>
+:root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#17351f;background:#f5f8f5}
+*{box-sizing:border-box}body{margin:0;padding:20px 14px 40px}main{max-width:680px;margin:auto}.brand{font-weight:850;color:#176b3b;font-size:1.12rem}h1{font-size:1.75rem;line-height:1.2;margin:18px 0 8px}.muted,.small{color:#526458;line-height:1.6}.small{font-size:.9rem}.card{background:#fff;border:1px solid #dce8dc;border-radius:17px;padding:19px;margin:16px 0;box-shadow:0 8px 24px #17351f0a}.warning{background:#fff8e7;border:1px solid #f0dca6;border-radius:12px;padding:14px;line-height:1.55;color:#674d12}.info{background:#eef6ff;border:1px solid #c8def6;border-radius:12px;padding:14px;line-height:1.55;color:#204c75}label{display:block;font-weight:700;margin:13px 0 6px}input{width:100%;padding:12px;border:1px solid #bdcdbf;border-radius:10px;font:inherit}button{border:0;border-radius:10px;padding:13px 16px;background:#176b3b;color:white;font:inherit;font-weight:750;margin-top:14px;width:100%;cursor:pointer}button:disabled{opacity:.55;cursor:wait}.secondary{background:#e7f4e9;color:#176b3b}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#102417;color:#e9f6eb;padding:14px;border-radius:12px;min-height:64px;font-size:.86rem}a{color:#176b3b;font-weight:700}
+</style>
+</head>
+<body><main>
+<div class="brand">🌿 HarvestHome</div>
+<h1>VTpass airtime — sandbox test only</h1>
+<p class="muted">A restricted development page to test the fixed ₦100 MTN airtime request against the VTpass sandbox from our server.</p>
+<div class="warning"><strong>Read before testing:</strong> This sends one fixed test request to VTpass sandbox for MTN ₦100 and test recipient 08011111111. It does not take a payment and is not customer checkout. Press the test button only once. If the response is pending, times out, or is unclear, stop and inspect the result before retrying.</div>
+<section class="card">
+<h2>1. Sign in securely</h2>
+<p class="small">Use your HarvestHome account. Your password goes to Supabase Auth and is cleared from the form after sign-in. The session is held in memory only.</p>
+<form id="signin-form">
+<label for="email">HarvestHome email</label><input id="email" type="email" autocomplete="username" required>
+<label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required>
+<button id="signin-button" type="submit">Sign in for test</button>
+</form>
+<p id="auth-status" class="small" role="status">Not signed in. No provider request has been sent.</p>
+</section>
+<section class="card">
+<h2>2. Send the fixed sandbox test</h2>
+<div class="info"><strong>Fixed test details</strong><br>Provider: VTpass sandbox<br>Network: MTN<br>Amount: ₦100<br>Test recipient: 08011111111<br>Customer purchases: disabled</div>
+<button id="test-button" type="button" disabled>Send one VTpass sandbox test</button>
+<pre id="result" role="status">Sign in first. No airtime request has been sent.</pre>
+<button id="clear-button" class="secondary" type="button" disabled>Clear results and sign out</button>
+</section>
+<p class="small">The server endpoint is expected to use server-side sandbox credentials and a fixed test payload. A successful HTTP response alone does not prove the provider transaction was delivered; inspect the provider response code and status. Do not share credentials or full private account details. For launch, we still need status re-query, duplicate protection, failure/pending handling, reconciliation, pricing approval and separate Paystack payment verification.</p>
+<p class="small"><a href="/vtu.html">← Back to HarvestHome VTU preview</a></p>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="Config.js"></script>
+<script>
+(() => {
+  const config = window.HARVESTHOME_CONFIG;
+  const signInForm = document.getElementById("signin-form");
+  const signInButton = document.getElementById("signin-button");
+  const testButton = document.getElementById("test-button");
+  const clearButton = document.getElementById("clear-button");
+  const authStatus = document.getElementById("auth-status");
+  const result = document.getElementById("result");
+  let client = null;
+  let accessToken = null;
+  let testAttempted = false;
+
+  if (!config || !config.SUPABASE_URL || !config.SUPABASE_ANON_KEY || !window.supabase) {
+    authStatus.textContent = "HarvestHome configuration did not load. No request was sent.";
+    signInButton.disabled = true;
+    return;
+  }
+
+  client = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+  });
+
+  signInForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    accessToken = null;
+    testAttempted = false;
+    testButton.disabled = true;
+    signInButton.disabled = true;
+    authStatus.textContent = "Signing in securely…";
+    result.textContent = "Waiting for sign-in.";
+    try {
+      const { data, error } = await client.auth.signInWithPassword({
+        email: document.getElementById("email").value.trim(),
+        password: document.getElementById("password").value
+      });
+      document.getElementById("password").value = "";
+      if (error || !data.session?.access_token) {
+        authStatus.textContent = "Sign-in failed. Check your details and try again.";
+        result.textContent = error?.message || "No authenticated session returned.";
+        return;
+      }
+      accessToken = data.session.access_token;
+      authStatus.textContent = "Signed in. This page can send one fixed sandbox request in this session.";
+      testButton.disabled = false;
+      clearButton.disabled = false;
+      result.textContent = "Signed in successfully. No provider request has been sent. Press the test button once when ready.";
+    } catch (_) {
+      document.getElementById("password").value = "";
+      authStatus.textContent = "Could not sign in. Check your connection.";
+      result.textContent = "Sign-in failed. No provider request was sent.";
+    } finally {
+      signInButton.disabled = false;
+    }
+  });
+
+  testButton.addEventListener("click", async () => {
+    if (!accessToken || testAttempted) return;
+    testAttempted = true;
+    testButton.disabled = true;
+    result.textContent = "Sending the one fixed MTN ₦100 request to VTpass sandbox. Please wait; do not retry if this takes time.";
+    try {
+      const { data, error } = await client.functions.invoke("vtpass-test-airtime", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + accessToken },
+        body: {}
+      });
+      if (error) {
+        result.textContent = JSON.stringify({
+          status: "Request outcome unclear — do not retry yet",
+          message: error.message || "The request did not return a readable result.",
+          nextStep: "Check the Supabase function logs and VTpass transaction status before sending another test."
+        }, null, 2);
+        authStatus.textContent = "The result needs review. This session cannot send another test.";
+        return;
+      }
+      const provider = data?.providerResponse ?? {};
+      const code = String(provider?.code ?? provider?.response_code ?? provider?.responseCode ?? "");
+      const description = String(provider?.response_description ?? provider?.responseDescription ?? provider?.message ?? "");
+      const status = String(provider?.content?.transactions?.status ?? provider?.status ?? provider?.transaction_status ?? "");
+      const delivered = code === "000" || /delivered|successful|success/i.test(status);
+      result.textContent = JSON.stringify({
+        testEndpoint: { ok: data?.ok, mode: data?.mode, testOnly: data?.testOnly, purchasesEnabledForCustomers: data?.purchasesEnabledForCustomers },
+        test: data?.test,
+        request_id: data?.request_id,
+        providerHttpStatus: data?.providerHttpStatus,
+        providerResult: { code: code || "not found in response", description, status: status || "not found in response" },
+        interpretation: delivered
+          ? "Provider response appears successful. Save the request ID and verify transaction status before treating it as final."
+          : "Do not assume delivery. Review the full provider response and check transaction status before any retry.",
+        providerResponse: provider
+      }, null, 2);
+      authStatus.textContent = delivered
+        ? "Sandbox response appears successful. One test was sent; no repeat is allowed in this session."
+        : "One test was sent. The outcome requires review; no repeat is allowed in this session.";
+    } catch (_) {
+      result.textContent = JSON.stringify({
+        status: "Request outcome unclear — do not retry yet",
+        message: "Could not read the function response.",
+        nextStep: "Check Supabase function logs and VTpass transaction status before sending another test."
+      }, null, 2);
+      authStatus.textContent = "The result needs review. This session cannot send another test.";
+    }
+  });
+
+  clearButton.addEventListener("click", async () => {
+    accessToken = null;
+    testAttempted = true;
+    document.getElementById("email").value = "";
+    document.getElementById("password").value = "";
+    testButton.disabled = true;
+    clearButton.disabled = true;
+    authStatus.textContent = "Signed out of this test.";
+    result.textContent = "Results cleared. No active test session.";
+    try { await client.auth.signOut({ scope: "local" }); } catch (_) {}
+  });
+})();
+</script>
+</body></html>

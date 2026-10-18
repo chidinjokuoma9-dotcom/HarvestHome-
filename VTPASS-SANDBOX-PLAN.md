@@ -24,7 +24,7 @@ Four fixed ₦100 airtime requests were sent to the VTpass **sandbox** using the
 
 These are **sandbox-reported values only**. They do not establish live-account debit, live commissions, customer eligibility, or real-world delivery. In particular, VTpass must explain the differing MTN commission fields and confirm how `total_amount` relates to the actual wallet debit.
 
-The isolated test page supports one attempted test per network per page session and status-only re-query. This is a testing guard, not durable production idempotency.
+The isolated test page supports one attempted test per network per page session and status-only re-query. It now includes saved-ID shortcuts for the existing Glo and 9mobile sandbox transactions, plus the already-checked MTN and Airtel IDs, so the remaining checks can be performed without sending new purchases. This is a testing guard, not durable production idempotency.
 
 ## Data catalogue duplicate handling
 

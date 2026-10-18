@@ -56,6 +56,8 @@ These are source drafts only. They have **not** been deployed to Supabase, and n
 - Deposit initialize/verify now require a configured `WALLET_ALLOWED_ORIGIN` for browser-origin requests and no longer accept a callback URL supplied by the browser; use server-side `WALLET_CALLBACK_URL` instead.
 - Added `.github/workflows/validate-wallet-drafts.yml` with static safety checks for auth, amount/currency validation, webhook signatures, restricted CORS, and the atomic credit path.
 - These source checks are not a substitute for compiling/deploying to an isolated Supabase environment and running Paystack test-mode end-to-end cases.
+- Deposit verification now rejects intents that are still `pending`; it only attempts a credit after checkout initialization has been durably recorded. This avoids a false success path when checkout setup was not fully saved.
+- `WALLET-DEPOSIT-TEST-CHECKLIST.md` records required negative, duplicate, concurrency, webhook, and reconciliation tests. These tests are not yet run, and customer funding remains blocked.
 
 ## Required isolated-test configuration
 

@@ -12,6 +12,7 @@ on:
       - "vtu-shop-preview.html"
       - "Config.js"
       - "supabase/functions/meledata-test-catalog/index.ts"
+      - "supabase/functions/vtpass-test-airtime-status/index.ts"
       - ".github/workflows/validate-meledata-preview.yml"
   workflow_dispatch:
 
@@ -105,8 +106,27 @@ jobs:
           ]:
               if item not in vtpass_airtime_page:
                   raise SystemExit("VTpass airtime test page missing safety requirement: " + item)
+          for item in [
+              'id="requery-button"',
+              'Check status (no new purchase)',
+              'functions.invoke("vtpass-test-airtime-status"',
+              'action: "status re-query only"',
+          ]:
+              if item not in vtpass_airtime_page:
+                  raise SystemExit("VTpass airtime status check missing safety requirement: " + item)
           if "VTPASS_SECRET_KEY" in vtpass_airtime_page:
               raise SystemExit("VTpass credentials must stay server-side.")
+          status_fn = Path("supabase/functions/vtpass-test-airtime-status/index.ts").read_text(encoding="utf-8")
+          for item in [
+              'req.method !== "POST"',
+              'https://sandbox.vtpass.com/api/requery',
+              'purchasesEnabledForCustomers: false',
+              'verify_jwt',
+          ]:
+              if item not in status_fn:
+                  raise SystemExit("VTpass status endpoint missing safety requirement: " + item)
+          if "https://sandbox.vtpass.com/api/pay" in status_fn:
+              raise SystemExit("Status-only endpoint must never submit a purchase.")
           vtpass_scripts = re.findall(r"<script>([\s\S]*?)</script>", vtpass_airtime_page, re.IGNORECASE)
           if not vtpass_scripts:
               raise SystemExit("No inline JavaScript was found in the VTpass airtime test page.")

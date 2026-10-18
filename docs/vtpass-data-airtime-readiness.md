@@ -9,16 +9,17 @@
 ## Current result
 
 - **Data catalogue retrieval:** Sandbox responses succeeded for MTN, Airtel, Glo and 9mobile (service ID 'etisalat-data'), each with provider code '000', HTTP 200, and read-only/purchases-disabled flags in the response shared during testing.
-- **Airtime sandbox test:** A ₦100 MTN airtime sandbox test previously returned provider code '000', status 'delivered', commission '3.5', and total_amount '96.5'. This is evidence that the specific sandbox test worked; it is not proof of live delivery or live commission terms.
+- **Airtime sandbox tests:** Two user-shared ₦100 MTN sandbox responses reported provider code `000`, status `delivered`, commission `3.5`, and `total_amount` `96.5`. Request IDs: `2026101808275045f5dbc5` and the earlier test request ID was not retained in the latest pasted result. These are sandbox results only; they do not prove live delivery or live commission terms.
 - **Offline helper tests:** The branch contains a Node.js test suite and a GitHub Actions workflow to run it. Do not describe CI as passed unless a completed green run is visible in GitHub Actions.
 
 ## Latest engineering checks — 2026-10-18
 
-- The isolated Cloudflare preview deployment completed successfully for commit `63ac2d9ce223e85b79dd58b2d47b10dbdf7cf288`; the latest airtime page with the status-only button is included in that deployment.
-- GitHub Actions validation passed for the preview page and safety guards at commit `b94232d3196e3f9746773b3f9bca203ec409ca2a`.
+- The isolated Cloudflare preview deployment completed successfully for commit `56807d2e5bfaf239291fc509ebac721a0dafb0cd`; the latest airtime page includes an input for an existing request ID so status can be checked after clearing the page/session.
+- GitHub Actions validation passed for commit `56807d2e5bfaf239291fc509ebac721a0dafb0cd`.
+- GitHub Actions deployment for the isolated preview also completed successfully for commit `56807d2e5bfaf239291fc509ebac721a0dafb0cd`.
 - The VTpass catalogue helper test workflow passed for commit `a2395ceb9cd53a6d11b8baf998b1be76b21d95a3`.
 - Supabase lists `vtpass-test-airtime-status` as ACTIVE, version 1, with JWT verification enabled. Its code calls the sandbox `/api/requery` endpoint only and contains no purchase endpoint.
-- **Not yet confirmed:** a live call to the status-only endpoint against the previously returned request ID. No repeat airtime purchase has been sent to verify it. Do not claim status re-query has passed until the provider returns a response for that request ID.
+- **Not yet confirmed:** a real status-only call to VTpass for request ID `2026101808275045f5dbc5`. The status page now allows this existing ID to be pasted after sign-in; use **Check status (no new purchase)**. Do not send another purchase, and do not claim status re-query passed until the provider returns the status response.
 
 ## Catalogue review snapshot
 

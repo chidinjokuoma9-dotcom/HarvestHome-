@@ -7,6 +7,11 @@
 /** Classify a provider bundle for display/review. This is a heuristic, not provider validation. */
 export function classifyBundle(name = "") {
   const value = String(name).toLowerCase();
+  // Combined bundles must be checked before generic voice/night categories.
+  if (/(?:\\d+(?:\\.\\d+)?\\s*(?:tb|gb|mb|kb)|data)/i.test(value)
+      && /xtratalk|voice|minutes|secs|airtime|\\b\\d+\\s*(?:seconds?|secs?|mins?|minutes?)\\b/i.test(value)) {
+    return "combined-data-voice";
+  }
   if (/xtratalk|voice|minutes|secs|airtime/.test(value)) return "voice";
   if (/whatsapp|instagram|tiktok|telegram|youtube|opera|social|\bwtf\b/.test(value)) return "app-specific";
   if (/glo tv|\btv\b|vod|streaming/.test(value)) return "video-streaming";

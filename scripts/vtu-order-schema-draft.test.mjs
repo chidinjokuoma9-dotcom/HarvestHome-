@@ -61,3 +61,16 @@ test("phase-one order design does not introduce a customer or reseller wallet", 
   assert.ok(schema.includes("no customer/reseller wallet in phase 1"));
   assert.ok(!/create table if not exists public\.(customer_wallets|reseller_wallets|wallet_transactions)/i.test(schema));
 });
+
+
+test("provider attempt reservation inserts an audit event atomically in the same function", () => {
+  assert.ok(schema.includes("language plpgsql"));
+  assert.ok(schema.includes("claimed public.vtu_orders%rowtype;"));
+  assert.ok(schema.includes("returning o.* into claimed;"));
+  assert.ok(schema.includes("if not found then"));
+  assert.ok(schema.includes("insert into public.vtu_order_events ("));
+  assert.ok(schema.includes("'provider_attempt_reserved'"));
+  assert.ok(schema.includes("'Request ID reserved before provider submission; submission is not yet confirmed.'"));
+  assert.ok(schema.includes("return query"));
+  assert.ok(schema.includes("provider_attempt_count = 1"));
+});

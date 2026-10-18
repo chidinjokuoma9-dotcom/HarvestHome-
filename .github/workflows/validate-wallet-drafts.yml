@@ -51,7 +51,7 @@ jobs:
               (sql, "for update", "Deposit intent must be locked during credit"),
               (sql, "set status = 'success'", "Deposit status must update atomically with credit"),
               (sql, "from public, anon, authenticated", "Public RPC execution must be revoked"),
-              (plan, "not been deployed", "Plan must clearly state drafts are not deployed"),
+              (plan, "have **not** been deployed", "Plan must clearly state drafts are not deployed"),
           ]
           for source, needle, message in checks:
               if needle.lower() not in source.lower():

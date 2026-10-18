@@ -83,14 +83,23 @@ serve(async (req) => {
       throw new Error("Paystack could not start this deposit. Please try again.");
     }
 
-    const { error: updateError } = await serviceClient.from("wallet_deposit_intents").update({
+    const { data: savedIntent, error: updateError } = await serviceClient.from("wallet_deposit_intents").update({
       status: "initialized",
       provider_reference: result.data.reference,
       authorization_url: result.data.authorization_url,
       access_code: result.data.access_code ?? null,
       updated_at: new Date().toISOString(),
-    }).eq("reference", reference).eq("user_id", user.id).eq("status", "pending");
-    if (updateError) throw new Error("Could not save the deposit checkout details.");
+    }).eq("reference", reference).eq("user_id", user.id).eq("status", "pending")
+      .select("reference").maybeSingle();
+    // PostgREST can report no error when an UPDATE matches zero rows. Do not
+    // return a usable checkout unless the initialized state was durably saved.
+    if (updateError || !savedIntent) {
+      console.error("wallet-deposit-initialize: checkout intent update was not confirmed", updateError);
+      return json({
+        error: "Checkout could not be safely prepared. No wallet balance has been added. Please contact support before retrying.",
+        reference,
+      }, 503, origin);
+    }
 
     return json({ authorization_url: result.data.authorization_url, reference, amount_kobo: amountKobo, currency: "NGN" }, 200, origin);
   } catch (error) {

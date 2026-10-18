@@ -82,3 +82,25 @@ MELE DATA's sandbox airtime request returned “Insufficient wallet balance” d
 ## Launch rule
 
 A working-looking page or a successful sandbox response is not proof of a safe live VTU service. Keep customer purchase buttons disabled until the remaining acceptance items above are verified. The public HarvestHome marketplace and its existing live Paystack features must not be changed as part of sandbox work.
+
+
+## Draft persistence design for the next implementation stage
+
+This is a design checklist only; it has **not** been applied to Supabase and does not enable checkout.
+
+The future VTU order record should contain: internal UUID; authenticated owner; unique internal idempotency key; unique Paystack reference; payment status; exact amount in integer kobo; NGN currency; allowlisted service/network/product code; validated recipient phone; nullable verified provider cost; unique provider request ID; attempt counter; normalized provider status; controlled order status; sanitized provider response; and timestamps.
+
+Use controlled states for payment (`awaiting_payment / verified / failed / review`) and order (`awaiting_payment / payment_verified / provider_pending / succeeded / failed / refund_pending / refunded / manual_review`). Trusted server-side handlers only may change these states. A browser redirect is not proof of payment.
+
+Required protections before launch:
+1. Unique constraints on internal idempotency key, non-null Paystack reference, and non-null provider request ID.
+2. Check constraints for positive integer amounts, NGN currency, supported service/state values, and non-negative attempt count.
+3. Enable RLS; authenticated users may read only their own orders. No browser-side INSERT/UPDATE/DELETE for trusted transaction fields. Edge Functions enforce authorization.
+4. Server-side Paystack verification must match the exact reference, amount, currency, and paid status before provider fulfilment.
+5. Atomically claim a paid order for one provider attempt; persist the request ID before submitting where provider semantics allow.
+6. Timeout, pending, HTTP errors, or contradictory results require status-only re-query and reconciliation of the same request. Never automatically submit another purchase.
+7. Store sanitized audit records for payment verification, provider submission, status checks, refund/reversal, and moderator intervention. Never log secrets or auth tokens.
+8. Show success only after payment is verified and VTpass confirms delivery. Document failed-order refund/reversal handling.
+9. Keep reseller balances/storefronts deferred until ordinary direct purchases are reliable and any stored-value compliance requirements are reviewed.
+
+Do not turn this draft into a migration until it is reviewed against the actual Edge Function code, existing Supabase RLS/grants, and VTpass request semantics. Provider live debit/commission, catalogue conflicts, and eligible bundle categories remain blockers. No production schema, live credentials, live provider request, or customer checkout is approved by this draft.

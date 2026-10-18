@@ -58,6 +58,12 @@ test("pending and timeout outcomes only re-query the existing request", () => {
   assert.equal(nextActionForVtuResult({ status: "provider_pending" }), "requery_existing_request");
   assert.notEqual(nextActionForVtuResult({ status: "provider_pending", timedOut: true }), "submit_new_purchase");
 });
+test("confirmed provider outcomes require verification or reconciliation, never a new purchase", () => {
+  assert.equal(nextActionForVtuResult({ status: "provider_pending", providerStatus: "delivered" }), "mark_succeeded_after_verification");
+  assert.equal(nextActionForVtuResult({ status: "provider_pending", providerStatus: "failed" }), "verify_failure_and_refund_policy");
+  assert.equal(nextActionForVtuResult({ status: "provider_pending", providerStatus: "unknown" }), "requery_existing_request");
+  assert.equal(nextActionForVtuResult({ status: "provider_pending", providerStatus: "delivered", timedOut: true }), "requery_existing_request");
+});
 test("terminal and ambiguous outcomes fail closed", () => {
   assert.equal(nextActionForVtuResult({ status: "manual_review" }), "manual_reconciliation");
   assert.equal(nextActionForVtuResult({ status: "succeeded" }), "no_purchase_action");

@@ -106,3 +106,21 @@ test("quarantines the three known VTpass sandbox code conflicts", () => {
     assert.equal(result.plans.some(plan => plan.code === item.code && plan.publishable), false, item.network);
   }
 });
+
+test("accepts wrapped provider response and preserves decimal provider amount", () => {
+  const result = normalizeCatalogue({
+    providerResponse: {
+      content: {
+        variations: [
+          { variation_code: "decimal1", name: "75MB - 1 day", variation_amount: "99.03", fixedPrice: "Yes" }
+        ]
+      }
+    }
+  }, { network: "Airtel", serviceId: "airtel-data" });
+
+  assert.equal(result.plans.length, 1);
+  assert.equal(result.plans[0].providerAmount, 99.03);
+  assert.equal(result.plans[0].providerAmountRaw, "99.03");
+  assert.equal(result.plans[0].customerPrice, null);
+  assert.equal(result.plans[0].publishable, false);
+});

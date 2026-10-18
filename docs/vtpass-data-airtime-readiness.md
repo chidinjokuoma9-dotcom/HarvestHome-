@@ -66,6 +66,19 @@ Review findings:
 - **Price is not wholesale cost:** Even where `variation_amount` is a round naira amount and `fixedPrice` is `Yes`, this response does not prove HarvestHome's provider debit or net reseller cost. Keep customer prices null and publication disabled pending provider confirmation.
 - **No other duplicate code was confirmed in this snapshot** beyond `glo-mega-75000`; re-check the canonical array before publication.
 
+### 9mobile catalogue review — user-shared sandbox response (2026-10-18)
+
+The canonical `content.variations` array contains **18 entries**. The repeated misspelled `varations` property repeats the same rows and must not be counted or merged.
+
+Review findings:
+- **Critical duplicate-code conflict:** `eti-1000` appears for both `1.5GB - 30 days` and `4GB (2GB + 2GB Night)`. Quarantine both until VTpass confirms the correct unique variation code for each plan.
+- **Different offer terms must stay distinct:** `eti-500` is described as 500MB for 30 days, while `eti-200` is 650MB for 1 day. Preserve each plan's exact stated size and validity rather than infer from code or price.
+- **Night-data bundle:** `eti-2500` is 11GB total with 7GB + 4GB night; `eti-1500-7` is 7GB with 6GB + 1GB night. Clearly explain any time-of-day restrictions.
+- **Combined bundle:** `eti-150-1` is described as 200MB (100MB + 100MB night) plus 300 seconds, so it must not be presented as a plain data-only plan without disclosing the voice component and restrictions.
+- **Long-validity plans:** `eti-27500` (30GB/90 days), `eti-55000` (60GB/180 days), and `eti-110000` (120GB/365 days) need their exact validity and eligibility verified before listing.
+- **Catalogue is not wholesale pricing:** `variation_amount` and `fixedPrice: Yes` do not establish HarvestHome's actual provider debit or net reseller cost. Keep customer prices null and publication disabled until VTpass confirms the charge and plan mapping.
+- No other duplicate variation code is evident in this 18-row canonical snapshot, but re-check before publication.
+
 ### Variation codes that must stay quarantined
 
 - MTN: 'mtn-xtratalk-300' — two different Xtratalk descriptions/amounts.

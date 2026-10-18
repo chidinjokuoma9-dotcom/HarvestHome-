@@ -74,3 +74,15 @@ test("provider attempt reservation inserts an audit event atomically in the same
   assert.ok(schema.includes("return query"));
   assert.ok(schema.includes("provider_attempt_count = 1"));
 });
+
+
+test("order creation function is idempotent, validates inputs, and atomically records creation", () => {
+  assert.ok(schema.includes("create or replace function public.create_vtu_order("));
+  assert.ok(schema.includes("on conflict (idempotency_key) do nothing"));
+  assert.ok(schema.includes("if existing.user_id is distinct from p_user_id"));
+  assert.ok(schema.includes("Idempotency key was already used for a different VTU order"));
+  assert.ok(schema.includes("'order_created'"));
+  assert.ok(schema.includes("revoke all on function public.create_vtu_order(uuid, text, text, text, text, text, text, text, bigint)"));
+  assert.ok(schema.includes("grant execute on function public.create_vtu_order(uuid, text, text, text, text, text, text, text, bigint)"));
+  assert.ok(schema.includes("The caller must be a trusted Edge Function"));
+});

@@ -20,7 +20,7 @@ This confirms that catalogue retrieval worked in sandbox for all four networks. 
 
 1. Use the canonical `content.variations` array only. The provider response also repeats the same catalogue under the misspelled `varations` property; do not concatenate both arrays.
 2. Treat `variation_code` as a provider identifier, not as a label. Never silently map one code to two different products.
-3. Reject or quarantine conflicting codes until provider support confirms the correct mapping.
+3. Reject conflicting codes; HarvestHome has permanently excluded the three identified ambiguous codes from its candidate catalogue.
 4. Parse amounts as numeric naira values but preserve the provider's original value for audit.
 5. Keep bundle types distinct: standard data, SME, night-bonus bundles, social/app-specific bundles, video/streaming bundles, voice bundles, and other special products.
 6. Do not invent validity periods. If the catalogue does not specify validity clearly, mark it for verification and do not publish the plan until confirmed.
@@ -33,7 +33,7 @@ This confirms that catalogue retrieval worked in sandbox for all four networks. 
 
 ### MTN
 - The response included both data plans and Xtratalk/voice-style products. Do not show voice bundles in the ordinary data catalogue.
-- `mtn-xtratalk-300` appeared with conflicting descriptions and amounts (₦300 weekly Xtratalk and ₦200 three-day Xtratalk). Quarantine this code pending provider confirmation.
+- `mtn-xtratalk-300` appeared with conflicting descriptions and amounts (₦300 weekly Xtratalk and ₦200 three-day Xtratalk). HarvestHome has decided to exclude this code entirely; neither offer should be listed.
 - The listed `mtn-1tb-110000` name indicated ₦100,000 while its code contained `110000`; confirm the authoritative amount and product mapping.
 - Verify all plan names, capacities, validity, and eligibility with the provider before publishing.
 
@@ -44,12 +44,12 @@ This confirms that catalogue retrieval worked in sandbox for all four networks. 
 - Catalogue amounts such as 49.99 or 299.02 must not be rounded for provider reconciliation without preserving the original amount.
 
 ### Glo
-- `glo-mega-75000` appears for two different products: 675GB for ₦75,000 and 1TB for ₦100,000. Quarantine both conflicting entries until VTpass confirms the correct code.
+- `glo-mega-75000` appeared for two different products: 675GB for ₦75,000 and 1TB for ₦100,000. HarvestHome has decided to exclude this code entirely; neither offer should be listed.
 - The catalogue mixes standard data, SME, night-bonus, social/app-specific, Glo TV/VOD and other specialised bundles. Separate them into clearly labelled categories; do not present all as unrestricted general-purpose data.
 - Some special plans do not state validity clearly. Verify before publication.
 
 ### 9mobile (provider service ID: `etisalat-data`)
-- `eti-1000` appears for both 1.5GB (30 days) and 4GB (including 2GB night data). Quarantine both entries until VTpass confirms the correct variation code.
+- `eti-1000` appeared for both 1.5GB (30 days) and 4GB (including 2GB night data). HarvestHome has decided to exclude this code entirely; neither offer should be listed.
 - Some products include night data or voice minutes. Label included bonuses accurately and do not imply all data is available at all times.
 - The catalogue includes long-validity plans (90, 180 and 365 days); retain their stated validity only after verification.
 
@@ -65,10 +65,10 @@ Do not approve a retail price until the applicable fee formula and actual provid
 
 - Capture the complete canonical variation list for each network and compare it with the raw sandbox response.
 - Deduplicate the repeated `variations`/`varations` payload.
-- Quarantine the conflicting variation codes listed above.
+- Enforce the owner blocklist for the three excluded codes, including when a future catalogue returns only one row for a blocked code.
 - Verify plan size, validity, bundle restrictions, provider cost, and code with VTpass.
 - Implemented isolated helper functions in `scripts/vtpass-catalogue-utils.mjs` for canonical-array handling, exact-row deduplication, conflicting-code quarantine, bundle-type classification, and minimum retail-price calculation using a caller-supplied fee function.
-- Added offline Node tests in `scripts/vtpass-catalogue-utils.test.mjs`, including regression coverage for the three known conflicting variation codes (`mtn-xtratalk-300`, `glo-mega-75000`, and `eti-1000`). Run with `node --test scripts/vtpass-catalogue-utils.test.mjs` in a Node.js environment. The fee test uses a sample model only, not the official Paystack fee formula; it is not a final price calculator.
+- Added offline Node tests in `scripts/vtpass-catalogue-utils.test.mjs`, including regression coverage ensuring the three owner-excluded variation codes (`mtn-xtratalk-300`, `glo-mega-75000`, and `eti-1000`) never enter the candidate plan list, even if only one row is returned. Run with `node --test scripts/vtpass-catalogue-utils.test.mjs` in a Node.js environment. The fee test uses a sample model only, not the official Paystack fee formula; it is not a final price calculator.
 - These helpers are not wired into customer-facing pages or purchase endpoints. Keep them isolated until the real catalogue integration and fee model are reviewed.
 - Keep the test page noindex and isolated; do not alter the production marketplace, payments, seller verification, chat, or AdSense.
 - Do not enable customer purchases or switch to live provider credentials without explicit approval.

@@ -68,3 +68,41 @@ test("invalid rows are quarantined", () => {
   assert.equal(result.plans.length, 0);
   assert.equal(result.invalidCount, 2);
 });
+
+test("quarantines the three known VTpass sandbox code conflicts", () => {
+  const cases = [
+    {
+      network: "MTN",
+      code: "mtn-xtratalk-300",
+      rows: [
+        { variation_code: "mtn-xtratalk-300", name: "N300 Xtratalk Weekly Bundle", variation_amount: "300", fixedPrice: "Yes" },
+        { variation_code: "mtn-xtratalk-300", name: "N200 Xtratalk - 3 days", variation_amount: "200", fixedPrice: "Yes" }
+      ]
+    },
+    {
+      network: "Glo",
+      code: "glo-mega-75000",
+      rows: [
+        { variation_code: "glo-mega-75000", name: "675GB Glo Mega", variation_amount: "75000", fixedPrice: "Yes" },
+        { variation_code: "glo-mega-75000", name: "N100000 1TB Glo Mega Oneoff", variation_amount: "100000", fixedPrice: "Yes" }
+      ]
+    },
+    {
+      network: "9mobile",
+      code: "eti-1000",
+      rows: [
+        { variation_code: "eti-1000", name: "1.5GB - 30 days", variation_amount: "1000", fixedPrice: "Yes" },
+        { variation_code: "eti-1000", name: "4GB (2GB + 2GB Night)", variation_amount: "1000", fixedPrice: "Yes" }
+      ]
+    }
+  ];
+
+  for (const item of cases) {
+    const result = normalizeCatalogue({ content: { variations: item.rows } }, { network: item.network });
+    assert.deepEqual(result.conflictCodes, [item.code], item.network);
+    assert.equal(result.plans.length, 0, item.network);
+    assert.equal(result.quarantined.length, 1, item.network);
+    assert.equal(result.quarantined[0].reason, "conflicting-variation-code", item.network);
+    assert.equal(result.plans.some(plan => plan.code === item.code && plan.publishable), false, item.network);
+  }
+});

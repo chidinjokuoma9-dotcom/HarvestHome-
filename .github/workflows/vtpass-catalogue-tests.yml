@@ -14,6 +14,8 @@ on:
       - "scripts/vtu-transaction-state.mjs"
       - "scripts/vtu-transaction-state.test.mjs"
       - "scripts/vtu-order-schema-draft.test.mjs"
+      - "scripts/vtu-paystack-verification.mjs"
+      - "scripts/vtu-paystack-verification.test.mjs"
       - "docs/VTU-ORDER-SCHEMA-DRAFT.sql"
       - ".github/workflows/vtpass-catalogue-tests.yml"
   workflow_dispatch:
@@ -41,3 +43,5 @@ jobs:
         run: node --test scripts/vtu-transaction-state.test.mjs
       - name: Check review-only VTU schema draft safety
         run: node --test scripts/vtu-order-schema-draft.test.mjs
+      - name: Run strict VTU Paystack verification tests
+        run: node --test scripts/vtu-paystack-verification.test.mjs

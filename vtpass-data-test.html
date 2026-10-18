@@ -182,7 +182,7 @@
           publishable: false
         });
       }
-      const voiceOrCombined = plans.filter(plan => /xtratalk|voice|minutes|secs|airtime|\\b\\d+\\s*(?:seconds?|secs?|mins?|minutes?)\\b/i.test(plan.name));
+      const voiceOrCombined = plans.filter(plan => /xtratalk|voice|minutes|secs|airtime|\b\d+\s*(?:seconds?|secs?|mins?|minutes?)\b/i.test(plan.name));
       const ordinaryDataCandidates = plans.filter(plan => !voiceOrCombined.includes(plan));
       summary.textContent = "Read-only catalogue normalized: " + ordinaryDataCandidates.length
         + " unique data candidates; " + quarantined.length + " conflicting variation code(s) excluded. All plans remain unpublished pending provider and price verification.";

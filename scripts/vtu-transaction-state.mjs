@@ -29,10 +29,20 @@ export function transitionVtuTransaction(transaction, nextStatus, metadata = {})
     throw new Error(`Invalid VTU transaction transition: ${currentStatus} -> ${nextStatus}`);
   }
   const next = { ...transaction, ...metadata, status: nextStatus };
-  for (const key of ["id", "userId", "amountKobo", "paymentReference", "providerRequestId"]) {
+  for (const key of ["id", "userId", "amountKobo", "paymentReference"]) {
     if (Object.hasOwn(transaction, key) && next[key] !== transaction[key]) {
       throw new Error(`Transaction identity field cannot be changed: ${key}`);
     }
+  }
+  // A provider request ID may be assigned exactly once when the request is reserved.
+  // Once non-empty, it is immutable so pending orders can only be re-queried.
+  const previousRequestId = transaction.providerRequestId;
+  const nextRequestId = next.providerRequestId;
+  if (previousRequestId && nextRequestId !== previousRequestId) {
+    throw new Error("Transaction identity field cannot be changed: providerRequestId");
+  }
+  if (previousRequestId && !nextRequestId) {
+    throw new Error("Existing provider request ID cannot be cleared.");
   }
   return next;
 }

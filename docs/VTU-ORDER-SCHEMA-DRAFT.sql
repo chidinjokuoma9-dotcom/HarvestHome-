@@ -93,10 +93,11 @@ create policy "Customers can read their own VTU order events"
       and o.user_id = (select auth.uid())
   ));
 
--- Atomic single-attempt reservation. A trusted server handler must call this and
--- confirm exactly one row was returned before it sends the VTpass purchase.
--- The unique request ID is persisted first. Repeated/concurrent calls return no row.
--- This function is part of the review draft only; do not deploy before code review.
+-- Atomic single-attempt reservation plus audit event. A trusted server handler
+-- must confirm exactly one row was returned before it sends the VTpass purchase.
+-- The request ID is reserved, not yet marked as submitted. The order update and
+-- audit event commit or roll back together. Repeated/concurrent calls return no row.
+-- This remains a review draft; do not deploy before SQL and integration testing.
 create or replace function public.claim_vtu_provider_attempt(
   p_order_id uuid,
   p_provider_request_id text
@@ -111,10 +112,17 @@ returns table (
   variation_code text,
   recipient_phone text
 )
-language sql
+language plpgsql
 security invoker
 set search_path = ''
 as $vtu$
+declare
+  claimed public.vtu_orders%rowtype;
+begin
+  if p_provider_request_id is null or length(trim(p_provider_request_id)) = 0 then
+    return;
+  end if;
+
   update public.vtu_orders as o
   set order_status = 'provider_pending',
       provider_request_id = p_provider_request_id,
@@ -126,11 +134,30 @@ as $vtu$
     and o.order_status = 'payment_verified'
     and o.provider_request_id is null
     and o.provider_attempt_count = 0
-    and p_provider_request_id is not null
-    and length(trim(p_provider_request_id)) > 0
-  returning
-    o.id, o.provider_request_id, o.amount_kobo, o.network,
-    o.product_type, o.service_id, o.variation_code, o.recipient_phone;
+  returning o.* into claimed;
+
+  if not found then
+    return;
+  end if;
+
+  insert into public.vtu_order_events (
+    order_id, event_key, event_type, source, details
+  ) values (
+    claimed.id,
+    'provider_attempt_reserved',
+    'provider_attempt_reserved',
+    'system',
+    jsonb_build_object(
+      'provider_request_id', claimed.provider_request_id,
+      'note', 'Request ID reserved before provider submission; submission is not yet confirmed.'
+    )
+  );
+
+  return query
+  select claimed.id, claimed.provider_request_id, claimed.amount_kobo,
+         claimed.network, claimed.product_type, claimed.service_id,
+         claimed.variation_code, claimed.recipient_phone;
+end;
 $vtu$;
 
 -- PostgreSQL grants EXECUTE on new functions to PUBLIC by default. Restrict it.

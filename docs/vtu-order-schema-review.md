@@ -17,6 +17,7 @@ This draft supports direct per-order customer payments in phase 1. It must remai
 - Client roles have no direct insert/update permissions; RLS restricts customer reads to the customer's own orders.
 - Provider cost, payment fee, provider identifiers, and raw provider responses are not in the customer's column-level SELECT grant.
 - The provider-attempt claim function is not executable by anon/authenticated roles.
+- The draft now includes a service-role-only `create_vtu_order` function that records an initial audit event atomically and returns the existing order only when a repeated idempotency key matches the same purchase payload; mismatched reuse is rejected.
 
 ### Required before this draft becomes a migration
 
@@ -27,7 +28,7 @@ This draft supports direct per-order customer payments in phase 1. It must remai
 5. **Set and test `updated_at`.** The draft has no trigger, so every trusted update must set it explicitly or a controlled trigger must be added.
 6. **Keep raw provider data private.** Store only what reconciliation needs, redact secrets and unnecessary personal data from raw responses/events, and define a retention period for recipient phone numbers.
 7. **Check grants and RLS in the actual project.** Before any migration, confirm role grants, exposed-schema/Data API settings, RLS behavior, and database advisors against the connected Supabase project. Do not broaden client privileges to fix a server-side permission issue.
-8. **Test the exact concurrency and failure cases.** Verify two simultaneous claim attempts yield exactly one winner; a repeated Paystack webhook does not create a second order; provider timeout/pending responses never trigger an automatic duplicate vend; and refunds/reconciliation are explicit states rather than inferred success.
+8. **Test the exact concurrency and failure cases.** Verify two simultaneous create calls with the same key return one order; mismatched key reuse is rejected; two simultaneous provider-claim attempts yield exactly one winner; a repeated Paystack webhook does not create a second order; provider timeout/pending responses never trigger an automatic duplicate vend; and refunds/reconciliation are explicit states rather than inferred success.
 
 ## Current decision
 

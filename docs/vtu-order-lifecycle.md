@@ -1,37 +1,48 @@
 # HarvestHome VTU order lifecycle — development only
 
-**Scope:** Design contract and offline tests only. This document does not activate customer purchases, connect Paystack checkout, or change the property marketplace.
+**Scope:** Isolated Edge Function source, design contract and offline tests. The handlers are not deployed and customer purchases remain disabled. This work does not change the property marketplace or its existing Paystack handlers.
+
+## Implemented in the development branch
+
+- `supabase/functions/vtu-order-create/index.ts`: authenticates the user, validates the Nigerian phone and idempotency key, resolves the product key against a server-only approved catalogue configuration, and calls the idempotent `create_vtu_order` database function. The browser cannot set the amount, provider service ID or variation code.
+- `supabase/functions/vtu-paystack-initialize/index.ts`: verifies order ownership, uses the stored order amount, reserves/reuses one Paystack reference, and initializes Paystack with VTU-specific metadata.
+- `supabase/functions/vtu-paystack-verify/index.ts`: verifies Paystack server-side against the stored reference, integer-kobo amount, NGN currency, user ID, order ID and `service: vtu`; then calls the atomic payment-state transition function. It deliberately does not contact VTpass.
+- `supabase/functions/_shared/vtu-config.ts`: validates server-side catalogue entries and Nigerian phone numbers, and provides an explicit browser-origin allowlist.
+- `scripts/vtu-order-create-safety.test.mjs` and `scripts/vtu-edge-handler-safety.test.mjs`: offline safeguards included in the GitHub Actions workflow.
+- `docs/VTU-ORDER-SCHEMA-DRAFT.sql`: still a review-only draft with idempotent order creation, payment-reference reservation, payment-verification transition and one-time provider-attempt reservation.
 
 ## Safe order sequence
 
-1. **Create an internal order record first.** Use a unique HarvestHome order ID and persist a single provider request ID before the first provider call. Enforce a database uniqueness constraint for the internal order ID and provider request ID so duplicate taps/retries cannot create another purchase.
-2. **Verify payment server-side.** Never trust a browser redirect, client-supplied boolean, or front-end success message. A trusted server-side Paystack verification must match the internal order, amount, currency, and reference.
-3. **Submit one provider purchase.** Only a verified paid order may become eligible. The actual provider call must use the persisted request ID and approved catalogue variation. Do not expose provider credentials in the browser.
-4. **Handle the result conservatively.**
-   - Provider code 000 plus status delivered: record provider delivery, then reconcile with verified payment.
-   - Pending/initiated/processing: keep pending and re-query the same request ID; do not buy again.
-   - HTTP timeout, missing fields, or conflicting code/status: mark for review and query the same request ID.
-   - Provider failure after successful payment: mark for reconciliation/refund review. Do not automatically repeat the provider purchase.
-5. **Persist an audit trail.** Record order ID, payment reference and verification result, provider request ID, provider transaction ID, response code/status, timestamps, and state changes. Do not log API secrets or unnecessary customer information.
-6. **Notify only from persisted state.** Customer-facing success must be based on server-side persisted payment verification and provider delivery, not a client-side response alone.
+1. **Create an internal order record first.** The client sends only a product key, phone and idempotency key. The server must resolve all price and provider fields from approved server-side configuration.
+2. **Initialize Paystack against the stored order.** The server reserves one reference, uses the stored integer-kobo amount, and attaches the exact order/user/service metadata.
+3. **Verify payment server-side.** Never trust a browser redirect or front-end success message. Verify exact reference, amount, currency, owner, order and service metadata with Paystack, then persist the transition atomically.
+4. **Submit one provider purchase only after a separate fulfillment handler is reviewed.** The provider request ID must be reserved in the database before the first VTpass call.
+5. **Handle provider outcomes conservatively.** Delivered requires the provider's success code and delivered status. Pending/timeout/contradictory results require re-query of the same request ID and reconciliation; never auto-submit a replacement purchase.
+6. **Persist an audit trail.** Record order ID, payment reference and verification result, provider request ID, response code/status, timestamps and state changes. Never log API secrets or unnecessary personal information.
+7. **Notify only from persisted state.** Customer-facing success requires both verified payment and confirmed provider delivery.
 
-## Offline safeguards added
+## Required environment configuration (not set or enabled here)
 
-- scripts/vtu-order-state.mjs expresses conservative state decisions.
-- scripts/vtu-paystack-verification.mjs strictly validates Paystack's server verification response against the stored reference, integer-kobo amount, NGN currency, expected user, order ID, and explicit VTU service metadata. It is pure testable logic and is not yet wired into an Edge Function.
-- scripts/vtu-order-state.test.mjs tests unpaid orders, request-ID prerequisite, successful delivery, pending, failed, contradictory and HTTP-error cases.
-- scripts/vtpass-transaction-utils.mjs and its tests keep provider delivery separate from payment verification.
-- GitHub Actions workflow .github/workflows/vtpass-catalogue-tests.yml runs catalogue, transaction-safety and order-state tests.
+- `VTU_CHECKOUT_ENABLED` must remain unset/false until all release gates are approved.
+- `VTPASS_VTU_CATALOGUE_JSON` must contain only reviewed, active catalogue entries and server-approved retail prices in integer kobo. Do not treat VTpass `variation_amount` as wholesale cost until VTpass confirms the actual wallet debit.
+- `VTU_ALLOWED_ORIGINS` must explicitly list the approved website origins.
+- `VTU_CALLBACK_URL` must be an HTTPS callback on HarvestHome's approved domain.
+- Existing Supabase and Paystack credentials must remain server-side; no service-role or provider secrets belong in the browser.
 
-These handlers are **not deployed and not wired into the production/customer order flow**. They remain disabled unless an environment flag is explicitly set, and cannot work until the reviewed database schema is migrated. No VTpass fulfillment handler or customer UI is enabled. Passing offline tests cannot prove a live provider transaction, Paystack verification, database uniqueness, or refund handling. Those require integration tests in the isolated development environment.
+## What is not finished yet
 
-## Next integration gates
+- The schema has **not** been run against Supabase, and the new handlers have **not** been deployed.
+- No VTpass customer-fulfillment/re-query function is wired to these handlers.
+- No customer checkout UI or payment callback page has been connected.
+- Provider wallet debits, commissions, live commercial resale approval and final retail prices remain unconfirmed.
+- Database-level concurrency, transition, failure/refund, RLS/grant and retention checks are still required before a migration or launch.
 
-- Confirm the current Supabase schema and existing payment/order paths before adding tables or changing production code.
-- Finish and review the server-approved catalogue/price source before accepting any order; provider `variation_amount` has not been confirmed as wholesale cost.
-- Add and test failure/cancellation/refund transitions, state constraints, and timestamp/retention handling.
-- Add a server-approved catalogue/price source and isolated order-creation endpoint; current provider costs are not yet confirmed.
-- Implement and test the separate VTpass fulfillment/re-query/reconciliation handler; the current Paystack verifier intentionally stops after payment verification.
-- Run database-level tests for duplicate references, concurrent claims and duplicate callbacks before considering a migration.
-- Test duplicate clicks, webhook retries, provider timeouts, pending re-query, payment success/provider failure, and reconciliation.
-- Keep VTpass live credentials and customer purchases disabled until provider costs/commission are clarified, pricing is approved, and the owner explicitly authorizes launch.
+## Release gates
+
+- Confirm VTpass commercial API resale approval and actual account-specific wallet debits/commission in writing.
+- Confirm Paystack permits the intended airtime/data sales model.
+- Complete the legal/regulatory and business/tax review; do not add reseller deposits or stored-value wallets in phase one.
+- Review the SQL draft and test it against an isolated database; verify RLS, grants and security advisors.
+- Implement the separate VTpass fulfillment/status-reconciliation path, including timeout and duplicate callback tests.
+- Test duplicate taps, duplicate payment callbacks, concurrent provider claims, payment success/provider failure, timeout/pending, refund review and manual reconciliation.
+- Keep all customer purchases disabled until the owner explicitly approves the release.

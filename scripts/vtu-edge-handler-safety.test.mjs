@@ -15,7 +15,8 @@ test("VTU Paystack initializer is disabled by default and requires signed-in use
 });
 
 test("VTU checkout uses only stored server-side amount and never accepts browser price", () => {
-  assert.ok(init.includes('amount: String(order.amount_kobo)'));
+  assert.ok(init.includes("const amountKobo = Number(order.amount_kobo)"));
+  assert.ok(init.includes("amount: String(amountKobo)"));
   assert.ok(!/body\.amount|body\.price|input\.amount|input\.price/.test(init));
   assert.ok(init.includes('order.currency !== "NGN"'));
   assert.ok(init.includes('result?.data?.reference !== reference'));

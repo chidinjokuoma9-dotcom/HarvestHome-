@@ -16,6 +16,9 @@ on:
       - "scripts/vtu-order-schema-draft.test.mjs"
       - "scripts/vtu-paystack-verification.mjs"
       - "scripts/vtu-paystack-verification.test.mjs"
+      - "scripts/vtu-edge-handler-safety.test.mjs"
+      - "supabase/functions/vtu-paystack-initialize/index.ts"
+      - "supabase/functions/vtu-paystack-verify/index.ts"
       - "docs/VTU-ORDER-SCHEMA-DRAFT.sql"
       - ".github/workflows/vtpass-catalogue-tests.yml"
   workflow_dispatch:
@@ -45,3 +48,5 @@ jobs:
         run: node --test scripts/vtu-order-schema-draft.test.mjs
       - name: Run strict VTU Paystack verification tests
         run: node --test scripts/vtu-paystack-verification.test.mjs
+      - name: Check isolated VTU Edge Function safeguards
+        run: node --test scripts/vtu-edge-handler-safety.test.mjs

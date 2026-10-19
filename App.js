@@ -146,10 +146,39 @@ async function syncListings(){
     base.forEach(l=>{l.professionalSeller=isProfessionalSeller(l.seller_id)});
     const cached=json(KEYS.sellerListings,[]);
     const remoteIds=new Set(base.map(x=>String(x.id)));
+    // Also load the signed-in seller's own expired/pending/rejected rows so
+    // My Listings remains useful even when browser cache is empty.
+    let ownedRows=[];
+    if(authUser){
+      try{
+        const ownResult=await sb.from("listings").select("*").eq("seller_id",authUser.id);
+        if(ownResult.error)throw ownResult.error;
+        ownedRows=(ownResult.data||[]).filter(x=>String(x.status||"").toLowerCase()!=="deleted");
+      }catch(ownError){
+        console.warn("Seller-owned listing sync skipped:",ownError.message);
+      }
+    }
+    const ownedIds=new Set(ownedRows.map(x=>String(x.id)));
+    const cacheById=new Map(base.map(x=>[String(x.id),x]));
+    ownedRows.forEach(l=>{
+      const id=String(l.id);
+      if(!remoteIds.has(id)){
+        cacheById.set(id,{
+          ...l,
+          seller:l.seller_name||authUser?.user_metadata?.full_name||authUser?.email||"HarvestHome Seller",
+          sellerVerified:false,
+          professionalSeller:false,
+          images:l.cover_url?[{data:l.cover_url}]:[],
+          video:l.video_url?{data:l.video_url}:null,
+          views:l.views||0
+        });
+      }
+    });
     const mineCached=cached.filter(
-      x=>x&&x.seller_id===authUser?.id&&!remoteIds.has(String(x.id))&&String(x.status||"").toLowerCase()!=="deleted"
+      x=>x&&String(x.seller_id)===String(authUser?.id)&&!remoteIds.has(String(x.id))&&!ownedIds.has(String(x.id))&&String(x.status||"").toLowerCase()!=="deleted"
     );
-    put(KEYS.sellerListings,[...base,...mineCached]);
+    mineCached.forEach(x=>cacheById.set(String(x.id),x));
+    put(KEYS.sellerListings,[...cacheById.values()]);
 
     const sharedId=new URLSearchParams(window.location.search).get("listing");
     state.sharedListing=sharedId
@@ -913,7 +942,7 @@ function dashTab(u,favs,mine,enq){
       (rows.length?"<div class=\"table-wrap\"><table><thead><tr><th>Listing</th><th>Status</th><th>Views</th><th>Buyer conversations</th><th>Unique interested buyers</th><th>Recommendations</th><th>Activity</th></tr></thead><tbody>"+rows.map(r=>"<tr><td><b>"+esc(r.title||"HarvestHome listing")+"</b><small>"+esc(r.location||"")+" · "+esc(r.country||"")+"</small></td><td><span class=\"status-pill "+slug(r.status||"pending")+"\">"+esc(r.status||"pending")+"</span></td><td>"+Number(r.views||0)+"</td><td>"+Number(r.conversations||0)+"</td><td>"+Number(r.unique_buyers||0)+"</td><td>"+Number(r.recommendations||0)+"</td><td><b>"+activity(r)+"</b></td></tr>").join("")+"</tbody></table></div>":"<div class=\"empty-state compact\"><div>📊</div><h3>No listing performance yet</h3><p>Create and publish a listing. Once buyers start viewing or contacting it, the activity will appear here.</p></div>");
   }
   if(state.dashboardTab==="listings"){
-    return "<div class=\"panel-heading\"><div><span class=\"eyebrow\">Seller workspace</span><h2>My listings</h2></div><button class=\"primary-btn\" data-a=\"newListing\">+ Create listing</button></div>"+(mine.length?"<div class=\"table-wrap\"><table><thead><tr><th>Listing</th><th>Market</th><th>Price</th><th>Status</th><th>Publication</th><th>Actions</th></tr></thead><tbody>"+mine.map(l=>"<tr><td><b>"+esc(l.title)+"</b></td><td>"+esc(l.country)+" · "+esc(l.location)+"</td><td>"+money(l.price,l.currency)+"</td><td><span class=\"status-pill "+slug(l.status||"pending")+"\">"+(l.status==="pending"?"Under review":l.status==="approved"?"Approved":l.status==="rejected"?"Not approved":esc(l.status||""))+"</span></td><td>"+(isFreeListing(l)&&l.publish_expires_at?"<small data-free-countdown=\""+esc(l.id)+"\" style=\"display:block;color:#9a3412;font-weight:800\">⏳ "+esc(formatFreeCountdown(l))+"</small>":String(l.publication_plan||"free").toLowerCase().startsWith("featured")?"⭐ Featured promotion":"—")+"</td><td>"+(l.status==="approved"?"<button class=\"outline-btn\" data-share-listing=\""+esc(l.id)+"\">↗ Share</button> ":"")+"<button class=\"danger-text\" data-del=\""+esc(l.id)+"\">Delete</button></td></tr>").join("")+"</tbody></table></div>":"<div class=\"empty-state compact\"><div>＋</div><h3>No listings yet</h3><button class=\"primary-btn\" data-a=\"newListing\">Create listing</button></div>");
+    return "<div class=\"panel-heading\"><div><span class=\"eyebrow\">Seller workspace</span><h2>My listings</h2></div><button class=\"primary-btn\" data-a=\"newListing\">+ Create listing</button></div>"+(mine.length?"<div class=\"table-wrap\"><table><thead><tr><th>Listing</th><th>Market</th><th>Price</th><th>Status</th><th>Publication</th><th>Actions</th></tr></thead><tbody>"+mine.map(l=>"<tr><td><b>"+esc(l.title)+"</b></td><td>"+esc(l.country)+" · "+esc(l.location)+"</td><td>"+money(l.price,l.currency)+"</td><td><span class=\"status-pill "+slug(l.status||"pending")+"\">"+(l.status==="pending"?"Under review":l.status==="approved"?"Approved":l.status==="rejected"?"Not approved":esc(l.status||""))+"</span></td><td>"+(isFreeListing(l)&&l.publish_expires_at?"<small data-free-countdown=\""+esc(l.id)+"\" style=\"display:block;color:#9a3412;font-weight:800\">⏳ "+esc(formatFreeCountdown(l))+"</small>":String(l.publication_plan||"free").toLowerCase().startsWith("featured")?"⭐ Featured promotion":"—")+"</td><td>"+(l.status==="approved"?"<button class=\"outline-btn\" data-share-listing=\""+esc(l.id)+"\">↗ Share</button> ":"")+(l.status==="approved"&&isFreeListing(l)&&(!l.publish_expires_at||freeListingRemainingMs(l)<=0)?"<button class=\"outline-btn\" data-renew-free=\""+esc(l.id)+"\">Renew 48h</button> ":"")+"<button class=\"danger-text\" data-del=\""+esc(l.id)+"\">Delete</button></td></tr>").join("")+"</tbody></table></div>":"<div class=\"empty-state compact\"><div>＋</div><h3>No listings yet</h3><button class=\"primary-btn\" data-a=\"newListing\">Create listing</button></div>");
   }
     if(state.dashboardTab==="payments"){
   const allPs=(state.payments||[]).filter(p=>!authUser||String(p.user_id||"")===String(authUser.id)),f=state.transactionFilterSeller,ps=filterTransactions(allPs,f);
@@ -1115,7 +1144,7 @@ if(passwordRecoveryPending){
 }
 $$("[data-menu-toggle]").forEach(btn=>btn.addEventListener("click",e=>{e.stopPropagation();const menu=$("#siteMenu");if(!menu)return;const opening=menu.hidden;menu.hidden=!opening;btn.setAttribute("aria-expanded",String(opening));btn.setAttribute("aria-label",opening?"Close website menu":"Open website menu")}));$$("[data-menu-close]").forEach(link=>link.addEventListener("click",()=>{const menu=$("#siteMenu"),toggle=$("[data-menu-toggle]");if(menu)menu.hidden=true;if(toggle){toggle.setAttribute("aria-expanded","false");toggle.setAttribute("aria-label","Open website menu")}}));$$("[data-a]").forEach(e=>e.onclick=()=>act(e.dataset.a));$$("[data-terms]").forEach(e=>e.onclick=termsModal);$$("[data-privacy]").forEach(e=>e.onclick=privacyModal);$$("[data-content-policy]").forEach(e=>e.onclick=contentPolicyModal);$$("[data-pay-listing]").forEach(e=>e.onclick=()=>paymentModal(e.dataset.payListing));$$("[data-scroll]").forEach(e=>e.onclick=()=>document.getElementById(e.dataset.scroll)?.scrollIntoView({behavior:"smooth"}));
 $("#countryTop")?.addEventListener("change",e=>switchCountry(e.target.value));$("#profilePhotoInput")?.addEventListener("change",e=>uploadProfilePhoto(e.target.files[0]));$("#profileForm")?.addEventListener("submit",saveProfile);$("#countryFilter")?.addEventListener("change",e=>switchCountry(e.target.value));$("#locationFilter")?.addEventListener("change",e=>{state.location=e.target.value;render()});$("#categoryFilter")?.addEventListener("change",e=>{state.category=e.target.value;render()});$("#modeFilter")?.addEventListener("change",e=>{state.mode=e.target.value;render()});$("#sortFilter")?.addEventListener("change",e=>{state.sort=e.target.value;render()});$("#priceMinFilter")?.addEventListener("change",e=>{state.priceMin=e.target.value;render()});$("#priceMaxFilter")?.addEventListener("change",e=>{state.priceMax=e.target.value;render()});
-$("#searchInput")?.addEventListener("keydown",e=>{if(e.key==="Enter"){state.search=e.target.value;render()}});$$("[data-cat]").forEach(e=>e.onclick=()=>{state.category=e.dataset.cat;render()});$$("[data-view-listing]").forEach(e=>recordListingView(e.dataset.viewListing));$$("[data-media-open]").forEach(e=>e.onclick=x=>{x.stopPropagation();openListingMediaViewer(e.dataset.mediaOpen,Number(e.dataset.mediaIndex||0))});$$("[data-country]").forEach(e=>e.onclick=()=>switchCountry(e.dataset.country));$$("[data-fav]").forEach(e=>e.onclick=x=>{x.stopPropagation();fav(e.dataset.fav)});$$("[data-contact]").forEach(e=>e.onclick=()=>contact(e.dataset.contact));$$("[data-recommend]").forEach(e=>e.onclick=()=>recommendSeller(e.dataset.recommend));$$("[data-share-social]").forEach(e=>e.onclick=x=>{x.stopPropagation();shareListingSocial(e.dataset.shareSocial)});$$("[data-chat]").forEach(e=>e.onclick=async()=>{const l=listings().find(x=>String(x.id)===String(e.dataset.listing));if(l)await openChat(e.dataset.chat,l)});$$("[data-tab]").forEach(e=>e.onclick=()=>{state.dashboardTab=e.dataset.tab;render()});$$("[data-share-listing]").forEach(e=>e.onclick=x=>{x.stopPropagation();shareListingSocial(e.dataset.shareListing)});$$("[data-notification]").forEach(e=>e.onclick=()=>markNotificationRead(e.dataset.notification));$$("[data-del]").forEach(e=>e.onclick=()=>del(e.dataset.del));$$("[data-mod]").forEach(e=>e.onclick=()=>moderate(e.dataset.mod));$$("[data-ad-request]").forEach(e=>{const [status,id]=e.dataset.adRequest.split(":");e.onclick=()=>reviewAdvertisingRequest(id,status)});$$("[data-ad-copy-id]").forEach(e=>e.onclick=()=>copyAdvertisingCampaignId(e.dataset.adCopyId,e));$$("[data-ad-click]").forEach(e=>e.addEventListener("click",()=>recordAdvertisingEvent(e.dataset.adClick,"click")));$("#advertisingCampaignForm")?.addEventListener("submit",createAdvertisingCampaign);recordAdvertisingImpressions();$$("[data-feature]").forEach(e=>e.onclick=()=>featureListing(e.dataset.feature));$$("[data-verify-review]").forEach(e=>{const [decision,id]=e.dataset.verifyReview.split(":");e.onclick=()=>reviewVerification(id,decision)});$$("[data-link-payment]").forEach(e=>e.onclick=()=>linkSuccessfulPayment(e.dataset.linkPayment));$("#sellerTransactionSearch")?.addEventListener("input",e=>{state.transactionFilterSeller.search=e.target.value;render()});$("#sellerTransactionStatus")?.addEventListener("change",e=>{state.transactionFilterSeller.status=e.target.value;render()});$("#sellerTransactionRange")?.addEventListener("change",e=>{state.transactionFilterSeller.range=e.target.value;render()});$("#adminTransactionSearch")?.addEventListener("input",e=>{state.transactionFilterAdmin.search=e.target.value;render()});$("#adminTransactionStatus")?.addEventListener("change",e=>{state.transactionFilterAdmin.status=e.target.value;render()});$("#adminTransactionRange")?.addEventListener("change",e=>{state.transactionFilterAdmin.range=e.target.value;render()});$$("[data-clear-transactions]").forEach(e=>e.onclick=()=>{if(e.dataset.clearTransactions==="seller"){state.transactionFilterSeller={status:"all",range:"all",search:""}}else{state.transactionFilterAdmin={status:"all",range:"all",search:""}}render()})
+$("#searchInput")?.addEventListener("keydown",e=>{if(e.key==="Enter"){state.search=e.target.value;render()}});$$("[data-cat]").forEach(e=>e.onclick=()=>{state.category=e.dataset.cat;render()});$$("[data-view-listing]").forEach(e=>recordListingView(e.dataset.viewListing));$$("[data-media-open]").forEach(e=>e.onclick=x=>{x.stopPropagation();openListingMediaViewer(e.dataset.mediaOpen,Number(e.dataset.mediaIndex||0))});$$("[data-country]").forEach(e=>e.onclick=()=>switchCountry(e.dataset.country));$$("[data-fav]").forEach(e=>e.onclick=x=>{x.stopPropagation();fav(e.dataset.fav)});$$("[data-contact]").forEach(e=>e.onclick=()=>contact(e.dataset.contact));$$("[data-recommend]").forEach(e=>e.onclick=()=>recommendSeller(e.dataset.recommend));$$("[data-share-social]").forEach(e=>e.onclick=x=>{x.stopPropagation();shareListingSocial(e.dataset.shareSocial)});$$("[data-chat]").forEach(e=>e.onclick=async()=>{const l=listings().find(x=>String(x.id)===String(e.dataset.listing));if(l)await openChat(e.dataset.chat,l)});$$("[data-tab]").forEach(e=>e.onclick=()=>{state.dashboardTab=e.dataset.tab;render()});$$("[data-share-listing]").forEach(e=>e.onclick=x=>{x.stopPropagation();shareListingSocial(e.dataset.shareListing)});$$("[data-notification]").forEach(e=>e.onclick=()=>markNotificationRead(e.dataset.notification));$("[data-del]").forEach(e=>e.onclick=()=>del(e.dataset.del));$("[data-renew-free]").forEach(e=>e.onclick=()=>renewFreeListing(e.dataset.renewFree));$("[data-mod]").forEach(e=>e.onclick=()=>moderate(e.dataset.mod));$$("[data-ad-request]").forEach(e=>{const [status,id]=e.dataset.adRequest.split(":");e.onclick=()=>reviewAdvertisingRequest(id,status)});$$("[data-ad-copy-id]").forEach(e=>e.onclick=()=>copyAdvertisingCampaignId(e.dataset.adCopyId,e));$$("[data-ad-click]").forEach(e=>e.addEventListener("click",()=>recordAdvertisingEvent(e.dataset.adClick,"click")));$("#advertisingCampaignForm")?.addEventListener("submit",createAdvertisingCampaign);recordAdvertisingImpressions();$$("[data-feature]").forEach(e=>e.onclick=()=>featureListing(e.dataset.feature));$$("[data-verify-review]").forEach(e=>{const [decision,id]=e.dataset.verifyReview.split(":");e.onclick=()=>reviewVerification(id,decision)});$$("[data-link-payment]").forEach(e=>e.onclick=()=>linkSuccessfulPayment(e.dataset.linkPayment));$("#sellerTransactionSearch")?.addEventListener("input",e=>{state.transactionFilterSeller.search=e.target.value;render()});$("#sellerTransactionStatus")?.addEventListener("change",e=>{state.transactionFilterSeller.status=e.target.value;render()});$("#sellerTransactionRange")?.addEventListener("change",e=>{state.transactionFilterSeller.range=e.target.value;render()});$("#adminTransactionSearch")?.addEventListener("input",e=>{state.transactionFilterAdmin.search=e.target.value;render()});$("#adminTransactionStatus")?.addEventListener("change",e=>{state.transactionFilterAdmin.status=e.target.value;render()});$("#adminTransactionRange")?.addEventListener("change",e=>{state.transactionFilterAdmin.range=e.target.value;render()});$$("[data-clear-transactions]").forEach(e=>e.onclick=()=>{if(e.dataset.clearTransactions==="seller"){state.transactionFilterSeller={status:"all",range:"all",search:""}}else{state.transactionFilterAdmin={status:"all",range:"all",search:""}}render()})
 }
 function switchCountry(c){state.country=c;state.location="All locations";state.category="All categories";localStorage.setItem(KEYS.country,c);render()}
 async function act(a){if(a==="home"){state.view="marketplace";render();scrollTo(0,0)}if(a==="login")auth("login");if(a==="signup")auth("signup");if(a==="logout"){if(sb) await sb.auth.signOut();localStorage.removeItem(KEYS.session);authUser=null;authProfile=null;state.view="marketplace";render();toast("Logged out.")}if(a==="dashboard"){state.view="dashboard";render()}if(a==="notifications"){state.view="dashboard";state.dashboardTab="notifications";render()}if(a==="admin"){state.view="dashboard";state.dashboardTab="moderation";render()}if(a==="search"){state.search=$("#searchInput")?.value||"";render()}if(a==="clear"){state.search="";state.location="All locations";state.category="All categories";state.mode="All";state.sort="featured";state.priceMin="";state.priceMax="";render()}if(a==="newListing")listingModal();if(a==="pay")paymentModal();if(a==="markAllNotifications")markAllNotificationsRead();if(a==="sellerClearTransactions"){state.transactionFilterSeller={status:"all",range:"all",search:""};render()}if(a==="adminClearTransactions"){state.transactionFilterAdmin={status:"all",range:"all",search:""};render()}}
@@ -1458,6 +1487,33 @@ async function moderate(cmd){
  }
  put(KEYS.sellerListings,ls);
  render()
+}
+async function renewFreeListing(id){
+  if(!sb||!authUser){toast("Please sign in to renew your listing.",true);return}
+  if(!window.confirm("Renew this genuine free listing for another 48 hours? It will reuse the same listing, photos and messages—no duplicate will be created."))return;
+  try{
+    const {data:row,error:fetchError}=await sb.from("listings")
+      .select("id,title,seller_id,status,publication_plan,publish_expires_at")
+      .eq("id",id).eq("seller_id",authUser.id).maybeSingle();
+    if(fetchError)throw fetchError;
+    if(!row)throw new Error("We couldn't find this listing under your account.");
+    if(String(row.status||"").toLowerCase()!=="approved"||!isFreeListing(row))
+      throw new Error("Only your approved free listings can be renewed this way.");
+    if(row.publish_expires_at&&new Date(row.publish_expires_at).getTime()>Date.now()){
+      toast("This listing is still active; you can renew it after it expires.",true);
+      await syncListings();render();return;
+    }
+    const expiresAt=new Date(Date.now()+48*60*60*1000).toISOString();
+    const {data:updated,error:updateError}=await sb.from("listings")
+      .update({publish_expires_at:expiresAt})
+      .eq("id",id).eq("seller_id",authUser.id).eq("status","approved").eq("publication_plan","free")
+      .select("id,publish_expires_at").maybeSingle();
+    if(updateError)throw updateError;
+    if(!updated)throw new Error("The listing wasn't renewed. Please refresh and try again.");
+    await syncListings();
+    state.view="dashboard";state.dashboardTab="listings";render();
+    toast("Listing renewed! It is public for another 48 hours.");
+  }catch(err){toast(err.message||"The listing could not be renewed.",true)}
 }
 async function del(id){
   if(sb&&authUser){

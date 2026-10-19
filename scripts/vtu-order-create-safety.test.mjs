@@ -13,6 +13,7 @@ test("order creation requires an authenticated user and server catalogue", () =>
   assert.ok(source.includes("loadCatalogue()"));
   assert.ok(source.includes("p_user_id: user.id"));
   assert.ok(source.includes("p_amount_kobo: item.amountKobo"));
+  assert.ok(source.includes("p_provider_amount_kobo: item.providerAmountKobo"));
   assert.ok(source.includes("p_service_id: item.serviceId"));
   assert.ok(source.includes("p_variation_code: item.variationCode"));
 });

@@ -23,14 +23,15 @@
 - scripts/vtpass-transaction-utils.mjs and its tests keep provider delivery separate from payment verification.
 - GitHub Actions workflow .github/workflows/vtpass-catalogue-tests.yml runs catalogue, transaction-safety and order-state tests.
 
-These helpers are **not yet wired into the production/customer order flow**. Passing offline tests cannot prove a live provider transaction, Paystack verification, database uniqueness, or refund handling. Those require integration tests in the isolated development environment.
+These handlers are **not deployed and not wired into the production/customer order flow**. They remain disabled unless an environment flag is explicitly set, and cannot work until the reviewed database schema is migrated. No VTpass fulfillment handler or customer UI is enabled. Passing offline tests cannot prove a live provider transaction, Paystack verification, database uniqueness, or refund handling. Those require integration tests in the isolated development environment.
 
 ## Next integration gates
 
 - Confirm the current Supabase schema and existing payment/order paths before adding tables or changing production code.
 - Finish and review the server-approved catalogue/price source before accepting any order; provider `variation_amount` has not been confirmed as wholesale cost.
 - Add and test failure/cancellation/refund transitions, state constraints, and timestamp/retention handling.
-- Implement isolated VTU Edge Functions for order creation, Paystack initialization/verification and VTpass fulfillment; keep them separate from existing marketplace payment functions.
+- Add a server-approved catalogue/price source and isolated order-creation endpoint; current provider costs are not yet confirmed.
+- Implement and test the separate VTpass fulfillment/re-query/reconciliation handler; the current Paystack verifier intentionally stops after payment verification.
 - Run database-level tests for duplicate references, concurrent claims and duplicate callbacks before considering a migration.
 - Test duplicate clicks, webhook retries, provider timeouts, pending re-query, payment success/provider failure, and reconciliation.
 - Keep VTpass live credentials and customer purchases disabled until provider costs/commission are clarified, pricing is approved, and the owner explicitly authorizes launch.

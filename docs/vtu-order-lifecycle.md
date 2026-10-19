@@ -28,7 +28,9 @@ These helpers are **not yet wired into the production/customer order flow**. Pas
 ## Next integration gates
 
 - Confirm the current Supabase schema and existing payment/order paths before adding tables or changing production code.
-- Design a development-only order table with unique order/payment/provider references and explicit states.
-- Implement server-side Paystack verification and idempotent provider request handling only after confirming current payment flow.
+- Finish and review the server-approved catalogue/price source before accepting any order; provider `variation_amount` has not been confirmed as wholesale cost.
+- Add and test failure/cancellation/refund transitions, state constraints, and timestamp/retention handling.
+- Implement isolated VTU Edge Functions for order creation, Paystack initialization/verification and VTpass fulfillment; keep them separate from existing marketplace payment functions.
+- Run database-level tests for duplicate references, concurrent claims and duplicate callbacks before considering a migration.
 - Test duplicate clicks, webhook retries, provider timeouts, pending re-query, payment success/provider failure, and reconciliation.
 - Keep VTpass live credentials and customer purchases disabled until provider costs/commission are clarified, pricing is approved, and the owner explicitly authorizes launch.

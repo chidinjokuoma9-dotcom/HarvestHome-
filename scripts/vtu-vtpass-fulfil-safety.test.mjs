@@ -24,6 +24,17 @@ test("fulfilment reserves one provider attempt and re-queries existing request I
   assert.ok(!source.includes("https://api.vtpass.com/api/pay"));
 });
 
+test("malformed data orders are rejected before reserving a provider attempt", () => {
+  assert.ok(source.includes('String(order.product_type) === "data" && !order.variation_code'));
+  assert.ok(source.indexOf('String(order.product_type) === "data" && !order.variation_code') < source.indexOf('admin.rpc("claim_vtu_provider_attempt"'));
+});
+
+test("provider handler hides raw exception details and preserves reconciliation guidance", () => {
+  assert.ok(source.includes('error: "VTpass fulfilment needs reconciliation."'));
+  assert.ok(!source.includes("error: error instanceof Error ? error.message"));
+  assert.ok(source.includes("Do not retry as a new purchase"));
+});
+
 test("provider request uses the stored provider amount, not customer retail amount", () => {
   assert.ok(source.includes("claim.provider_amount_kobo"));
   assert.ok(source.includes("Number(claim.provider_amount_kobo) / 100"));

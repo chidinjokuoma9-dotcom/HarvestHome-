@@ -22,7 +22,7 @@ create table if not exists public.vtu_orders (
   amount_kobo bigint not null check (amount_kobo > 0),
   -- Amount passed to VTpass API in kobo, distinct from retail price and actual wallet debit.
   -- Keep configured only after confirming the provider's expected request payload.
-  provider_amount_kobo bigint not null check (provider_amount_kobo > 0),
+  provider_amount_kobo bigint not null check (provider_amount_kobo > 0 and provider_amount_kobo % 100 = 0),
   currency text not null default 'NGN' check (currency = 'NGN'),
   provider_cost_kobo bigint check (provider_cost_kobo is null or provider_cost_kobo >= 0),
   payment_fee_kobo bigint check (payment_fee_kobo is null or payment_fee_kobo >= 0),
@@ -139,7 +139,7 @@ begin
      or p_product_label is null or length(trim(p_product_label)) = 0
      or p_recipient_phone is null or length(trim(p_recipient_phone)) = 0
      or p_amount_kobo is null or p_amount_kobo <= 0
-     or p_provider_amount_kobo is null or p_provider_amount_kobo <= 0
+     or p_provider_amount_kobo is null or p_provider_amount_kobo <= 0 or p_provider_amount_kobo % 100 <> 0
      or (p_product_type = 'data' and (p_variation_code is null or length(trim(p_variation_code)) = 0))
      or (p_product_type = 'airtime' and p_variation_code is not null)
   then

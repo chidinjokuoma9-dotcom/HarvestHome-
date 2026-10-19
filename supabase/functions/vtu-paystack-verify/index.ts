@@ -66,12 +66,17 @@ Deno.serve(async (req: Request) => {
     const tx = result.data;
     const txReference = typeof tx.reference === "string" ? tx.reference : "";
     const txAmount = tx.amount;
+    // PostgreSQL bigint values may be serialized by the Supabase client as strings.
+    // Normalize the stored amount to a safe integer before strict comparison.
+    const storedAmountKobo = Number(order.amount_kobo);
     const txCurrency = typeof tx.currency === "string" ? tx.currency.toUpperCase() : "";
     const metadata = tx.metadata && typeof tx.metadata === "object" ? tx.metadata : {};
     if (
       txReference !== order.payment_reference ||
       !Number.isSafeInteger(txAmount) ||
-      txAmount !== order.amount_kobo ||
+      !Number.isSafeInteger(storedAmountKobo) ||
+      storedAmountKobo <= 0 ||
+      txAmount !== storedAmountKobo ||
       txCurrency !== "NGN" ||
       order.currency !== "NGN" ||
       String(metadata.user_id || "") !== user.id ||

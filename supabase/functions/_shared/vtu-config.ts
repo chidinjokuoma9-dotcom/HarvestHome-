@@ -11,6 +11,7 @@ export type VtuCatalogueItem = {
   variationCode: string | null;
   productLabel: string;
   amountKobo: number;
+  providerAmountKobo: number;
   active: boolean;
 };
 
@@ -62,10 +63,12 @@ export function loadCatalogue(): VtuCatalogueItem[] {
     const variationCode = row.variationCode == null ? null : String(row.variationCode).trim();
     const productLabel = typeof row.productLabel === "string" ? row.productLabel.trim() : "";
     const amountKobo = Number(row.amountKobo);
+    const providerAmountKobo = Number(row.providerAmountKobo);
     const active = row.active === true;
     if (!productKey || seen.has(productKey) || !["MTN", "AIRTEL", "GLO", "9MOBILE"].includes(network)
       || !["data", "airtime"].includes(productType) || !serviceId || !productLabel
       || !Number.isSafeInteger(amountKobo) || amountKobo <= 0
+      || !Number.isSafeInteger(providerAmountKobo) || providerAmountKobo <= 0
       || (productType === "data" && !variationCode)
       || (productType === "airtime" && variationCode !== null)) {
       throw new Error("VTU catalogue contains an invalid or duplicate product entry.");
@@ -73,7 +76,7 @@ export function loadCatalogue(): VtuCatalogueItem[] {
     seen.add(productKey);
     items.push({ productKey, network: network as VtuCatalogueItem["network"],
       productType: productType as VtuCatalogueItem["productType"], serviceId,
-      variationCode, productLabel, amountKobo, active });
+      variationCode, productLabel, amountKobo, providerAmountKobo, active });
   }
   return items;
 }

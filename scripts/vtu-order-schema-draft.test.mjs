@@ -20,7 +20,7 @@ test("order schema has unique idempotency, payment reference, and provider reque
 
 test("order schema uses integer minor units and bounds provider attempts", () => {
   assert.ok(schema.includes("amount_kobo bigint not null check (amount_kobo > 0)"));
-  assert.ok(schema.includes("provider_amount_kobo bigint not null check (provider_amount_kobo > 0)"));
+  assert.ok(schema.includes("provider_amount_kobo bigint not null check (provider_amount_kobo > 0 and provider_amount_kobo % 100 = 0)"));
   assert.ok(schema.includes("existing.provider_amount_kobo is distinct from p_provider_amount_kobo"));
   assert.ok(schema.includes("provider_attempt_count integer not null default 0 check (provider_attempt_count between 0 and 1)"));
   assert.ok(schema.includes("check (provider_attempt_count = 0 or provider_request_id is not null)"));
@@ -111,4 +111,15 @@ test("Paystack verification transition matches exact reference, amount, currency
   assert.ok(schema.includes("on conflict (order_id, event_key) do nothing"));
   assert.ok(schema.includes("revoke all on function public.mark_vtu_payment_verified(uuid, text, bigint, text, text)"));
   assert.ok(schema.includes("grant execute on function public.mark_vtu_payment_verified(uuid, text, bigint, text, text)"));
+});
+
+
+test("provider result persistence updates the order and audit trail atomically", () => {
+  assert.ok(schema.includes("create or replace function public.record_vtu_provider_result("));
+  assert.ok(schema.includes("p_provider_request_id text"));
+  assert.ok(schema.includes("and o.provider_request_id = trim(p_provider_request_id)"));
+  assert.ok(schema.includes("and o.provider_attempt_count = 1"));
+  assert.ok(schema.includes("insert into public.vtu_order_events ("));
+  assert.ok(schema.includes("record_vtu_provider_result(uuid, text, text, text, text, jsonb, text, text, boolean)"));
+  assert.ok(schema.includes("grant execute on function public.record_vtu_provider_result(uuid, text, text, text, text, jsonb, text, text, boolean)"));
 });

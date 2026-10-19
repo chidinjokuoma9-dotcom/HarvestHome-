@@ -18,10 +18,12 @@ This draft supports direct per-order customer payments in phase 1. It must remai
 - Provider cost, payment fee, provider identifiers, and raw provider responses are not in the customer's column-level SELECT grant.
 - The provider-attempt claim function is not executable by anon/authenticated roles.
 - The draft now includes a service-role-only `create_vtu_order` function that records an initial audit event atomically and returns the existing order only when a repeated idempotency key matches the same purchase payload; mismatched reuse is rejected.
+- The draft now includes `reserve_vtu_payment_reference`, which atomically reserves one Paystack reference before checkout and permits retries only with that exact reference.
+- The draft now includes `mark_vtu_payment_verified`, which accepts only a server-verified success matching the stored reference, exact integer-kobo amount and NGN currency, then atomically changes state and records an idempotent audit event. These functions are unexecuted drafts and still require database-level tests.
 
 ### Required before this draft becomes a migration
 
-1. **Tie payment and order states together.** Add constraints or enforceable transition logic so invalid combinations (for example, a failed payment with an order marked `payment_verified`) cannot be stored. Define the allowed transitions for payment verification, cancellation, provider pending, success, failure, refund, and manual review.
+1. **Complete the state machine.** The draft now contains atomic reference reservation and a payment-verification transition. Still add explicit failure/cancellation/refund transitions and constraints that prevent invalid payment/order-state combinations. Test all transitions in an isolated database.
 2. **Atomic reservation/audit draft improvement made.** The draft claim function now uses PL/pgSQL to reserve the provider request ID and insert a `provider_attempt_reserved` audit event in the same function transaction. This records reservation, not actual submission. It still requires SQL-level and concurrency tests against an isolated test database before becoming a migration.
 3. **Clarify timestamps.** `provider_submitted_at` should mean the actual provider request was sent, not merely that a request ID was reserved. Track reservation separately or document a precise lifecycle; a process crash between reservation and HTTP submission must go to manual reconciliation rather than an automatic retry.
 4. **Define server-side state transition rules.** Only trusted handlers should change statuses. Make the handler verify Paystack server-side, validate the order amount/currency and ownership, and make duplicate payment webhooks idempotent before it can claim an attempt.

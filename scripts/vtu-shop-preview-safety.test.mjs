@@ -9,6 +9,8 @@ test("customer shop clearly labels itself as a private preview and disables chec
   assert.match(shop, /PRIVATE PREVIEW/i);
   assert.match(shop, /Customer checkout and live purchases are disabled/i);
   assert.match(shop, /no order, provider request or payment was created/i);
+  assert.match(shop, /href="\/vtpass-data-test\.html"/i);
+  assert.match(shop, /Review data catalogue \(test only\)/i);
 });
 
 test("airtime preview validates Nigerian numbers but never navigates to a purchase/test endpoint", () => {

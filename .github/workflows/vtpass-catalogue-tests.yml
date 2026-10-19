@@ -17,6 +17,8 @@ on:
       - "scripts/vtu-paystack-verification.mjs"
       - "scripts/vtu-paystack-verification.test.mjs"
       - "scripts/vtu-edge-handler-safety.test.mjs"
+      - "supabase/functions/_shared/vtu-config.ts"
+      - "supabase/functions/vtu-order-create/index.ts"
       - "supabase/functions/vtu-paystack-initialize/index.ts"
       - "supabase/functions/vtu-paystack-verify/index.ts"
       - "docs/VTU-ORDER-SCHEMA-DRAFT.sql"

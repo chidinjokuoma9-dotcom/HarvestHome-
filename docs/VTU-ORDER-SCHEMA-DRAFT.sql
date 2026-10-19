@@ -468,3 +468,84 @@ revoke all on function public.mark_vtu_payment_verified(uuid, text, bigint, text
   from public, anon, authenticated;
 grant execute on function public.mark_vtu_payment_verified(uuid, text, bigint, text, text)
   to service_role;
+
+
+-- Persist a VTpass response and its audit event atomically. The caller must
+-- provide a sanitized response snapshot and the exact request ID already reserved
+-- for this order. This function never sends a provider request.
+create or replace function public.record_vtu_provider_result(
+  p_order_id uuid,
+  p_provider_request_id text,
+  p_order_status text,
+  p_provider_status text,
+  p_provider_response_code text,
+  p_provider_response jsonb,
+  p_event_key text,
+  p_action text,
+  p_http_ok boolean
+)
+returns table (
+  order_id uuid,
+  order_status text,
+  completed_at timestamptz
+)
+language plpgsql
+security invoker
+set search_path = ''
+as $vtu$
+declare
+  recorded public.vtu_orders%rowtype;
+begin
+  if p_order_id is null
+     or p_provider_request_id is null
+     or length(trim(p_provider_request_id)) = 0
+     or p_order_status not in ('provider_pending', 'succeeded', 'refund_pending', 'manual_review')
+     or p_event_key is null or length(trim(p_event_key)) < 8
+     or p_action not in ('purchase', 'requery')
+  then
+    return;
+  end if;
+
+  update public.vtu_orders as o
+  set order_status = p_order_status,
+      provider_status = nullif(trim(coalesce(p_provider_status, '')), ''),
+      provider_response_code = nullif(trim(coalesce(p_provider_response_code, '')), ''),
+      provider_response = coalesce(p_provider_response, '{}'::jsonb),
+      completed_at = case when p_order_status = 'succeeded' then coalesce(o.completed_at, now()) else o.completed_at end,
+      updated_at = now()
+  where o.id = p_order_id
+    and o.provider_request_id = trim(p_provider_request_id)
+    and o.payment_status = 'verified'
+    and o.provider_attempt_count = 1
+    and o.order_status in ('provider_pending', 'manual_review', 'refund_pending')
+  returning o.* into recorded;
+
+  if not found then
+    return;
+  end if;
+
+  insert into public.vtu_order_events (
+    order_id, event_key, event_type, source, details
+  ) values (
+    recorded.id,
+    trim(p_event_key),
+    case when p_action = 'purchase' then 'provider_purchase_response' else 'provider_status_requery' end,
+    'vtpass',
+    jsonb_build_object(
+      'action', p_action,
+      'request_id', recorded.provider_request_id,
+      'http_ok', coalesce(p_http_ok, false),
+      'provider_code', recorded.provider_response_code,
+      'provider_status', recorded.provider_status,
+      'resulting_order_status', recorded.order_status
+    )
+  );
+
+  return query select recorded.id, recorded.order_status, recorded.completed_at;
+end;
+$vtu$;
+
+revoke all on function public.record_vtu_provider_result(uuid, text, text, text, text, jsonb, text, text, boolean)
+  from public, anon, authenticated;
+grant execute on function public.record_vtu_provider_result(uuid, text, text, text, text, jsonb, text, text, boolean)
+  to service_role;

@@ -372,19 +372,15 @@ function passwordResetPage(){
 }
 function render(){
   const recovery=passwordRecoveryPending;
-  // Keep the static homepage guide and footer when the app redraws the body.
-  // The guide is part of the public homepage content and must survive marketplace renders.
+  // Preserve the homepage guide across app redraws and place it directly after listings.
   const staticGuide=document.querySelector(".hh-guide")||window.__hhStaticGuide||null;
-  const staticFooter=document.querySelector("body > footer")||window.__hhStaticFooter||null;
   if(staticGuide)window.__hhStaticGuide=staticGuide;
-  if(staticFooter)window.__hhStaticFooter=staticFooter;
   document.body.innerHTML=recovery
     ?passwordResetPage()
     :`<div id="app">${state.view==="marketplace"?marketplace():dashboard()}</div><div id="modalRoot"></div><div id="toast"></div>`;
-  if(!recovery){
+  if(!recovery && state.view==="marketplace" && window.__hhStaticGuide){
     const guideSlot=document.getElementById("hh-guide-slot");
-    if(guideSlot&&window.__hhStaticGuide)guideSlot.appendChild(window.__hhStaticGuide);
-    if(window.__hhStaticFooter)document.body.appendChild(window.__hhStaticFooter);
+    if(guideSlot)guideSlot.appendChild(window.__hhStaticGuide);
   }
   bind();
 }

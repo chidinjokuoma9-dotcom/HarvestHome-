@@ -71,7 +71,8 @@ Deno.serve(async (req: Request) => {
     if (order.payment_status !== "awaiting_payment" || order.order_status !== "awaiting_payment") {
       return json({ error: "This order is not eligible for checkout." }, 409);
     }
-    if (!Number.isSafeInteger(order.amount_kobo) || order.amount_kobo <= 0 || order.currency !== "NGN") {
+    const amountKobo = Number(order.amount_kobo);
+    if (!Number.isSafeInteger(amountKobo) || amountKobo <= 0 || order.currency !== "NGN") {
       return json({ error: "Stored order amount is invalid. No payment was initialized." }, 409);
     }
 
@@ -91,7 +92,7 @@ Deno.serve(async (req: Request) => {
       headers: { Authorization: `Bearer ${paystackSecret}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         email: user.email,
-        amount: String(order.amount_kobo),
+        amount: String(amountKobo),
         currency: "NGN",
         reference,
         callback_url: callbackUrl,

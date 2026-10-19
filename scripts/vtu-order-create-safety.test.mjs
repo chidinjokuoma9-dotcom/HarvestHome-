@@ -24,6 +24,11 @@ test("order creation normalizes phone and requires idempotency", () => {
   assert.ok(source.includes("idempotencyKey"));
 });
 
+test("order creation does not expose internal exception details to customers", () => {
+  assert.ok(source.includes("VTU order creation could not be completed safely"));
+  assert.ok(!source.includes("return jsonResponse({ error: message }"));
+});
+
 test("order creation does not call Paystack or VTpass itself", () => {
   assert.ok(!source.includes("api.paystack.co"));
   assert.ok(!source.includes("api.vtpass.com"));

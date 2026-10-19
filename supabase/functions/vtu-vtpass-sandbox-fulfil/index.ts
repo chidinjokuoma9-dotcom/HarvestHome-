@@ -162,38 +162,22 @@ Deno.serve(async (req: Request) => {
     }
 
     const snapshot = safeProviderSnapshot(providerBody);
-    const update: Record<string, unknown> = {
-      order_status: nextStatus,
-      provider_status: fields.status || (providerHttpOk ? "unknown" : "http_or_network_error"),
-      provider_response_code: fields.code || null,
-      provider_response: snapshot,
-      updated_at: new Date().toISOString(),
-    };
-    if (nextStatus === "succeeded") update.completed_at = new Date().toISOString();
-
-    const { error: updateError } = await admin.from("vtu_orders").update(update)
-      .eq("id", order.id).eq("provider_request_id", requestId).eq("payment_status", "verified");
-    if (updateError) throw new Error("Provider response could not be persisted. Re-query the same request ID; do not submit another purchase.");
-
     const eventKey = "provider_result_" + requestId + "_" + crypto.randomUUID().replaceAll("-", "").slice(0, 12);
-    const { error: eventError } = await admin.from("vtu_order_events").insert({
-      order_id: order.id,
-      event_key: eventKey,
-      event_type: action === "purchase" ? "provider_purchase_response" : "provider_status_requery",
-      source: "vtpass",
-      details: {
-        action,
-        request_id: requestId,
-        http_ok: providerHttpOk,
-        provider_code: fields.code || null,
-        provider_status: fields.status || null,
-        resulting_order_status: nextStatus,
-      },
+    const { data: recorded, error: recordError } = await admin.rpc("record_vtu_provider_result", {
+      p_order_id: order.id,
+      p_provider_request_id: requestId,
+      p_order_status: nextStatus,
+      p_provider_status: fields.status || (providerHttpOk ? "unknown" : "http_or_network_error"),
+      p_provider_response_code: fields.code || null,
+      p_provider_response: snapshot,
+      p_event_key: eventKey,
+      p_action: action,
+      p_http_ok: providerHttpOk,
     });
-    if (eventError) {
+    if (recordError || !Array.isArray(recorded) || recorded.length !== 1) {
       return jsonResponse({ ok: false, order_id: order.id, order_status: nextStatus,
         request_id: requestId, needs_reconciliation: true,
-        message: "Provider result was saved, but the audit event could not be written. Do not submit another purchase." }, 409, cors);
+        message: "Provider result could not be atomically recorded with its audit event. Re-query the same request ID; do not submit another purchase." }, 409, cors);
     }
 
     return jsonResponse({

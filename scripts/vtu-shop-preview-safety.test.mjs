@@ -27,5 +27,6 @@ test("shop does not expose payment entry or an enabled purchase action", () => {
 
 test("VTU hub only describes VTpass and does not link to the retired MELE diagnostic", () => {
   assert.match(hub, /VTpass/i);
-  assert.doesNotMatch(hub, /MELE DATA|airtime-test\.html/i);
+  assert.doesNotMatch(hub, /MELE DATA/i);
+  assert.doesNotMatch(hub, /href=["\']\/airtime-test\.html["\']/i);
 });

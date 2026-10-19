@@ -17,6 +17,7 @@ on:
       - "scripts/vtu-paystack-verification.mjs"
       - "scripts/vtu-paystack-verification.test.mjs"
       - "scripts/vtu-edge-handler-safety.test.mjs"
+      - "scripts/vtu-order-create-safety.test.mjs"
       - "supabase/functions/_shared/vtu-config.ts"
       - "supabase/functions/vtu-order-create/index.ts"
       - "supabase/functions/vtu-paystack-initialize/index.ts"
@@ -52,3 +53,5 @@ jobs:
         run: node --test scripts/vtu-paystack-verification.test.mjs
       - name: Check isolated VTU Edge Function safeguards
         run: node --test scripts/vtu-edge-handler-safety.test.mjs
+      - name: Check idempotent VTU order creation safeguards
+        run: node --test scripts/vtu-order-create-safety.test.mjs

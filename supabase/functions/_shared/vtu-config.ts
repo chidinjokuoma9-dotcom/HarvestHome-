@@ -44,10 +44,6 @@ export function isOriginAllowed(req: Request): boolean {
   return allowed.includes(origin);
 }
 
-export function checkoutEnabled(): boolean {
-  return Deno.env.get("VTU_CUSTOMER_CHECKOUT_ENABLED") === "true";
-}
-
 export function loadCatalogue(): VtuCatalogueItem[] {
   const raw = Deno.env.get("VTPASS_VTU_CATALOGUE_JSON");
   if (!raw) throw new Error("Approved VTU catalogue is not configured.");

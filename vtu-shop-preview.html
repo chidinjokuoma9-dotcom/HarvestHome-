@@ -41,11 +41,11 @@ h2{font-size:1.35rem;margin:20px 0 8px} .muted{color:var(--muted);line-height:1.
 </div>
 <div id="airtime-panel" role="tabpanel" aria-labelledby="airtime-tab" hidden>
 <h2>Prepare an airtime top-up</h2>
-<p class="muted">Choose a network and enter the amount you want to top up. This screen is a preview; no airtime will be sent and no money will be collected.</p>
+<p class="muted">Choose a network and enter the amount you want to top up. This screen is a visual preview only. The amount and number you enter will not be sent to the sandbox or a network, and no money will be collected.</p>
 <div class="field"><label for="airtime-network">Mobile network</label><select id="airtime-network"><option value="MTN">MTN</option><option value="AIRTEL">Airtel</option><option value="GLO">Glo</option><option value="9MOBILE">9mobile</option></select></div>
 <div class="field"><label for="airtime-phone">Recipient phone number</label><input id="airtime-phone" inputmode="tel" autocomplete="tel" placeholder="08012345678" maxlength="16"></div>
 <div class="field"><label for="airtime-amount">Airtime amount (₦)</label><select id="airtime-amount"><option value="100">₦100</option><option value="200">₦200</option><option value="500">₦500</option><option value="1000">₦1,000</option><option value="2000">₦2,000</option><option value="5000">₦5,000</option></select></div>
-<button class="primary" id="airtime-continue" type="button">Continue to protected test</button>
+<button class="primary" id="airtime-continue" type="button">Preview airtime details</button>
 <p id="airtime-message" class="small" role="status">No request has been sent.</p>
 </div>
 <div class="notice"><strong>Development safety:</strong> Customer checkout and live purchases are disabled. Do not enter payment details here. The supplier and payment flow must pass testing before launch.</div>
@@ -85,8 +85,7 @@ h2{font-size:1.35rem;margin:20px 0 8px} .muted{color:var(--muted);line-height:1.
    }
    const network=document.getElementById("airtime-network").value;
    const amount=document.getElementById("airtime-amount").value;
-   message.textContent="Preview prepared for "+network+" · "+phone+" · ₦"+Number(amount).toLocaleString("en-NG")+". No order or payment was created. Continue only to the restricted test screen.";
-   window.location.href="/vtpass-airtime-test.html";
+   message.textContent="Preview prepared for "+network+" · "+phone+" · ₦"+Number(amount).toLocaleString("en-NG")+". No order, provider request or payment was created. This preview does not send the entered details anywhere.";
  });
 })();
 </script>

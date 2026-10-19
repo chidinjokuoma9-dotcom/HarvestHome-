@@ -37,5 +37,6 @@ test("provider response and audit event are recorded through one database functi
 
 test("uncertain results never trigger an automatic replacement purchase", () => {
   assert.ok(source.includes("Re-query the same request ID"));
-  assert.ok(source.includes("Do not submit another purchase"));
+  assert.ok(source.includes("never submits a replacement purchase"));
+  assert.ok(source.includes("no second purchase will be sent"));
 });

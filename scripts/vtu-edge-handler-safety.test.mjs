@@ -26,7 +26,9 @@ test("VTU verifier validates exact Paystack reference, amount, currency, owner a
   assert.ok(verify.includes('Deno.env.get("VTU_CHECKOUT_ENABLED") !== "true"'));
   assert.ok(verify.includes('userClient.auth.getUser()'));
   assert.ok(verify.includes('txReference !== order.payment_reference'));
-  assert.ok(verify.includes('txAmount !== order.amount_kobo'));
+  assert.ok(verify.includes('const storedAmountKobo = Number(order.amount_kobo)'));
+  assert.ok(verify.includes('txAmount !== storedAmountKobo'));
+  assert.ok(verify.includes('!Number.isSafeInteger(storedAmountKobo)'));
   assert.ok(verify.includes('txCurrency !== "NGN"'));
   assert.ok(verify.includes('String(metadata.user_id || "") !== user.id'));
   assert.ok(verify.includes('String(metadata.order_id || "") !== order.id'));

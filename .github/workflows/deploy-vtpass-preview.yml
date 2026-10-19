@@ -60,6 +60,7 @@ jobs:
             echo
             echo "- **Test URL:** ${PREVIEW_URL}"
             echo "- **VTU hub:** ${PREVIEW_URL}/vtu.html"
+            echo "- **Customer shop preview (no checkout):** ${PREVIEW_URL}/shop.html"
             echo "- **Data review:** ${PREVIEW_URL}/vtpass-data-test.html"
             echo "- **Airtime test:** ${PREVIEW_URL}/vtpass-airtime-test.html"
             echo "- **Specific deployment:** ${DEPLOYMENT_URL}"

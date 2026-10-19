@@ -86,3 +86,27 @@ test("order creation function is idempotent, validates inputs, and atomically re
   assert.ok(schema.includes("grant execute on function public.create_vtu_order(uuid, text, text, text, text, text, text, text, bigint)"));
   assert.ok(schema.includes("trusted") && schema.includes("Edge Function"));
 });
+
+
+test("Paystack reference reservation is atomic, idempotent, and service-role only", () => {
+  assert.ok(schema.includes("create or replace function public.reserve_vtu_payment_reference("));
+  assert.ok(schema.includes("payment_reference is null"));
+  assert.ok(schema.includes("'payment_reference_reserved'"));
+  assert.ok(schema.includes("and o.payment_reference = trim(p_payment_reference)"));
+  assert.ok(schema.includes("revoke all on function public.reserve_vtu_payment_reference(uuid, text)"));
+  assert.ok(schema.includes("grant execute on function public.reserve_vtu_payment_reference(uuid, text)"));
+});
+
+test("Paystack verification transition matches exact reference, amount, currency and success", () => {
+  assert.ok(schema.includes("create or replace function public.mark_vtu_payment_verified("));
+  assert.ok(schema.includes("o.payment_reference = p_payment_reference"));
+  assert.ok(schema.includes("o.amount_kobo = p_verified_amount_kobo"));
+  assert.ok(schema.includes("upper(coalesce(p_verified_currency, '')) <> 'NGN'"));
+  assert.ok(schema.includes("lower(coalesce(p_verified_status, '')) <> 'success'"));
+  assert.ok(schema.includes("and o.payment_status = 'awaiting_payment'"));
+  assert.ok(schema.includes("and o.order_status = 'awaiting_payment'"));
+  assert.ok(schema.includes("'payment_verified'"));
+  assert.ok(schema.includes("on conflict (order_id, event_key) do nothing"));
+  assert.ok(schema.includes("revoke all on function public.mark_vtu_payment_verified(uuid, text, bigint, text, text)"));
+  assert.ok(schema.includes("grant execute on function public.mark_vtu_payment_verified(uuid, text, bigint, text, text)"));
+});

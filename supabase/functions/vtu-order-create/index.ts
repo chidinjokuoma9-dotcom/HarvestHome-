@@ -55,6 +55,7 @@ Deno.serve(async (req: Request) => {
       p_product_label: item.productLabel,
       p_recipient_phone: phone,
       p_amount_kobo: item.amountKobo,
+      p_provider_amount_kobo: item.providerAmountKobo,
     });
     if (error) {
       // Do not leak SQL/provider internals to the browser.

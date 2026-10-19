@@ -114,6 +114,11 @@ Deno.serve(async (req: Request) => {
       if (!Number.isSafeInteger(providerAmountKobo) || providerAmountKobo <= 0 || providerAmountKobo % 100 !== 0) {
         return jsonResponse({ error: "The provider request amount is missing or invalid. No VTpass request was sent." }, 409, cors);
       }
+      // Validate all required data before reserving the one allowed attempt.
+      // A malformed data order must not consume its request ID without a send.
+      if (String(order.product_type) === "data" && !order.variation_code) {
+        return jsonResponse({ error: "Data order has no approved variation code. No VTpass request was sent." }, 409, cors);
+      }
       const candidateRequestId = lagosRequestId();
       const { data: claimed, error: claimError } = await admin.rpc("claim_vtu_provider_attempt", {
         p_order_id: order.id, p_provider_request_id: candidateRequestId,
@@ -196,9 +201,10 @@ Deno.serve(async (req: Request) => {
         ? "VTpass reports a failure after payment. Reconciliation/refund review is required; no automatic retry will be sent."
         : "The provider result is uncertain or contradictory. Re-query the same request ID and reconcile manually.",
     }, nextStatus === "provider_pending" ? 202 : nextStatus === "succeeded" ? 200 : 409, cors);
-  } catch (error) {
+  } catch {
     // If the network call may have reached VTpass, do not send another purchase.
-    return jsonResponse({ error: error instanceof Error ? error.message : "VTpass fulfilment requires reconciliation.",
+    // Never expose exception details or upstream internals in the customer response.
+    return jsonResponse({ error: "VTpass fulfilment needs reconciliation.",
       message: "Do not retry as a new purchase. Re-query the stored request ID or review the order." }, 502, cors);
   }
 });

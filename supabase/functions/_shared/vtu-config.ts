@@ -68,7 +68,7 @@ export function loadCatalogue(): VtuCatalogueItem[] {
     if (!productKey || seen.has(productKey) || !["MTN", "AIRTEL", "GLO", "9MOBILE"].includes(network)
       || !["data", "airtime"].includes(productType) || !serviceId || !productLabel
       || !Number.isSafeInteger(amountKobo) || amountKobo <= 0
-      || !Number.isSafeInteger(providerAmountKobo) || providerAmountKobo <= 0
+      || !Number.isSafeInteger(providerAmountKobo) || providerAmountKobo <= 0 || providerAmountKobo % 100 !== 0
       || (productType === "data" && !variationCode)
       || (productType === "airtime" && variationCode !== null)) {
       throw new Error("VTU catalogue contains an invalid or duplicate product entry.");

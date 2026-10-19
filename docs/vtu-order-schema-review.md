@@ -10,7 +10,7 @@ This draft supports direct per-order customer payments in phase 1. It must remai
 
 ### Good safeguards already present
 
-- Customer and provider amounts are represented as integer kobo, with currency constrained to NGN.
+- Customer retail price (`amount_kobo`), VTpass request amount (`provider_amount_kobo`) and actual provider wallet cost (`provider_cost_kobo`) are separate integer-kobo fields. Only retail price is currently sent to Paystack; actual provider cost remains unknown until VTpass confirms it.
 - Order idempotency key, Paystack payment reference, and provider request ID have unique constraints.
 - Provider attempts are capped at one in the schema, and the claim function only accepts a verified payment in the expected pre-fulfilment state.
 - The provider request ID is reserved in the database before the caller should make a VTpass purchase request.
@@ -19,14 +19,15 @@ This draft supports direct per-order customer payments in phase 1. It must remai
 - The provider-attempt claim function is not executable by anon/authenticated roles.
 - The draft now includes a service-role-only `create_vtu_order` function that records an initial audit event atomically and returns the existing order only when a repeated idempotency key matches the same purchase payload; mismatched reuse is rejected.
 - The draft now includes `reserve_vtu_payment_reference`, which atomically reserves one Paystack reference before checkout and permits retries only with that exact reference.
-- The draft now includes `mark_vtu_payment_verified`, which accepts only a server-verified success matching the stored reference, exact integer-kobo amount and NGN currency, then atomically changes state and records an idempotent audit event. These functions are unexecuted drafts and still require database-level tests.
+- The draft now includes `mark_vtu_payment_verified`, which accepts only a server-verified success matching the stored reference, exact integer-kobo amount and NGN currency, then atomically changes state and records an idempotent audit event.
+- The draft now includes `record_vtu_provider_result`, which persists the provider outcome and its audit event in one transaction, tied to the already-reserved request ID. These functions are unexecuted drafts and still require database-level tests.
 
 ### Required before this draft becomes a migration
 
-1. **Complete the state machine.** The draft now contains atomic reference reservation and a payment-verification transition. Still add explicit failure/cancellation/refund transitions and constraints that prevent invalid payment/order-state combinations. Test all transitions in an isolated database.
+1. **Complete the state machine.** The draft now contains atomic reference reservation, payment verification and provider-result transitions. Still add explicit payment failure/cancellation/refund transitions and constraints that prevent invalid payment/order-state combinations. Test all transitions in an isolated database.
 2. **Atomic reservation/audit draft improvement made.** The draft claim function now uses PL/pgSQL to reserve the provider request ID and insert a `provider_attempt_reserved` audit event in the same function transaction. This records reservation, not actual submission. It still requires SQL-level and concurrency tests against an isolated test database before becoming a migration.
 3. **Clarify timestamps.** `provider_submitted_at` should mean the actual provider request was sent, not merely that a request ID was reserved. Track reservation separately or document a precise lifecycle; a process crash between reservation and HTTP submission must go to manual reconciliation rather than an automatic retry.
-4. **Define server-side state transition rules.** Only trusted handlers should change statuses. Make the handler verify Paystack server-side, validate the order amount/currency and ownership, and make duplicate payment webhooks idempotent before it can claim an attempt.
+4. **Review handler-to-schema compatibility.** Development source now exists for authenticated order creation, Paystack initialization/verification, and a sandbox-only VTpass fulfillment/re-query handler. These functions are not deployed. Confirm all RPC signatures and return fields against a test database before enabling them.
 5. **Set and test `updated_at`.** The draft has no trigger, so every trusted update must set it explicitly or a controlled trigger must be added.
 6. **Keep raw provider data private.** Store only what reconciliation needs, redact secrets and unnecessary personal data from raw responses/events, and define a retention period for recipient phone numbers.
 7. **Check grants and RLS in the actual project.** Before any migration, confirm role grants, exposed-schema/Data API settings, RLS behavior, and database advisors against the connected Supabase project. Do not broaden client privileges to fix a server-side permission issue.
@@ -34,7 +35,7 @@ This draft supports direct per-order customer payments in phase 1. It must remai
 
 ## Current decision
 
-Keep this SQL as a design draft. Do not run it in Supabase, do not enable live provider credentials, and do not publish final customer prices until the above issues are resolved and the VTpass wallet debit and applicable Paystack fees are confirmed. The target remains at least ₦30 contribution on eligible plans after verified costs, not an assumed profit on every catalogue item.
+The checkout and sandbox-fulfillment source code is in the development branch, but the handlers are feature-flagged off and not deployed. The sandbox handler contains no live VTpass endpoint. Keep this SQL as a design draft. Do not run it in Supabase, do not enable live provider credentials, and do not publish final customer prices until the above issues are resolved and the VTpass wallet debit and applicable Paystack fees are confirmed. The target remains at least ₦30 contribution on eligible plans after verified costs, not an assumed profit on every catalogue item.
 
 ## Verified isolated preview
 

@@ -22,11 +22,11 @@
 - [ ] Confirm any Paystack terms or approvals needed for the airtime/data sales model.
 - [ ] Do not approve retail prices until provider debit and Paystack fees are known. Target contribution is at least ₦30 only where verified costs allow a customer-friendly price.
 
-The draft support request is `docs/vtpass-support-clarification-request.md`. It has been prepared in the repository but has **not** been sent to VTpass.
+The draft support request is `docs/vtpass-support-clarification-request.md`. It has been prepared in the repository but has **not** been sent to VTpass. VTpass's official site lists `support@vtpass.com` and its support ticket page; the message still needs to be sent from the owner's connected mail account or submitted through the official ticket form.
 
 ### B. Database design and migration — BLOCKED
 
-- [ ] Finish the SQL state machine, including explicit payment failure/cancellation/refund transitions and valid state-combination constraints.
+- [ ] Finish the SQL state machine, including explicit payment failure/cancellation/refund transitions and valid state-combination constraints. Static review findings are documented in `docs/VTU-SCHEMA-REVIEW-2026-10-19.md`.
 - [ ] Correctly distinguish request-ID reservation from actual provider submission time.
 - [ ] Review all function signatures and privileges against the Edge Function source.
 - [ ] Test RLS, column grants, security-definer/invoker behaviour, idempotency and concurrent claims in an isolated database.

@@ -36,8 +36,8 @@ h2{font-size:1.35rem;margin:20px 0 8px} .muted{color:var(--muted);line-height:1.
 <p class="muted">Choose your network and view the plans available in our protected development catalogue. We’re keeping prices under review so they remain fair and competitive.</p>
 <div class="field"><label for="data-network">Mobile network</label><select id="data-network"><option value="ALL">All networks</option><option value="MTN">MTN</option><option value="AIRTEL">Airtel</option><option value="GLO">Glo</option><option value="9MOBILE">9mobile</option></select></div>
 <div class="field"><label for="data-phone">Recipient phone number (optional for browsing)</label><input id="data-phone" inputmode="tel" autocomplete="tel" placeholder="08012345678" maxlength="16"></div>
-<a class="primary" id="catalog-link" href="/">View available data plans</a>
-<p class="small">The catalogue requires HarvestHome sign-in for this test. Selecting a plan does not create an order.</p>
+<a class="primary" id="catalog-link" href="/vtpass-data-test.html">Review data catalogue (test only)</a>
+<p class="small">This opens the sign-in-protected VTpass sandbox catalogue. It is for plan review only: no retail price is approved and no order or payment can be created.</p>
 </div>
 <div id="airtime-panel" role="tabpanel" aria-labelledby="airtime-tab" hidden>
 <h2>Prepare an airtime top-up</h2>
@@ -73,7 +73,7 @@ h2{font-size:1.35rem;margin:20px 0 8px} .muted{color:var(--muted);line-height:1.
  dataTab.addEventListener("click",()=>selectTab("data"));
  airtimeTab.addEventListener("click",()=>selectTab("airtime"));
  document.getElementById("data-network").addEventListener("change",event=>{
-   const url=new URL("/",window.location.origin);
+   const url=new URL("/vtpass-data-test.html",window.location.origin);
    if(event.target.value!=="ALL") url.searchParams.set("network",event.target.value);
    document.getElementById("catalog-link").href=url.pathname+url.search;
  });

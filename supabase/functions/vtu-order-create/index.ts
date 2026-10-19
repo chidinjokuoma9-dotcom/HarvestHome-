@@ -79,9 +79,8 @@ Deno.serve(async (req: Request) => {
       created: row.was_created === true,
       next_step: "Call the isolated vtu-paystack-initialize function for this order. This endpoint does not initialize payment or contact VTpass.",
     }, 200, cors);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "VTU order creation failed safely.";
-    // Configuration problems are operator-facing and must not reveal credentials.
-    return jsonResponse({ error: message }, 503, cors);
+  } catch {
+    // Keep database/provider/configuration internals out of customer responses.
+    return jsonResponse({ error: "VTU order creation could not be completed safely. Check the order status before trying again." }, 503, cors);
   }
 });

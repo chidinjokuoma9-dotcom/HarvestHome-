@@ -20,6 +20,9 @@ create table if not exists public.vtu_orders (
   product_label text not null,
   recipient_phone text not null,
   amount_kobo bigint not null check (amount_kobo > 0),
+  -- Amount passed to VTpass API in kobo, distinct from retail price and actual wallet debit.
+  -- Keep configured only after confirming the provider's expected request payload.
+  provider_amount_kobo bigint not null check (provider_amount_kobo > 0),
   currency text not null default 'NGN' check (currency = 'NGN'),
   provider_cost_kobo bigint check (provider_cost_kobo is null or provider_cost_kobo >= 0),
   payment_fee_kobo bigint check (payment_fee_kobo is null or payment_fee_kobo >= 0),
@@ -106,7 +109,8 @@ create or replace function public.create_vtu_order(
   p_variation_code text,
   p_product_label text,
   p_recipient_phone text,
-  p_amount_kobo bigint
+  p_amount_kobo bigint,
+  p_provider_amount_kobo bigint
 )
 returns table (
   order_id uuid,
@@ -135,6 +139,7 @@ begin
      or p_product_label is null or length(trim(p_product_label)) = 0
      or p_recipient_phone is null or length(trim(p_recipient_phone)) = 0
      or p_amount_kobo is null or p_amount_kobo <= 0
+     or p_provider_amount_kobo is null or p_provider_amount_kobo <= 0
      or (p_product_type = 'data' and (p_variation_code is null or length(trim(p_variation_code)) = 0))
      or (p_product_type = 'airtime' and p_variation_code is not null)
   then
@@ -143,11 +148,11 @@ begin
 
   insert into public.vtu_orders (
     user_id, idempotency_key, network, product_type, service_id,
-    variation_code, product_label, recipient_phone, amount_kobo
+    variation_code, product_label, recipient_phone, amount_kobo, provider_amount_kobo
   ) values (
     p_user_id, trim(p_idempotency_key), p_network, p_product_type, trim(p_service_id),
     nullif(trim(coalesce(p_variation_code, '')), ''), trim(p_product_label),
-    trim(p_recipient_phone), p_amount_kobo
+    trim(p_recipient_phone), p_amount_kobo, p_provider_amount_kobo
   )
   on conflict (idempotency_key) do nothing
   returning * into created;
@@ -192,6 +197,7 @@ begin
      or existing.product_label is distinct from trim(p_product_label)
      or existing.recipient_phone is distinct from trim(p_recipient_phone)
      or existing.amount_kobo is distinct from p_amount_kobo
+     or existing.provider_amount_kobo is distinct from p_provider_amount_kobo
   then
     raise exception 'Idempotency key was already used for a different VTU order';
   end if;
@@ -201,7 +207,7 @@ begin
 end;
 $vtu$;
 
-revoke all on function public.create_vtu_order(uuid, text, text, text, text, text, text, text, bigint)
+revoke all on function public.create_vtu_order(uuid, text, text, text, text, text, text, text, bigint, bigint)
   from public, anon, authenticated;
 grant execute on function public.create_vtu_order(uuid, text, text, text, text, text, text, text, bigint)
   to service_role;
@@ -219,6 +225,7 @@ returns table (
   order_id uuid,
   provider_request_id text,
   amount_kobo bigint,
+  provider_amount_kobo bigint,
   network text,
   product_type text,
   service_id text,
@@ -268,7 +275,7 @@ begin
 
   return query
   select claimed.id, claimed.provider_request_id, claimed.amount_kobo,
-         claimed.network, claimed.product_type, claimed.service_id,
+         claimed.provider_amount_kobo, claimed.network, claimed.product_type, claimed.service_id,
          claimed.variation_code, claimed.recipient_phone;
 end;
 $vtu$;

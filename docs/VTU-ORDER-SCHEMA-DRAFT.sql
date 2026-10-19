@@ -209,7 +209,7 @@ $vtu$;
 
 revoke all on function public.create_vtu_order(uuid, text, text, text, text, text, text, text, bigint, bigint)
   from public, anon, authenticated;
-grant execute on function public.create_vtu_order(uuid, text, text, text, text, text, text, text, bigint)
+grant execute on function public.create_vtu_order(uuid, text, text, text, text, text, text, text, bigint, bigint)
   to service_role;
 
 -- Atomic single-attempt reservation plus audit event. A trusted server handler

@@ -372,9 +372,19 @@ function passwordResetPage(){
 }
 function render(){
   const recovery=passwordRecoveryPending;
+  // Keep the static homepage guide and footer when the app redraws the body.
+  // The guide is part of the public homepage content and must survive marketplace renders.
+  const staticGuide=document.querySelector(".hh-guide")||window.__hhStaticGuide||null;
+  const staticFooter=document.querySelector("body > footer")||window.__hhStaticFooter||null;
+  if(staticGuide)window.__hhStaticGuide=staticGuide;
+  if(staticFooter)window.__hhStaticFooter=staticFooter;
   document.body.innerHTML=recovery
     ?passwordResetPage()
     :`<div id="app">${state.view==="marketplace"?marketplace():dashboard()}</div><div id="modalRoot"></div><div id="toast"></div>`;
+  if(!recovery){
+    if(window.__hhStaticGuide)document.body.appendChild(window.__hhStaticGuide);
+    if(window.__hhStaticFooter)document.body.appendChild(window.__hhStaticFooter);
+  }
   bind();
 }
 async function createNotification(userId,type,title,message,listingId=null){if(!userId)return false;const item={id:'local-'+Date.now()+'-'+Math.random().toString(36).slice(2),user_id:userId,type,title,message,listing_id:listingId,is_read:false,created_at:new Date().toISOString()};const n=json(KEYS.notifications,{});n[userId]=[item,...(n[userId]||[])];put(KEYS.notifications,n);if(sb){try{const {data,error}=await sb.from('notifications').insert({user_id:userId,type,title,message,listing_id:listingId}).select().single();if(error)throw error;const latest=json(KEYS.notifications,{});latest[userId]=[data,...(latest[userId]||[]).filter(x=>x.id!==item.id)];put(KEYS.notifications,latest);return true}catch(e){console.warn('Supabase notification could not be created:',e.message)}}return false}

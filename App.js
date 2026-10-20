@@ -961,12 +961,8 @@ async function shareListingSocial(listingId){
       const file=new File([blob],"harvesthome-listing."+extension,{type:blob.type});
       const title=l.title||"HarvestHome listing";
       const caption="🧡💚 "+title
-        +(l.price!=null?"\nPrice: "+(l.currency||"NGN")+" "+Number(l.price).toLocaleString():"")
-        +(l.location?"\nLocation: "+l.location:"")
-        +(l.category?"\nCategory: "+l.category:"")
-        +(l.mode?"\nFor "+String(l.mode).toLowerCase():"")
-        +"\n\nView full details on HarvestHome:\n"+url
-        +"\n\nHarvestHome — Connecting Africa. Growing Together.";
+        +"\n\nDiscover opportunities and share something good with someone who may need it. Together, we grow! 🧡💚"
+        +"\n\nView this listing on HarvestHome:\n"+url;
       const shareData={files:[file],title,text:caption};
       if(!navigator.canShare({files:[file]})){toast("This browser cannot attach the picture. Use the WhatsApp link preview instead.",true);return}
       await navigator.share(shareData);

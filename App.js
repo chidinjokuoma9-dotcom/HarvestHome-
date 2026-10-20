@@ -891,7 +891,7 @@ function openSocialShare(featureIndex){
   // For paid listing features, share the exact approved listing page.
   // For seller-wide paid services, keep the public HarvestHome page.
   const url=feature.listingId
-    ?new URL("/?listing="+encodeURIComponent(feature.listingId)+"&shared=listing&share_version=2",publicAppUrl.replace(/\/$/,"")+"/").href
+    ?new URL("/?listing="+encodeURIComponent(feature.listingId)+"&shared=listing&share_version=3",publicAppUrl.replace(/\/$/,"")+"/").href
     :new URL("/?public=1",publicAppUrl.replace(/\/$/,"")+"/").href;
   const text=paidFeatureShareText(feature)+url;
   const encText=encodeURIComponent(text),encUrl=encodeURIComponent(url);
@@ -920,7 +920,7 @@ function shareListing(listingId){
   if(!l){toast("This listing is no longer available to share.",true);return}
   if(String(l.status||"approved").toLowerCase()!=="approved"){toast("Only approved listings can be shared.",true);return}
   const baseUrl=(C.PUBLIC_APP_URL||window.location.origin||"").replace(/\/$/,"");
-  const url=new URL("/?listing="+encodeURIComponent(l.id)+"&shared=listing&share_version=2",baseUrl||window.location.origin).href;
+  const url=new URL("/?listing="+encodeURIComponent(l.id)+"&shared=listing&share_version=3",baseUrl||window.location.origin).href;
   const message="🏡 Discover great opportunities on HarvestHome! Whether you're looking to buy, rent, or sell, join our growing community and share opportunities with friends and family. 🧡💚 HarvestHome — Connecting Africa. Growing Together.";
   if(navigator.share){
     navigator.share({title:l.title||"HarvestHome listing",text:message,url}).then(()=>toast("Listing shared.")).catch(e=>{if(e?.name!=="AbortError")toast("Listing could not be shared.",true)});
@@ -934,7 +934,7 @@ async function shareListingSocial(listingId){
   if(!l){toast("This listing is no longer available to share.",true);return}
   if(String(l.status||"").toLowerCase()!=="approved"){toast("Only approved listings can be shared.",true);return}
   const baseUrl=(C.PUBLIC_APP_URL||window.location.origin||"").replace(/\/$/,"");
-  const url=new URL("/?listing="+encodeURIComponent(l.id)+"&shared=listing&share_version=2",baseUrl||window.location.origin).href;
+  const url=new URL("/?listing="+encodeURIComponent(l.id)+"&shared=listing&share_version=3",baseUrl||window.location.origin).href;
   const message="🏡 Discover great opportunities on HarvestHome! Whether you're looking to buy, rent, or sell, join our growing community and share opportunities with friends and family. 🧡💚 HarvestHome — Connecting Africa. Growing Together.";
   const encUrl=encodeURIComponent(url),encMessage=encodeURIComponent(message);
   const socials=[

@@ -48,6 +48,17 @@ async function resolveListing(listingId){
     return null;
   }
 }
+async function ensureSharedListing(){
+  const params=new URLSearchParams(window.location.search);
+  if(params.get("shared")!=="listing")return;
+  const id=params.get("listing");
+  if(!id)return;
+  if(state.sharedListing&&String(state.sharedListing.id)===String(id))return;
+  const listing=await resolveListing(id);
+  if(listing&&String(listing.status||"").toLowerCase()==="approved"&&!freeListingExpired(listing)){
+    state.sharedListing=listing;
+  }
+}
 function isFreeListing(l){return String(l?.publication_plan||"free").toLowerCase()==="free"}
 function freeListingExpired(l){return isFreeListing(l)&&l?.publish_expires_at&&new Date(l.publish_expires_at).getTime()<=Date.now()}
 function freeListingRemainingMs(l){if(!isFreeListing(l)||!l?.publish_expires_at)return null;return Math.max(0,new Date(l.publish_expires_at).getTime()-Date.now())}
@@ -452,7 +463,7 @@ async function loadProfile(){if(!sb||!authUser){authProfile=null;return}const {d
 async function loadAuth(){if(!sb){render();return}const params=new URLSearchParams(window.location.search);const publicSharedLink=params.get("shared")==="1"||params.get("shared")==="listing"||params.get("public")==="1"||!!params.get("listing");const recoveryUrl=params.get("reset")==="1"||window.location.pathname==="/update-password"||/type=recovery/i.test(window.location.search+" "+window.location.hash);if(recoveryUrl)passwordRecoveryPending=true;
   // Render the marketplace immediately; remote auth/data requests must not leave visitors on the static loading screen.
   render();
-  try{const {data}=await sb.auth.getSession();authUser=data.session?.user||null;await loadProfile();await syncListings();await syncFeatured();await syncFavourites();await syncNotifications();await syncPayments();await syncRewards();await syncProfessionalSellers();await syncSellerPerformance();await syncListingPerformance();await syncAdminRewards();await syncVerificationRequests();await syncAdvertising();if(passwordRecoveryPending){state.view="marketplace";render();return}if(publicSharedLink)state.view="marketplace";render();}catch(error){console.warn("HarvestHome startup sync failed:",error?.message||error);render();}}
+  try{const {data}=await sb.auth.getSession();authUser=data.session?.user||null;await loadProfile();await syncListings();if(publicSharedLink)await ensureSharedListing();await syncFeatured();await syncFavourites();await syncNotifications();await syncPayments();await syncRewards();await syncProfessionalSellers();await syncSellerPerformance();await syncListingPerformance();await syncAdminRewards();await syncVerificationRequests();await syncAdvertising();if(passwordRecoveryPending){state.view="marketplace";render();return}if(publicSharedLink)state.view="marketplace";render();}catch(error){console.warn("HarvestHome startup sync failed:",error?.message||error);render();}}
 async function syncPayments(){
   if(!sb||!authUser)return;
   try{
@@ -877,7 +888,7 @@ function openSocialShare(featureIndex){
   // For paid listing features, share the exact approved listing page.
   // For seller-wide paid services, keep the public HarvestHome page.
   const url=feature.listingId
-    ?new URL("/?listing="+encodeURIComponent(feature.listingId)+"&shared=listing",publicAppUrl.replace(/\/$/,"")+"/").href
+    ?new URL("/?listing="+encodeURIComponent(feature.listingId)+"&shared=listing&share_version=2",publicAppUrl.replace(/\/$/,"")+"/").href
     :new URL("/?public=1",publicAppUrl.replace(/\/$/,"")+"/").href;
   const text=paidFeatureShareText(feature)+url;
   const encText=encodeURIComponent(text),encUrl=encodeURIComponent(url);
@@ -906,7 +917,7 @@ function shareListing(listingId){
   if(!l){toast("This listing is no longer available to share.",true);return}
   if(String(l.status||"approved").toLowerCase()!=="approved"){toast("Only approved listings can be shared.",true);return}
   const baseUrl=(C.PUBLIC_APP_URL||window.location.origin||"").replace(/\/$/,"");
-  const url=new URL("/?listing="+encodeURIComponent(l.id)+"&shared=listing",baseUrl||window.location.origin).href;
+  const url=new URL("/?listing="+encodeURIComponent(l.id)+"&shared=listing&share_version=2",baseUrl||window.location.origin).href;
   const message="🏡 Discover great opportunities on HarvestHome! Whether you're looking to buy, rent, or sell, join our growing community and share opportunities with friends and family. 🧡💚 HarvestHome — Connecting Africa. Growing Together.";
   if(navigator.share){
     navigator.share({title:l.title||"HarvestHome listing",text:message,url}).then(()=>toast("Listing shared.")).catch(e=>{if(e?.name!=="AbortError")toast("Listing could not be shared.",true)});
@@ -920,7 +931,7 @@ async function shareListingSocial(listingId){
   if(!l){toast("This listing is no longer available to share.",true);return}
   if(String(l.status||"").toLowerCase()!=="approved"){toast("Only approved listings can be shared.",true);return}
   const baseUrl=(C.PUBLIC_APP_URL||window.location.origin||"").replace(/\/$/,"");
-  const url=new URL("/?listing="+encodeURIComponent(l.id)+"&shared=listing",baseUrl||window.location.origin).href;
+  const url=new URL("/?listing="+encodeURIComponent(l.id)+"&shared=listing&share_version=2",baseUrl||window.location.origin).href;
   const message="🏡 Discover great opportunities on HarvestHome! Whether you're looking to buy, rent, or sell, join our growing community and share opportunities with friends and family. 🧡💚 HarvestHome — Connecting Africa. Growing Together.";
   const encUrl=encodeURIComponent(url),encMessage=encodeURIComponent(message);
   const socials=[
@@ -1574,7 +1585,7 @@ async function del(id){
   toast("Listing deleted.")
 }
 setInterval(()=>{$$("[data-free-countdown]").forEach(el=>{const l=listings().find(x=>String(x.id)===String(el.dataset.freeCountdown));if(l)el.textContent="⏳ "+formatFreeCountdown(l);})},1000);
-if(sb){const publicSharedLink=(()=>{const p=new URLSearchParams(window.location.search);return p.get("shared")==="1"||p.get("shared")==="listing"||p.get("public")==="1"||!!p.get("listing")})();sb.auth.onAuthStateChange(async (event,session)=>{authUser=session?.user||null;if(event==="PASSWORD_RECOVERY"){passwordRecoveryPending=true;state.view="marketplace";render();return}if(passwordRecoveryPending){state.view="marketplace";render();return}if(authUser){await loadProfile();await syncFeatured();await syncFavourites();await syncNotifications();await syncRewards();await syncSellerPerformance();await syncListingPerformance();await syncAdminRewards();await syncVerificationRequests();await syncAdvertising();}else{authProfile=null;state.rewardAdmin=[];state.verificationRequests=[];state.sellerPerformance={listings:0,approved:0,pending:0,rejected:0,views:0,chats:0,uniqueBuyers:0,recommendations:0};state.listingPerformance=[];state.featuredListings=[];}await syncListings();if(publicSharedLink)state.view="marketplace";render();});loadAuth();}else{render();}
+if(sb){const publicSharedLink=(()=>{const p=new URLSearchParams(window.location.search);return p.get("shared")==="1"||p.get("shared")==="listing"||p.get("public")==="1"||!!p.get("listing")})();sb.auth.onAuthStateChange(async (event,session)=>{authUser=session?.user||null;if(event==="PASSWORD_RECOVERY"){passwordRecoveryPending=true;state.view="marketplace";render();return}if(passwordRecoveryPending){state.view="marketplace";render();return}if(authUser){await loadProfile();await syncFeatured();await syncFavourites();await syncNotifications();await syncRewards();await syncSellerPerformance();await syncListingPerformance();await syncAdminRewards();await syncVerificationRequests();await syncAdvertising();}else{authProfile=null;state.rewardAdmin=[];state.verificationRequests=[];state.sellerPerformance={listings:0,approved:0,pending:0,rejected:0,views:0,chats:0,uniqueBuyers:0,recommendations:0};state.listingPerformance=[];state.featuredListings=[];}await syncListings();if(publicSharedLink){await ensureSharedListing();state.view="marketplace";}render();});loadAuth();}else{render();}
 
 })();
 // HarvestHome responsive publish/moderation patch marker

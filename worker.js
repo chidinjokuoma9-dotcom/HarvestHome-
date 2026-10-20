@@ -101,23 +101,8 @@ async function listingImage(config, listing) {
 }
 
 function listingDescription(listing) {
-  const parts = [];
-  if (listing.description) parts.push(String(listing.description).replace(/\s+/g, " ").trim());
-  const location = [listing.location, listing.country].filter(Boolean).join(", ");
-  if (location) parts.push(location);
-  if (listing.price !== null && listing.price !== undefined && listing.price !== "") {
-    const amount = Number(listing.price);
-    const currency = String(listing.currency || "NGN").trim();
-    if (Number.isFinite(amount)) {
-      let priceText = currency + " " + amount.toLocaleString("en");
-      try {
-        priceText = new Intl.NumberFormat("en", { style: "currency", currency, maximumFractionDigits: 0 }).format(amount);
-      } catch {}
-      parts.push(priceText);
-    }
-  }
-  const result = parts.filter(Boolean).join(" · ");
-  return result.length > 240 ? result.slice(0, 237) + "..." : result || "View this approved listing on HarvestHome, the marketplace for houses, land, products and farm produce.";
+  const result = String(listing.description || "").replace(/\s+/g, " ").trim();
+  return result.length > 240 ? result.slice(0, 237) + "..." : result || "View this listing on HarvestHome — houses, land, products and farm produce. Connecting Africa. Growing Together.";
 }
 
 async function withListingPreview(env, requestUrl, html, listingId) {
@@ -148,6 +133,7 @@ async function withListingPreview(env, requestUrl, html, listingId) {
   const canonicalUrl = new URL("/", config.publicUrl);
   canonicalUrl.searchParams.set("listing", String(listing.id));
   canonicalUrl.searchParams.set("shared", "listing");
+  canonicalUrl.searchParams.set("preview", "3");
   const canonical = canonicalUrl.toString();
 
   html = replaceTitle(html, title);

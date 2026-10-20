@@ -134,6 +134,7 @@ async function withListingPreview(env, requestUrl, html, listingId) {
   const canonicalUrl = new URL("/", config.publicUrl);
   canonicalUrl.searchParams.set("listing", String(listing.id));
   canonicalUrl.searchParams.set("shared", "listing");
+  canonicalUrl.searchParams.set("preview", "3");
   canonicalUrl.searchParams.set("share_version", requestUrl.searchParams.get("share_version") || "2");
   const canonical = canonicalUrl.toString();
 

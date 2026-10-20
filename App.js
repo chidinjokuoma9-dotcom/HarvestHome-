@@ -905,11 +905,14 @@ function shareListing(listingId){
   const l=listings().find(x=>String(x.id)===String(listingId));
   if(!l){toast("This listing is no longer available to share.",true);return}
   if(String(l.status||"approved").toLowerCase()!=="approved"){toast("Only approved listings can be shared.",true);return}
-  const url=new URL("/?listing="+encodeURIComponent(l.id)+"&shared=listing",window.location.origin).href;
+  const baseUrl=(C.PUBLIC_APP_URL||window.location.origin||"").replace(/\/$/,"");
+  const url=new URL("/?listing="+encodeURIComponent(l.id)+"&shared=listing",baseUrl||window.location.origin).href;
+  const message="🏡 Discover great opportunities on HarvestHome! Whether you're looking to buy, rent, or sell, join our growing community and share opportunities with friends and family. 🧡💚 HarvestHome — Connecting Africa. Growing Together.";
   if(navigator.share){
-    navigator.share({url}).then(()=>toast("Listing link shared.")).catch(e=>{if(e?.name!=="AbortError")toast("Listing could not be shared.",true)});
+    navigator.share({title:l.title||"HarvestHome listing",text:message,url}).then(()=>toast("Listing shared.")).catch(e=>{if(e?.name!=="AbortError")toast("Listing could not be shared.",true)});
   }else{
-    navigator.clipboard.writeText(url).then(()=>toast("Listing link copied.")).catch(()=>window.prompt("Copy this HarvestHome listing link:",url));
+    const shareText=message+"\n\n"+url;
+    navigator.clipboard.writeText(shareText).then(()=>toast("Promotional message and listing link copied.")).catch(()=>window.prompt("Copy your HarvestHome share message:",shareText));
   }
 }
 async function shareListingSocial(listingId){
@@ -918,23 +921,25 @@ async function shareListingSocial(listingId){
   if(String(l.status||"").toLowerCase()!=="approved"){toast("Only approved listings can be shared.",true);return}
   const baseUrl=(C.PUBLIC_APP_URL||window.location.origin||"").replace(/\/$/,"");
   const url=new URL("/?listing="+encodeURIComponent(l.id)+"&shared=listing",baseUrl||window.location.origin).href;
-  const encUrl=encodeURIComponent(url);
+  const message="🏡 Discover great opportunities on HarvestHome! Whether you're looking to buy, rent, or sell, join our growing community and share opportunities with friends and family. 🧡💚 HarvestHome — Connecting Africa. Growing Together.";
+  const encUrl=encodeURIComponent(url),encMessage=encodeURIComponent(message);
   const socials=[
-    {label:"🟢 WhatsApp",href:"https://wa.me/?text="+encUrl},
-    {label:"🔵 Facebook",href:"https://www.facebook.com/sharer/sharer.php?u="+encUrl},
-    {label:"𝕏 X",href:"https://twitter.com/intent/tweet?url="+encUrl},
-    {label:"🔷 Telegram",href:"https://t.me/share/url?url="+encUrl}
+    {label:"🟢 WhatsApp",href:"https://wa.me/?text="+encodeURIComponent(message+"\n\n"+url)},
+    {label:"🔵 Facebook",href:"https://www.facebook.com/sharer/sharer.php?u="+encUrl+"&quote="+encMessage},
+    {label:"𝕏 X",href:"https://twitter.com/intent/tweet?text="+encMessage+"&url="+encUrl},
+    {label:"🔷 Telegram",href:"https://t.me/share/url?url="+encUrl+"&text="+encMessage}
   ];
+  const shareText=message+"\n\n"+url;
   const root=$("#modalRoot");
   if(!root)return;
-  root.innerHTML='<div class="modal-backdrop"><div class="modal"><button class="modal-close" data-close>×</button><span class="eyebrow">Seller sharing</span><h2>Share your listing</h2><p><b>'+esc(l.title)+'</b></p><div class="dashboard-callout"><p style="margin:0">Only the listing link will be shared. Social platforms that support link previews can show the listing title, main photo, price and details automatically.</p><div style="margin-top:10px;word-break:break-all;font-size:12px">'+esc(url)+'</div></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:14px">'+socials.map(x=>'<a class="outline-btn" target="_blank" rel="noopener noreferrer" href="'+x.href+'" style="text-align:center;text-decoration:none">'+x.label+'</a>').join("")+'<button class="outline-btn" data-copy-listing-share>📋 Copy link</button><button class="primary-btn" data-native-listing-share>↗ More</button></div><small class="demo-note">Only the public listing URL is shared. Private account and payment details are not shared.</small></div></div>';
+  root.innerHTML='<div class="modal-backdrop"><div class="modal"><button class="modal-close" data-close>×</button><span class="eyebrow">Seller sharing</span><h2>Share your listing</h2><div class="dashboard-callout"><p style="margin:0">Your share includes a short HarvestHome message and this listing link. Where supported, the preview will show the listing’s main picture and title. Location, price, and other details remain on the listing page.</p><div style="margin-top:10px;word-break:break-all;font-size:12px">'+esc(url)+'</div></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:14px">'+socials.map(x=>'<a class="outline-btn" target="_blank" rel="noopener noreferrer" href="'+x.href+'" style="text-align:center;text-decoration:none">'+x.label+'</a>').join("")+'<button class="outline-btn" data-copy-listing-share>📋 Copy message + link</button><button class="primary-btn" data-native-listing-share>↗ More</button></div><small class="demo-note">The listing link opens the exact listing. Social platforms control whether and when they display its picture and title preview.</small></div></div>';
   $("[data-close]")?.addEventListener("click",close);
   $("[data-copy-listing-share]")?.addEventListener("click",async()=>{
-    try{await navigator.clipboard.writeText(url);toast("Listing link copied.")}
-    catch{window.prompt("Copy this HarvestHome listing link:",url)}
+    try{await navigator.clipboard.writeText(shareText);toast("Promotional message and listing link copied.")}
+    catch{window.prompt("Copy your HarvestHome share message:",shareText)}
   });
   $("[data-native-listing-share]")?.addEventListener("click",async()=>{
-    try{if(navigator.share){await navigator.share({url});toast("Listing link shared.")}else toast("Your browser does not provide the More share option. Use a social button.",true)}
+    try{if(navigator.share){await navigator.share({title:l.title||"HarvestHome listing",text:message,url});toast("Listing shared.")}else toast("Your browser does not provide the More share option. Use a social button.",true)}
     catch(e){if(e?.name!=="AbortError")toast("Listing could not be shared.",true)}
   });
 }

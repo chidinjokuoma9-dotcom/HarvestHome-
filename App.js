@@ -9,6 +9,27 @@ const DEMO_ADMIN={email:"admin@harvesthome.app",name:"HarvestHome Admin",passwor
 const V5 = {maxImages:6,maxVideoMB:25};
 const mapURL=l=>`https://www.openstreetmap.org/search?query=${encodeURIComponent(`${l.location||""}, ${l.country||""}`)}`;
 const readFiles=files=>Promise.all([...files].map(file=>new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve({name:file.name,type:file.type,data:r.result});r.onerror=reject;r.readAsDataURL(file)})));
+// Reduce future Storage usage by resizing large listing photos in the browser.
+// Keep the original untouched if the browser cannot decode or encode the file.
+async function optimizeListingImage(file){
+ if(!file||!file.type||!file.type.startsWith("image/")||/image\/(gif|svg\+xml)/i.test(file.type))return file;
+ if(file.size<350*1024)return file;
+ try{
+  const bitmap=await createImageBitmap(file);
+  const maxSide=1600,scale=Math.min(1,maxSide/Math.max(bitmap.width,bitmap.height));
+  if(scale===1&&file.size<700*1024){bitmap.close?.();return file;}
+  const canvas=document.createElement("canvas");
+  canvas.width=Math.max(1,Math.round(bitmap.width*scale));
+  canvas.height=Math.max(1,Math.round(bitmap.height*scale));
+  const ctx=canvas.getContext("2d");
+  if(!ctx){bitmap.close?.();return file;}
+  ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);bitmap.close?.();
+  const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/webp",0.82));
+  if(!blob||blob.type!=="image/webp"||blob.size>=file.size)return file;
+  const base=(file.name||"listing-photo").replace(/\.[^.]+$/," ").trim()||"listing-photo";
+  return new File([blob],base+".webp",{type:"image/webp",lastModified:Date.now()});
+ }catch(error){console.warn("Listing photo optimization skipped:",error?.message||error);return file;}
+}
 
 const seed = [];
 
@@ -528,12 +549,12 @@ function card(l){
   let u=user(),f=json(KEYS.favourites,{}),fav=u&&(f[u.email]||[]).includes(l.id);
   const imgs=(l.images||[]).filter(x=>x&&x.data);
   const img=imgs[0]?.data;
-  const thumbs=imgs.slice(1).map((x,i)=>`<button type="button" data-media-open="${esc(l.id)}" data-media-index="${i+1}" style="border:0;padding:0;background:none;cursor:zoom-in"><img src="${esc(x.data)}" alt="${esc(l.title)} photo ${i+2}" style="width:72px;height:56px;object-fit:cover;border:2px solid #fff;border-radius:8px;box-shadow:0 1px 5px rgba(0,0,0,.18);background:#eee"></button>`).join("");
+  const thumbs=imgs.slice(1).map((x,i)=>`<button type="button" data-media-open="${esc(l.id)}" data-media-index="${i+1}" style="border:0;padding:0;background:none;cursor:zoom-in"><img src="${esc(x.data)}" alt="${esc(l.title)} photo ${i+2}" loading="lazy" decoding="async" style="width:72px;height:56px;object-fit:cover;border:2px solid #fff;border-radius:8px;box-shadow:0 1px 5px rgba(0,0,0,.18);background:#eee"></button>`).join("");
   const mediaCount=imgs.length+(l.video?1:0);
   const fallbackIcon=l.emoji||({Houses:"🏠",Land:"🌍",Equipment:"🚜","Farm Produce":"🌾"}[l.category]||"📦");
   return `<article class="listing-card" data-view-listing="${esc(l.id)}">
     <div class="listing-image ${slug(l.category)}" style="padding:0;overflow:hidden;position:relative">
-      ${img?`<button type="button" data-media-open="${esc(l.id)}" data-media-index="0" style="display:block;width:100%;padding:0;border:0;background:none;cursor:zoom-in"><img src="${esc(img)}" alt="${esc(l.title)}" style="width:100%;height:220px;object-fit:cover;display:block"></button>`:`<div style="height:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:linear-gradient(135deg,#f5f7f2,#e9efe6);color:#49634f;text-align:center"><span style="font-size:54px">${fallbackIcon}</span><b style="font-size:14px">Photo not available</b><small style="opacity:.75">Seller has not uploaded a photo yet</small></div>`}
+      ${img?`<button type="button" data-media-open="${esc(l.id)}" data-media-index="0" style="display:block;width:100%;padding:0;border:0;background:none;cursor:zoom-in"><img src="${esc(img)}" alt="${esc(l.title)}" loading="lazy" decoding="async" style="width:100%;height:220px;object-fit:cover;display:block"></button>`:`<div style="height:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:linear-gradient(135deg,#f5f7f2,#e9efe6);color:#49634f;text-align:center"><span style="font-size:54px">${fallbackIcon}</span><b style="font-size:14px">Photo not available</b><small style="opacity:.75">Seller has not uploaded a photo yet</small></div>`}
       <button class="heart ${fav?"active":""}" data-fav="${l.id}">${fav?"♥":"♡"}</button>
       <span class="mode-pill">${esc(l.mode)}</span>${isFeatured(l.id)?`<span style="position:absolute;left:12px;top:12px;background:#fff;padding:6px 9px;border-radius:999px;font-size:12px;font-weight:800">⭐ Featured</span>`:""}
     </div>
@@ -1457,7 +1478,7 @@ try{
  const uploadedPaths=new Set((existingMedia.data||[]).map(m=>String(m.storage_path||"")));
  const files=[...images.map((file,i)=>({file,type:"image",index:i,label:"Photo "+(i+1)})),...(video?[{file:video,type:"video",index:images.length,label:"Video"}]:[])];
  for(let i=0;i<files.length;i++){
-  const item=files[i],safeName=item.file.name.replace(/[^a-zA-Z0-9._-]/g,"_"),alreadyUploaded=[...uploadedPaths].some(p=>p.endsWith("-"+safeName));
+  const item=files[i];let uploadFile=item.file;if(item.type==="image")uploadFile=await optimizeListingImage(item.file);const safeName=uploadFile.name.replace(/[^a-zA-Z0-9._-]/g,"_"),alreadyUploaded=[...uploadedPaths].some(p=>p.endsWith("-"+safeName));
   const pctText=$("#mediaProgressText"),previewIndex=item.type==="image"?item.index:images.length;
   if(alreadyUploaded){
    const label=document.querySelector('[data-preview-pct="'+previewIndex+'"]'),bar=document.querySelector('[data-preview-bar="'+previewIndex+'"]');
@@ -1469,7 +1490,7 @@ try{
   const mediaPath=authUser.id+"/"+row.id+"/"+(item.type==="image"?"images":"video")+"/"+Date.now()+"-"+safeName;
   if(pctText)pctText.textContent=item.label+" of "+files.length+" — 0% ("+item.file.name+")";
   try{
-   await uploadListingMediaWithProgress("listing-media",mediaPath,item.file,p=>{
+   await uploadListingMediaWithProgress("listing-media",mediaPath,uploadFile,p=>{
     if(pctText)pctText.textContent=item.label+" of "+files.length+" — "+p+"% ("+item.file.name+")";
     const bar=document.querySelector('[data-preview-bar="'+previewIndex+'"]'),label=document.querySelector('[data-preview-pct="'+previewIndex+'"]');
     if(bar)bar.style.width=p+"%";

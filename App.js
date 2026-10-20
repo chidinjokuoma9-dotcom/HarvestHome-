@@ -946,8 +946,25 @@ async function shareListingSocial(listingId){
   const shareText=message+"\n\n"+url;
   const root=$("#modalRoot");
   if(!root)return;
-  root.innerHTML='<div class="modal-backdrop"><div class="modal"><button class="modal-close" data-close>×</button><span class="eyebrow">Seller sharing</span><h2>Share your listing</h2><div class="dashboard-callout"><p style="margin:0">Your share includes a short HarvestHome message and this listing link. Where supported, the preview will show the listing’s main picture and title. Location, price, and other details remain on the listing page.</p><div style="margin-top:10px;word-break:break-all;font-size:12px">'+esc(url)+'</div></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:14px">'+socials.map(x=>'<a class="outline-btn" target="_blank" rel="noopener noreferrer" href="'+x.href+'" style="text-align:center;text-decoration:none">'+x.label+'</a>').join("")+'<button class="outline-btn" data-copy-listing-share>📋 Copy message + link</button><button class="primary-btn" data-native-listing-share>↗ More</button></div><small class="demo-note">The listing link opens the exact listing. Social platforms control whether and when they display its picture and title preview.</small></div></div>';
+  root.innerHTML='<div class="modal-backdrop"><div class="modal"><button class="modal-close" data-close>×</button><span class="eyebrow">Seller sharing</span><h2>Share your listing</h2><div class="dashboard-callout"><p style="margin:0">Your share includes a short HarvestHome message and this listing link. Where supported, the preview will show the listing’s main picture and title. Location, price, and other details remain on the listing page.</p><div style="margin-top:10px;word-break:break-all;font-size:12px">'+esc(url)+'</div></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:14px">'+socials.map(x=>'<a class="outline-btn" target="_blank" rel="noopener noreferrer" href="'+x.href+'" style="text-align:center;text-decoration:none">'+x.label+'</a>').join("")+'<button class="outline-btn" data-share-listing-image>🖼️ Share picture + link</button><button class="outline-btn" data-copy-listing-share>📋 Copy message + link</button><button class="primary-btn" data-native-listing-share>↗ More</button></div><small class="demo-note">The listing link opens the exact listing. Social platforms control whether and when they display its picture and title preview.</small></div></div>';
   $("[data-close]")?.addEventListener("click",close);
+  $("[data-share-listing-image]")?.addEventListener("click",async()=>{
+    const imageUrl=l.images?.[0]?.data||l.cover_url||l.image_url||l.image;
+    if(!imageUrl){toast("This listing has no shareable picture.",true);return}
+    if(!navigator.share||!navigator.canShare){toast("Picture sharing is not supported by this browser. Use WhatsApp to share the listing link.",true);return}
+    try{
+      const response=await fetch(imageUrl);
+      if(!response.ok)throw new Error("Picture could not be loaded");
+      const blob=await response.blob();
+      if(!blob.type.startsWith("image/"))throw new Error("The listing media is not an image");
+      const extension=(blob.type.split("/")[1]||"jpg").replace("jpeg","jpg").replace(/[^a-z0-9]/gi,"");
+      const file=new File([blob],"harvesthome-listing."+extension,{type:blob.type});
+      const shareData={files:[file],title:l.title||"HarvestHome listing",text:"🧡💚 "+(l.title||"HarvestHome listing")+"\n\nView full details on HarvestHome: "+url};
+      if(!navigator.canShare({files:[file]})){toast("This browser cannot attach the picture. Use the WhatsApp link preview instead.",true);return}
+      await navigator.share(shareData);
+      toast("Listing picture and link shared.");
+    }catch(e){if(e?.name!=="AbortError")toast("Could not attach the picture. Try the WhatsApp link button instead.",true)}
+  });
   $("[data-copy-listing-share]")?.addEventListener("click",async()=>{
     try{await navigator.clipboard.writeText(shareText);toast("Promotional message and listing link copied.")}
     catch{window.prompt("Copy your HarvestHome share message:",shareText)}

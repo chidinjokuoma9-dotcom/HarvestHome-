@@ -17,7 +17,7 @@ let chatTimer=null;
 const chatImageUrlCache=new Map();
 const CHAT_IMAGE_MARKER=/^\[\[HH_CHAT_IMAGE:([^\]]+)\]\](?:\n([\s\S]*))?$/;
 state.rewardAdmin=[];state.verificationRequests=[];state.sellerPerformance={listings:0,approved:0,pending:0,rejected:0,views:0,chats:0,uniqueBuyers:0,recommendations:0};state.listingPerformance=[];state.featuredListings=[];state.professionalSellers=[];state.advertisingRequests=[];state.advertisingCampaigns=[];state.advertisingReport=[];
-const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const $=(s,r=document)=>r.querySelector(s), $=(s,r=document)=>{const found=r.querySelectorAll(s);if(!found)return [];if(typeof found.forEach==="function")return Array.from(found);if(typeof found[Symbol.iterator]==="function")return Array.from(found);return [found]};
 const json=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}};
 const put=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
 const users=()=>{let us=json(KEYS.users,[]);if(!us.some(u=>u.email===DEMO_ADMIN.email)){us.push({...DEMO_ADMIN});put(KEYS.users,us)}return us};

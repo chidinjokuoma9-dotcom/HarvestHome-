@@ -3,11 +3,11 @@ async function getPublicConfig(env, requestUrl) {
     const response = await env.ASSETS.fetch(new Request(new URL("/Config.js", requestUrl).toString()));
     if (!response.ok) return null;
     const source = await response.text();
-    const url = source.match(/SUPABASE_URL\\s*:\\s*["']([^"']+)["']/)?.[1];
-    const key = source.match(/SUPABASE_ANON_KEY\\s*:\\s*["']([^"']+)["']/)?.[1];
-    const publicUrl = source.match(/PUBLIC_APP_URL\\s*:\\s*["']([^"']+)["']/)?.[1];
-    if (!url || !key) return null;
-    return { supabaseUrl: url.replace(/\\/$/, ""), anonKey: key, publicUrl: publicUrl || requestUrl.origin };
+    const supabaseUrl = source.match(/SUPABASE_URL\s*:\s*["']([^"']+)["']/)?.[1];
+    const anonKey = source.match(/SUPABASE_ANON_KEY\s*:\s*["']([^"']+)["']/)?.[1];
+    const publicUrl = source.match(/PUBLIC_APP_URL\s*:\s*["']([^"']+)["']/)?.[1];
+    if (!supabaseUrl || !anonKey) return null;
+    return { supabaseUrl: supabaseUrl.replace(/\/$/, ""), anonKey, publicUrl: publicUrl || requestUrl.origin };
   } catch {
     return null;
   }
@@ -23,29 +23,28 @@ function escapeHtml(value) {
 }
 
 function replaceMeta(html, attribute, key, value) {
-  const escapedKey = key.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&");
-  const pattern = new RegExp("<meta\\s+" + attribute + "=[\\\"']" + escapedKey + "[\\\"']\\s+content=[\\\"'][^\\\"']*[\\\"']\\s*/?>", "i");
+  const pattern = new RegExp("<meta\\s+" + attribute + "=[\\\"']" + key + "[\\\"']\\s+content=[\\\"'][^\\\"']*[\\\"']\\s*/?>", "i");
   const tag = '<meta ' + attribute + '="' + escapeHtml(key) + '" content="' + escapeHtml(value) + '">';
   if (pattern.test(html)) return html.replace(pattern, tag);
-  return html.replace(/<\\/head>/i, "  " + tag + "\\n</head>");
+  return html.replace(/<\/head>/i, "  " + tag + "\n</head>");
 }
 
 function replaceTitle(html, title) {
   const safeTitle = escapeHtml(title);
-  if (/<title>[\\s\\S]*?<\\/title>/i.test(html)) {
-    return html.replace(/<title>[\\s\\S]*?<\\/title>/i, "<title>" + safeTitle + "</title>");
+  if (/<title>[\s\S]*?<\/title>/i.test(html)) {
+    return html.replace(/<title>[\s\S]*?<\/title>/i, "<title>" + safeTitle + "</title>");
   }
-  return html.replace(/<\\/head>/i, "  <title>" + safeTitle + "</title>\\n</head>");
+  return html.replace(/<\/head>/i, "  <title>" + safeTitle + "</title>\n</head>");
 }
 
 function publicStorageUrl(baseUrl, storagePath) {
-  const path = String(storagePath || "").replace(/^\\/+/, "");
+  const path = String(storagePath || "").replace(/^\/+/, "");
   if (!path) return "";
   return baseUrl + "/storage/v1/object/public/listing-media/" +
     path.split("/").map(part => encodeURIComponent(part)).join("/");
 }
 
-async function loadApprovedListing(env, config, listingId) {
+async function loadApprovedListing(config, listingId) {
   const params = new URLSearchParams({
     id: "eq." + listingId,
     status: "eq.approved",
@@ -69,15 +68,10 @@ async function loadApprovedListing(env, config, listingId) {
   return listing;
 }
 
-async function listingImage(env, config, listing) {
+async function listingImage(config, listing) {
   const cover = String(listing.cover_url || "").trim();
-  if (cover) {
-    try {
-      const parsed = new URL(cover, config.supabaseUrl);
-      if (parsed.protocol === "https:" && parsed.pathname.includes("/storage/v1/object/public/")) return parsed.href;
-      if (parsed.protocol === "https:" && /^https?:\\/\\//i.test(cover)) return parsed.href;
-    } catch {}
-    // Some older records store the object path rather than its full public URL.
+  if (/^https:\/\//i.test(cover)) return cover;
+  if (cover && !/^https?:\/\//i.test(cover)) {
     const fromPath = publicStorageUrl(config.supabaseUrl, cover);
     if (fromPath) return fromPath;
   }
@@ -98,7 +92,9 @@ async function listingImage(env, config, listing) {
     });
     if (response.ok) {
       const rows = await response.json();
-      if (Array.isArray(rows) && rows[0]?.storage_path) return publicStorageUrl(config.supabaseUrl, rows[0].storage_path);
+      if (Array.isArray(rows) && rows[0]?.storage_path) {
+        return publicStorageUrl(config.supabaseUrl, rows[0].storage_path);
+      }
     }
   } catch {}
   return "https://harvesthome.ng/favicon.svg?v=2";
@@ -106,7 +102,7 @@ async function listingImage(env, config, listing) {
 
 function listingDescription(listing) {
   const parts = [];
-  if (listing.description) parts.push(String(listing.description).replace(/\\s+/g, " ").trim());
+  if (listing.description) parts.push(String(listing.description).replace(/\s+/g, " ").trim());
   const location = [listing.location, listing.country].filter(Boolean).join(", ");
   if (location) parts.push(location);
   if (listing.price !== null && listing.price !== undefined && listing.price !== "") {
@@ -131,7 +127,7 @@ async function withListingPreview(env, requestUrl, html, listingId) {
 
   let listing;
   try {
-    listing = await loadApprovedListing(env, config, listingId);
+    listing = await loadApprovedListing(config, listingId);
   } catch {
     return html;
   }
@@ -148,9 +144,11 @@ async function withListingPreview(env, requestUrl, html, listingId) {
 
   const title = String(listing.title || "Marketplace listing").trim().slice(0, 180) + " | HarvestHome";
   const description = listingDescription(listing);
-  const image = await listingImage(env, config, listing);
-  const canonical = new URL("/", config.publicUrl).toString() +
-    "?listing=" + encodeURIComponent(String(listing.id)) + "&shared=listing";
+  const image = await listingImage(config, listing);
+  const canonicalUrl = new URL("/", config.publicUrl);
+  canonicalUrl.searchParams.set("listing", String(listing.id));
+  canonicalUrl.searchParams.set("shared", "listing");
+  const canonical = canonicalUrl.toString();
 
   html = replaceTitle(html, title);
   html = replaceMeta(html, "property", "og:title", title);
@@ -163,7 +161,7 @@ async function withListingPreview(env, requestUrl, html, listingId) {
   html = replaceMeta(html, "name", "twitter:title", title);
   html = replaceMeta(html, "name", "twitter:description", description);
   html = replaceMeta(html, "name", "twitter:image", image);
-  html = html.replace(/<link\\s+rel=["']canonical["']\\s+href=["'][^"']*["']\\s*\\/?>(?=\\s|<)/i,
+  html = html.replace(/<link\s+rel=["']canonical["']\s+href=["'][^"']*["']\s*\/?>/i,
     '<link rel="canonical" href="' + escapeHtml(canonical) + '">');
   return html;
 }
@@ -178,8 +176,8 @@ export default {
       return env.ASSETS.fetch(new Request(appUrl, request));
     }
 
-    // Social crawlers do not run the marketplace JavaScript. Return the same
-    // app HTML with listing-specific Open Graph/Twitter metadata for share URLs.
+    // Social crawlers do not run marketplace JavaScript. Serve the same app
+    // HTML with listing-specific Open Graph/Twitter metadata for share URLs.
     const listingId = url.searchParams.get("listing");
     const isSharedListing = url.searchParams.get("shared") === "listing" && listingId;
     if (request.method === "GET" && url.pathname === "/" && isSharedListing) {

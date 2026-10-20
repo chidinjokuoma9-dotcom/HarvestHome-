@@ -901,8 +901,43 @@ function openSocialShare(featureIndex){
   });
 }
 // Share bindings use $ because zero-or-more matching elements are expected.
-function shareListing(listingId){const l=listings().find(x=>String(x.id)===String(listingId));if(!l){toast("This listing is no longer available to share.",true);return}if(String(l.status||"approved")!=="approved"){toast("Only approved listings can be shared.",true);return}const url=new URL("/?listing="+encodeURIComponent(l.id)+"&shared=listing",window.location.origin).href;const text="Check out this HarvestHome listing: "+l.title+" — "+(l.location||l.country||"")+"\\n\\nBuy, sell & lease what matters on HarvestHome.\\n\\nOpen listing: "+url;if(navigator.share){navigator.share({title:"HarvestHome — "+l.title,text,url}).then(()=>toast("Listing shared.")).catch(e=>{if(e?.name!=="AbortError")toast("Listing could not be shared.",true)})}else{try{navigator.clipboard.writeText(text);toast("Listing share link copied.")}catch{window.prompt("Copy this HarvestHome listing link:",url)}}}
-async function shareListingSocial(listingId){const l=await resolveListing(listingId);if(!l){toast('This listing is no longer available to share.',true);return}if(String(l.status||'')!=='approved'){toast('Only approved listings can be shared.',true);return}const baseUrl=(C.PUBLIC_APP_URL||window.location.origin||'').replace(/\/$/,'');const url=new URL('/?listing='+encodeURIComponent(l.id)+'&shared=listing&ref=share',baseUrl||window.location.origin).href;const text='Check out this HarvestHome listing: '+l.title+' — '+(l.location||l.country||'')+'\n\nBuy, sell & lease what matters on HarvestHome.\n\nOpen the listing to view the details. Create a free HarvestHome account if you want to contact the seller.';const encText=encodeURIComponent(text),encUrl=encodeURIComponent(url);const socials=[{label:'🟢 WhatsApp',href:'https://wa.me/?text='+encodeURIComponent(text+'\n\n'+url)},{label:'🔵 Facebook',href:'https://www.facebook.com/sharer/sharer.php?u='+encUrl+'&quote='+encText},{label:'𝕏 X',href:'https://twitter.com/intent/tweet?text='+encText+'&url='+encUrl},{label:'🔷 Telegram',href:'https://t.me/share/url?url='+encUrl+'&text='+encText}];const root=$("#modalRoot");if(!root)return;root.innerHTML='<div class="modal-backdrop"><div class="modal"><button class="modal-close" data-close>×</button><span class="eyebrow">Seller sharing</span><h2>Share your listing</h2><p><b>'+esc(l.title)+'</b></p><div class="dashboard-callout"><p style="margin:0">Share this approved HarvestHome listing with buyers on social media.</p><div style="margin-top:10px;word-break:break-all;font-size:12px">'+esc(url)+'</div></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:14px">'+socials.map(x=>'<a class="outline-btn" target="_blank" rel="noopener noreferrer" href="'+x.href+'" style="text-align:center;text-decoration:none">'+x.label+'</a>').join('')+'<button class="outline-btn" data-copy-listing-share>📋 Copy</button><button class="primary-btn" data-native-listing-share>↗ More</button></div><small class="demo-note">The shared page shows the approved listing. Private account and payment details are not shared.</small></div></div>';$('[data-close]')?.addEventListener('click',close);$('[data-copy-listing-share]')?.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(text+'\n\n'+url);toast('Listing share message copied.')}catch{window.prompt('Copy your HarvestHome listing share message:',text+'\n\n'+url)}});$('[data-native-listing-share]')?.addEventListener('click',async()=>{try{if(navigator.share){await navigator.share({title:'HarvestHome — '+l.title,text,url});toast('Listing shared.')}else toast('Your browser does not provide the More share option. Use a social button.',true)}catch(e){if(e?.name!=='AbortError')toast('Listing could not be shared.',true)}})}
+function shareListing(listingId){
+  const l=listings().find(x=>String(x.id)===String(listingId));
+  if(!l){toast("This listing is no longer available to share.",true);return}
+  if(String(l.status||"approved").toLowerCase()!=="approved"){toast("Only approved listings can be shared.",true);return}
+  const url=new URL("/?listing="+encodeURIComponent(l.id)+"&shared=listing",window.location.origin).href;
+  if(navigator.share){
+    navigator.share({url}).then(()=>toast("Listing link shared.")).catch(e=>{if(e?.name!=="AbortError")toast("Listing could not be shared.",true)});
+  }else{
+    navigator.clipboard.writeText(url).then(()=>toast("Listing link copied.")).catch(()=>window.prompt("Copy this HarvestHome listing link:",url));
+  }
+}
+async function shareListingSocial(listingId){
+  const l=await resolveListing(listingId);
+  if(!l){toast("This listing is no longer available to share.",true);return}
+  if(String(l.status||"").toLowerCase()!=="approved"){toast("Only approved listings can be shared.",true);return}
+  const baseUrl=(C.PUBLIC_APP_URL||window.location.origin||"").replace(/\/$/,"");
+  const url=new URL("/?listing="+encodeURIComponent(l.id)+"&shared=listing",baseUrl||window.location.origin).href;
+  const encUrl=encodeURIComponent(url);
+  const socials=[
+    {label:"🟢 WhatsApp",href:"https://wa.me/?text="+encUrl},
+    {label:"🔵 Facebook",href:"https://www.facebook.com/sharer/sharer.php?u="+encUrl},
+    {label:"𝕏 X",href:"https://twitter.com/intent/tweet?url="+encUrl},
+    {label:"🔷 Telegram",href:"https://t.me/share/url?url="+encUrl}
+  ];
+  const root=$("#modalRoot");
+  if(!root)return;
+  root.innerHTML='<div class="modal-backdrop"><div class="modal"><button class="modal-close" data-close>×</button><span class="eyebrow">Seller sharing</span><h2>Share your listing</h2><p><b>'+esc(l.title)+'</b></p><div class="dashboard-callout"><p style="margin:0">Only the listing link will be shared. Social platforms that support link previews can show the listing title, main photo, price and details automatically.</p><div style="margin-top:10px;word-break:break-all;font-size:12px">'+esc(url)+'</div></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:14px">'+socials.map(x=>'<a class="outline-btn" target="_blank" rel="noopener noreferrer" href="'+x.href+'" style="text-align:center;text-decoration:none">'+x.label+'</a>').join("")+'<button class="outline-btn" data-copy-listing-share>📋 Copy link</button><button class="primary-btn" data-native-listing-share>↗ More</button></div><small class="demo-note">Only the public listing URL is shared. Private account and payment details are not shared.</small></div></div>';
+  $("[data-close]")?.addEventListener("click",close);
+  $("[data-copy-listing-share]")?.addEventListener("click",async()=>{
+    try{await navigator.clipboard.writeText(url);toast("Listing link copied.")}
+    catch{window.prompt("Copy this HarvestHome listing link:",url)}
+  });
+  $("[data-native-listing-share]")?.addEventListener("click",async()=>{
+    try{if(navigator.share){await navigator.share({url});toast("Listing link shared.")}else toast("Your browser does not provide the More share option. Use a social button.",true)}
+    catch(e){if(e?.name!=="AbortError")toast("Listing could not be shared.",true)}
+  });
+}
 async function sharePaidFeatures(){
   const u=user();
   if(!u||!authUser){auth("login");toast("Log in to share a paid feature.",true);return}

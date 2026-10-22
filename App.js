@@ -1650,17 +1650,30 @@ async function renewFreeListing(id){
   }catch(err){toast(err.message||"The listing could not be renewed.",true)}
 }
 async function del(id){
+  if(!window.confirm("Delete this listing from your public marketplace? It will be hidden from buyers, while linked payment and chat history are preserved."))return;
   if(sb&&authUser){
     try{
-      const {error}=await sb.from('listings').delete().eq('id',id);
+      // Soft-delete the seller's own listing instead of hard-deleting it.
+      // This avoids foreign-key conflicts with payments, messages, and media.
+      const {data:updated,error}=await sb.from("listings")
+        .update({status:"deleted"})
+        .eq("id",id)
+        .eq("seller_id",authUser.id)
+        .select("id,status")
+        .maybeSingle();
       if(error)throw error;
+      if(!updated)throw new Error("We couldn't delete this listing. Please make sure it belongs to your account and try again.");
+      const cached=json(KEYS.sellerListings,[]);
+      put(KEYS.sellerListings,cached.filter(x=>String(x.id)!==String(id)));
       await syncListings();
+      state.view="dashboard";
+      state.dashboardTab="listings";
       render();
-      toast("Listing deleted.");
+      toast("Listing deleted from the marketplace.");
       return;
     }catch(err){toast(err.message||"Listing could not be deleted.",true);return}
   }
-  put(KEYS.sellerListings,json(KEYS.sellerListings,[]).filter(x=>x.id!==id));
+  put(KEYS.sellerListings,json(KEYS.sellerListings,[]).filter(x=>String(x.id)!==String(id)));
   render();
   toast("Listing deleted.")
 }

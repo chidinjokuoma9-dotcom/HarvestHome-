@@ -101,3 +101,13 @@
 .modal .signup-role-choice>label small{font-size:12px;line-height:1.45}
 .modal .signup-role-choice>p{font-size:12px;line-height:1.45}
 @media(max-width:620px){.modal{padding:24px 20px}.modal .signup-role-choice>label{padding:11px!important}.modal .signup-role-choice legend{font-size:15px}}
+
+/* Desktop profile page: keep heading separate from the profile card */
+.profile-page{width:100%;max-width:100%;min-width:0}
+.profile-page>.panel-heading{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:20px}
+.profile-page>.profile-card{width:100%;max-width:980px;box-sizing:border-box;grid-template-columns:minmax(150px,190px) minmax(0,1fr);gap:30px;padding:28px}
+.profile-page .profile-details{width:100%;max-width:100%;min-width:0}
+.profile-page .profile-details form{width:100%}
+.profile-page .profile-details input{min-width:0}
+.profile-page>.dashboard-callout{max-width:980px;box-sizing:border-box}
+@media(max-width:700px){.profile-page>.profile-card{width:100%;grid-template-columns:1fr;padding:20px}.profile-page>.panel-heading{margin-bottom:18px}}

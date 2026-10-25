@@ -857,7 +857,7 @@ function profileTab(u){
   const trustMessage=trustLevel==="Strong trust"?"Your account is showing strong seller activity and buyer engagement.":trustLevel==="Building trust"?"Keep publishing quality listings and responding to buyers to strengthen your seller profile.":"Complete your profile, publish quality listings and engage with buyers to build trust.";
   const statusBlock=(pro.verified?`<div class="dashboard-callout" style="margin-top:16px"><b>🏆 Verified Professional Seller</b><p>Your Verified Professional Seller status is permanent on HarvestHome.</p></div>`:"")+
     (pro.active?`<div class="dashboard-callout" style="margin-top:16px"><b>⭐ Professional Seller</b><p>Your Professional Seller status is active until ${pro.expiresAt.toLocaleDateString()}.</p></div>`:"");
-  return `<div class="panel-heading"><div><span class="eyebrow">Account</span><h2>My profile</h2></div>
+  return `<div class="profile-page"><div class="panel-heading"><div><span class="eyebrow">Account</span><h2>My profile</h2></div></div>
     <div class="profile-card"><div class="profile-avatar-wrap">
     ${avatar?`<img class="profile-avatar" src="${esc(avatar)}" alt="Profile photo">`:`<div class="profile-avatar profile-placeholder">${esc((u.name||u.email||"U").charAt(0).toUpperCase())}</div>`}
     <label class="outline-btn profile-upload">Change photo<input id="profilePhotoInput" type="file" accept="image/*" hidden></label>
@@ -868,7 +868,7 @@ function profileTab(u){
     <button class="primary-btn" type="submit">Save profile</button></form>
     ${statusBlock}
     <p class="demo-note">Your profile photo and name are used across your HarvestHome account.</p></div></div>
-    <div class="dashboard-callout" style="margin-top:16px"><b>🛡️ Seller trust profile</b><p><strong>${trustLevel}</strong> — ${trustMessage}</p><p>📋 ${Number(perf.approved||0)} approved listings · 💬 ${Number(perf.chats||0)} buyer conversations · ⭐ ${Number(perf.recommendations||0)} recommendations · 🏆 ${Number(reward.points||0)} reward points</p></div>`;
+    <div class="dashboard-callout" style="margin-top:16px"><b>🛡️ Seller trust profile</b><p><strong>${trustLevel}</strong> — ${trustMessage}</p><p>📋 ${Number(perf.approved||0)} approved listings · 💬 ${Number(perf.chats||0)} buyer conversations · ⭐ ${Number(perf.recommendations||0)} recommendations · 🏆 ${Number(reward.points||0)} reward points</p></div></div>`;
 }
 async function saveProfile(e){
   e.preventDefault();

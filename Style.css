@@ -89,3 +89,15 @@
 
 /* Mobile floating Homi and readable feedback messages */
 @media(max-width:620px){.toast{left:12px;right:12px;bottom:88px;width:auto;max-width:none;padding:11px 13px;font-size:12px}.homi-panel{max-width:calc(100vw - 16px);max-height:calc(100dvh - 16px);border-radius:16px}.homi-launcher{max-width:calc(100vw - 16px)}}
+
+/* Compact, accessible signup role choices: keep radio controls circular and labels readable */
+.modal .signup-role-choice{display:block;min-width:0;width:100%;margin:0 0 14px}
+.modal .signup-role-choice legend{display:block;width:100%;font-size:16px;line-height:1.35}
+.modal .signup-role-choice>label{display:flex;width:100%;box-sizing:border-box;align-items:flex-start;gap:10px;border:1px solid #d5e1d7!important;border-radius:12px;padding:12px!important;margin:0 0 8px!important;background:#fff;color:#46544b;font-size:14px;line-height:1.4}
+.modal .signup-role-choice>label:has(input:checked){border-color:#25804a!important;background:#f2f8f2;box-shadow:0 0 0 1px #25804a}
+.modal .signup-role-choice input[type="radio"]{appearance:auto;-webkit-appearance:radio;display:block;flex:0 0 18px;width:18px!important;height:18px!important;min-width:18px;margin:3px 0 0!important;padding:0!important;border:initial;border-radius:50%;box-shadow:none!important;accent-color:#176b3b}
+.modal .signup-role-choice>label>span{display:block;flex:1;min-width:0;font-size:14px;overflow-wrap:anywhere}
+.modal .signup-role-choice>label strong{font-size:14px;line-height:1.4}
+.modal .signup-role-choice>label small{font-size:12px;line-height:1.45}
+.modal .signup-role-choice>p{font-size:12px;line-height:1.45}
+@media(max-width:620px){.modal{padding:24px 20px}.modal .signup-role-choice>label{padding:11px!important}.modal .signup-role-choice legend{font-size:15px}}

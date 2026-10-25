@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="HarvestHome app icon">
+  <rect width="512" height="512" rx="112" fill="#ffffff"/>
+  <path d="M405 82C285 88 165 122 111 218c-39 69-15 151 42 184 62 36 145 8 190-61 42-65 53-155 62-259Z" fill="#176b3b"/>
+  <path d="M117 399c70-91 151-164 264-257" fill="none" stroke="#ffffff" stroke-width="20" stroke-linecap="round"/>
+  <path d="M232 299c-7-45-35-75-79-91" fill="none" stroke="#f39a32" stroke-width="18" stroke-linecap="round"/>
+  <path d="M293 242c43 3 79 23 103 58" fill="none" stroke="#f39a32" stroke-width="18" stroke-linecap="round"/>
+</svg>

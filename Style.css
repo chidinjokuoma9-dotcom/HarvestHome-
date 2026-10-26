@@ -192,3 +192,16 @@ body:has(button[data-tab="moderation"].active) .dashboard-content .dashboard-cal
 .hh-admin-metrics strong{color:#176b3b;font-size:20px;line-height:1.2;overflow-wrap:anywhere}
 @media(max-width:900px){.hh-admin-overview{grid-template-columns:repeat(2,minmax(0,1fr))}.hh-admin-performance{grid-template-columns:1fr;gap:16px}}
 @media(max-width:480px){.hh-admin-overview{gap:9px;margin-bottom:18px}.hh-admin-stat{gap:9px;padding:13px 11px;border-radius:12px}.hh-admin-stat-icon{flex-basis:34px;width:34px;height:34px;font-size:17px;border-radius:10px}.hh-admin-stat strong{font-size:24px}.hh-admin-stat-label{font-size:11px}.hh-admin-stat small{font-size:10px}.hh-admin-performance{padding:15px;margin-bottom:22px}.hh-admin-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.hh-admin-metrics strong{font-size:19px}}
+
+
+/* Accessible collapsible sections for the Moderator workspace. */
+.hh-moderator-section-heading{display:flex!important;align-items:center;justify-content:space-between;gap:12px}
+.hh-moderator-section-heading>.hh-section-toggle{display:inline-flex;align-items:center;justify-content:center;gap:8px;flex:0 0 auto;min-height:38px;padding:8px 12px;border:1px solid #d5e5d7;border-radius:10px;background:#f2f8f2;color:#176b3b;font:700 12px/1.2 system-ui,-apple-system,sans-serif;cursor:pointer}
+.hh-moderator-section-heading>.hh-section-toggle:hover{background:#e7f3e8;border-color:#b8d4bc}
+.hh-moderator-section-heading>.hh-section-toggle:focus-visible{outline:3px solid #9ac5a1;outline-offset:2px}
+.hh-section-chevron{display:inline-block;font-size:20px;line-height:12px;transition:transform .15s ease}
+.hh-section-toggle[aria-expanded="false"] .hh-section-chevron{transform:rotate(0deg)}
+.hh-section-toggle[aria-expanded="true"] .hh-section-chevron{transform:rotate(0deg)}
+.hh-moderator-section-body[hidden]{display:none!important}
+.hh-moderator-section-body{min-width:0}
+@media(max-width:600px){.hh-moderator-section-heading{align-items:flex-start!important;flex-wrap:wrap}.hh-moderator-section-heading>.hh-section-toggle{min-height:36px;padding:8px 10px}}

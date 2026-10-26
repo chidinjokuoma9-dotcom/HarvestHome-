@@ -442,6 +442,43 @@ function render(){
   document.body.innerHTML=recovery
     ?passwordResetPage()
     :`<div id="app">${(()=>{const p=new URLSearchParams(window.location.search);const id=p.get("listing");return p.get("shared")==="listing"&&id?sharedListingPage(id):state.view==="marketplace"?marketplace():dashboard()})()}</div><div id="modalRoot"></div><div id="toast"></div><button type="button" id="homiLauncher" class="homi-launcher" aria-label="Open Homi HarvestHome Assistant" aria-expanded="false"><img src="/favicon.svg?v=3" alt="" class="homi-logo"><span>Ask Homi</span></button><section id="homiPanel" class="homi-panel" aria-label="Homi HarvestHome Assistant" hidden><header class="homi-header"><img src="/favicon.svg?v=3" alt="HarvestHome logo" class="homi-header-logo"><div><b>Homi</b><small>Your HarvestHome Assistant</small></div><button type="button" id="homiClose" aria-label="Close assistant">×</button></header><div id="homiMessages" class="homi-messages" aria-live="polite"><div class="homi-bubble homi-bot">Hello! I’m Homi, your HarvestHome Assistant. 🧡💚 Ask me about buying, renting, land, farm produce, products, selling, featured listings, payments, account help, or staying safe. I’ll guide you step by step.</div></div><div class="homi-quick"><button type="button" data-homi-quick="Find a house to rent">🏡 Rent a house</button><button type="button" data-homi-quick="How do I verify land documents?">📄 Land checks</button><button type="button" data-homi-quick="How do I publish a listing?">🛍️ Sell here</button><button type="button" data-homi-quick="What are the featured listing prices?">⭐ Featured prices</button><button type="button" data-homi-quick="How do I contact a seller?">💬 Contact seller</button><button type="button" data-homi-quick="Safety tips for buyers">🛡️ Safety</button></div><form id="homiForm" class="homi-form"><input id="homiInput" maxlength="600" autocomplete="off" placeholder="Ask Homi anything about HarvestHome…" aria-label="Ask Homi a question" required><button type="submit" aria-label="Send message">Send</button></form><small class="homi-disclaimer">Homi provides guided HarvestHome help. Confirm important property, payment, and legal details independently. Never share passwords or PINs.</small></section>`;
+  // Add accessible show/hide controls to each moderator section without changing its actions or data.
+  if(!recovery){
+    const adminContent=document.querySelector(".dashboard-content");
+    if(adminContent && adminContent.querySelector(".panel-heading h2")?.textContent.includes("Moderation & Payments")){
+      const headings=Array.from(adminContent.querySelectorAll(".panel-heading"));
+      headings.forEach((heading,index)=>{
+        if(index===0 || heading.dataset.hhCollapsible==="true")return;
+        const sectionId="hh-moderator-section-"+index;
+        const body=document.createElement("div");
+        body.className="hh-moderator-section-body";
+        body.id=sectionId;
+        let next=heading.nextSibling;
+        while(next && !(next.nodeType===1 && next.classList.contains("panel-heading"))){
+          const current=next;
+          next=next.nextSibling;
+          body.appendChild(current);
+        }
+        heading.dataset.hhCollapsible="true";
+        heading.classList.add("hh-moderator-section-heading");
+        const toggle=document.createElement("button");
+        toggle.type="button";
+        toggle.className="hh-section-toggle";
+        toggle.setAttribute("aria-controls",sectionId);
+        toggle.setAttribute("aria-expanded","true");
+        toggle.innerHTML='<span class="hh-section-toggle-label">Hide</span><span class="hh-section-chevron" aria-hidden="true">⌄</span>';
+        toggle.addEventListener("click",()=>{
+          const open=toggle.getAttribute("aria-expanded")==="true";
+          toggle.setAttribute("aria-expanded",String(!open));
+          body.hidden=open;
+          toggle.querySelector(".hh-section-toggle-label").textContent=open?"View":"Hide";
+          toggle.querySelector(".hh-section-chevron").textContent=open?"›":"⌄";
+        });
+        heading.appendChild(toggle);
+        heading.insertAdjacentElement("afterend",body);
+      });
+    }
+  }
   if(!recovery && state.view==="marketplace" && window.__hhStaticGuide){
     const guideSlot=document.getElementById("hh-guide-slot");
     if(guideSlot)guideSlot.appendChild(window.__hhStaticGuide);

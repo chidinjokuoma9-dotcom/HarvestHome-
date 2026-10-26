@@ -55,15 +55,48 @@
 </section>
 <section class="card" id="apply">
 <h2>Apply to work with HarvestHome</h2>
-<p>Select the type of enquiry that best matches your proposal. Include your organisation's name, contact person, location, website or business profile (if available), your proposal and the value you hope to create together.</p>
-<div class="grid">
-<div class="item"><h3>Strategic partnership</h3><p>Joint initiatives, market expansion, community programmes or long-term collaboration.</p><a class="button" href="mailto:harvesthcn@gmail.com?subject=HarvestHome%20Strategic%20Partnership%20Enquiry&body=Organisation%20name%3A%0AContact%20person%3A%0AEmail%20and%20phone%3A%0ACountry%20or%20location%3A%0AWebsite%20or%20business%20profile%3A%0AProposed%20partnership%3A%0AExpected%20mutual%20benefit%3A">Apply by email</a></div>
-<div class="item"><h3>Advertising enquiry</h3><p>Promotional campaigns and clearly labelled business advertising.</p><a class="button" href="/advertise.html">Visit advertising page</a></div>
-<div class="item"><h3>Supplier or service collaboration</h3><p>Product supply, logistics, professional services or other commercial collaboration.</p><a class="button" href="mailto:harvesthcn@gmail.com?subject=HarvestHome%20Supplier%20or%20Service%20Collaboration&body=Business%20name%3A%0AContact%20person%3A%0AEmail%20and%20phone%3A%0ACountry%20or%20location%3A%0AWebsite%20or%20business%20profile%3A%0AProducts%20or%20services%3A%0AProposed%20collaboration%3A%0AExpected%20benefit%3A">Propose collaboration</a></div>
-</div>
-<p><small>These email links prepare a message in your email app. A formal online submission and application-tracking dashboard are planned as a separate next step.</small></p>
-<p><small>Contact: <a href="mailto:harvesthcn@gmail.com">harvesthcn@gmail.com</a></small></p>
+<p>Use this secure online form for strategic partnerships and supplier or service collaborations. Advertising enquiries remain on our existing advertising page.</p>
+<form id="partnership-form" style="display:grid;gap:14px;margin-top:18px">
+<label>Partnership type
+<select name="partnership_type" required style="display:block;width:100%;padding:12px;border:1px solid #cbd9cc;border-radius:9px;margin-top:5px">
+<option value="">Choose one</option><option>Strategic partnership</option><option>Supplier or service provider</option>
+</select></label>
+<label>Organisation or business name<input name="organisation_name" required minlength="2" maxlength="160" autocomplete="organization" style="display:block;width:100%;padding:12px;border:1px solid #cbd9cc;border-radius:9px;margin-top:5px"></label>
+<label>Contact person's name<input name="contact_name" required minlength="2" maxlength="120" autocomplete="name" style="display:block;width:100%;padding:12px;border:1px solid #cbd9cc;border-radius:9px;margin-top:5px"></label>
+<label>Email address<input type="email" name="email" required maxlength="254" autocomplete="email" style="display:block;width:100%;padding:12px;border:1px solid #cbd9cc;border-radius:9px;margin-top:5px"></label>
+<label>Phone number (optional)<input type="tel" name="phone" maxlength="40" autocomplete="tel" style="display:block;width:100%;padding:12px;border:1px solid #cbd9cc;border-radius:9px;margin-top:5px"></label>
+<label>Country or location<input name="country" required minlength="2" maxlength="100" autocomplete="country-name" style="display:block;width:100%;padding:12px;border:1px solid #cbd9cc;border-radius:9px;margin-top:5px"></label>
+<label>Website or business profile (optional)<input type="url" name="website" maxlength="300" placeholder="https://" style="display:block;width:100%;padding:12px;border:1px solid #cbd9cc;border-radius:9px;margin-top:5px"></label>
+<label>Describe your proposal and expected mutual benefit<textarea name="proposal" required minlength="20" maxlength="4000" rows="6" style="display:block;width:100%;padding:12px;border:1px solid #cbd9cc;border-radius:9px;margin-top:5px"></textarea></label>
+<label style="position:absolute;left:-10000px" aria-hidden="true">Leave this field empty<input name="company_fax" tabindex="-1" autocomplete="off"></label>
+<label style="display:flex;gap:10px;align-items:flex-start"><input type="checkbox" name="consent" required style="margin-top:6px"><span>I confirm these details are accurate and understand HarvestHome may contact me about this enquiry. I will not submit passwords, PINs or payment details.</span></label>
+<button class="button" type="submit" id="partnership-submit" style="border:0;cursor:pointer;font:inherit">Submit partnership enquiry</button>
+<p id="partnership-message" role="status" aria-live="polite"></p>
+</form>
+<p class="note">Your enquiry is reviewed by authorised HarvestHome personnel. Submission does not guarantee acceptance. For advertising, visit <a href="/advertise.html">Business Advertising</a>. For privacy questions, email <a href="mailto:harvesthcn@gmail.com">harvesthcn@gmail.com</a>.</p>
 </section>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/Config.js?v=v10cachefix1"></script>
+<script>
+(function(){
+ const form=document.getElementById('partnership-form'), msg=document.getElementById('partnership-message'), button=document.getElementById('partnership-submit');
+ form.addEventListener('submit',async function(e){
+  e.preventDefault(); if(!form.reportValidity())return;
+  const d=new FormData(form);
+  if(String(d.get('company_fax')||'').trim()){msg.textContent='Unable to submit this enquiry.';return;}
+  if(!window.supabase||!window.HARVESTHOME_CONFIG){msg.textContent='The form is temporarily unavailable. Please email harvesthcn@gmail.com.';return;}
+  button.disabled=true;button.textContent='Submitting…';msg.textContent='';
+  try{
+   const client=window.supabase.createClient(HARVESTHOME_CONFIG.SUPABASE_URL,HARVESTHOME_CONFIG.SUPABASE_ANON_KEY);
+   const payload={partnership_type:String(d.get('partnership_type')),organisation_name:String(d.get('organisation_name')).trim(),contact_name:String(d.get('contact_name')).trim(),email:String(d.get('email')).trim(),phone:String(d.get('phone')||'').trim()||null,country:String(d.get('country')).trim(),website:String(d.get('website')||'').trim()||null,proposal:String(d.get('proposal')).trim()};
+   const {error}=await client.from('partnership_applications').insert(payload);
+   if(error)throw error;
+   form.reset();msg.textContent='Thank you. Your partnership enquiry has been submitted successfully. HarvestHome will review it and contact you if more information is needed.';
+  }catch(err){console.error('Partnership enquiry submission failed',err);msg.textContent='We could not submit your enquiry right now. Please try again later or email harvesthcn@gmail.com.';}
+  finally{button.disabled=false;button.textContent='Submit partnership enquiry';}
+ });
+})();
+</script>
 <a class="back" href="/">← Back to HarvestHome marketplace</a>
 <footer>HarvestHome — Connecting Africa. Growing Together. 🧡💚</footer>
 </main>

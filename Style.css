@@ -173,3 +173,22 @@ body:has(button[data-tab="moderation"].active) .dashboard-content .dashboard-cal
   body:has(button[data-tab="moderation"].active) .dashboard-content .table-wrap td{padding:11px 12px}
   body:has(button[data-tab="moderation"].active) .dashboard-content .dashboard-callout{padding:15px;margin-bottom:22px}
 }
+
+
+/* Moderator workspace overview: additive, read-only summary cards. */
+.hh-admin-overview{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:0 0 24px}
+.hh-admin-stat{display:flex;align-items:flex-start;gap:12px;min-width:0;box-sizing:border-box;padding:18px 16px;background:#fff;border:1px solid #dfe9df;border-radius:15px;box-shadow:0 5px 18px rgba(26,65,37,.045)}
+.hh-admin-stat-icon{display:grid;place-items:center;flex:0 0 42px;width:42px;height:42px;border-radius:12px;background:#edf6ed;font-size:21px}
+.hh-admin-stat>div{display:flex;flex-direction:column;gap:4px;min-width:0}
+.hh-admin-stat-label{color:#637468;font-size:12px;font-weight:750;line-height:1.35}
+.hh-admin-stat strong{color:#183c26;font-size:28px;line-height:1.1;letter-spacing:-.6px}
+.hh-admin-stat small{color:#7a887d;font-size:11px;line-height:1.45}
+.hh-admin-performance{display:grid;grid-template-columns:minmax(180px,1fr) minmax(0,2fr);align-items:center;gap:22px;margin:0 0 28px;padding:20px;background:linear-gradient(135deg,#f2f8f1,#fff);border:1px solid #dce9dc;border-radius:16px}
+.hh-admin-performance h3{margin:4px 0 6px;color:#21482d;font-size:18px}
+.hh-admin-performance p{margin:0;color:#6e7e71;font-size:12px;line-height:1.6}
+.hh-admin-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.hh-admin-metrics>div{display:flex;flex-direction:column;gap:7px;min-width:0;padding:13px;background:#fff;border:1px solid #e0e9e0;border-radius:12px}
+.hh-admin-metrics span{color:#748176;font-size:11px;line-height:1.35}
+.hh-admin-metrics strong{color:#176b3b;font-size:20px;line-height:1.2;overflow-wrap:anywhere}
+@media(max-width:900px){.hh-admin-overview{grid-template-columns:repeat(2,minmax(0,1fr))}.hh-admin-performance{grid-template-columns:1fr;gap:16px}}
+@media(max-width:480px){.hh-admin-overview{gap:9px;margin-bottom:18px}.hh-admin-stat{gap:9px;padding:13px 11px;border-radius:12px}.hh-admin-stat-icon{flex-basis:34px;width:34px;height:34px;font-size:17px;border-radius:10px}.hh-admin-stat strong{font-size:24px}.hh-admin-stat-label{font-size:11px}.hh-admin-stat small{font-size:10px}.hh-admin-performance{padding:15px;margin-bottom:22px}.hh-admin-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.hh-admin-metrics strong{font-size:19px}}

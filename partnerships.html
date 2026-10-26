@@ -91,7 +91,7 @@
    const payload={partnership_type:String(d.get('partnership_type')),organisation_name:String(d.get('organisation_name')).trim(),contact_name:String(d.get('contact_name')).trim(),email:String(d.get('email')).trim(),phone:String(d.get('phone')||'').trim()||null,country:String(d.get('country')).trim(),website:String(d.get('website')||'').trim()||null,proposal:String(d.get('proposal')).trim()};
    const {error}=await client.from('partnership_applications').insert(payload);
    if(error)throw error;
-   form.reset();msg.textContent='Thank you. Your partnership enquiry has been submitted successfully. HarvestHome will review it and contact you if more information is needed.';
+   form.reset();msg.textContent='Thank you. Your partnership enquiry has been submitted successfully and is now under review. HarvestHome will notify you by email when there is an update or when any further information is needed. Please check your inbox and spam/junk folder.';
   }catch(err){console.error('Partnership enquiry submission failed',err);msg.textContent='We could not submit your enquiry right now. Please try again later or email harvesthcn@gmail.com.';}
   finally{button.disabled=false;button.textContent='Submit partnership enquiry';}
  });

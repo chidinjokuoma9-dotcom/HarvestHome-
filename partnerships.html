@@ -73,7 +73,7 @@
 <button class="button" type="submit" id="partnership-submit" style="border:0;cursor:pointer;font:inherit">Submit partnership enquiry</button>
 <p id="partnership-message" role="status" aria-live="polite"></p>
 </form>
-<p class="note">Your enquiry is reviewed by authorised HarvestHome personnel. Submission does not guarantee acceptance. Investment-related enquiries are expressions of interest only: HarvestHome is not offering shares, investment products, or crowdfunding through this form, and no funds should be sent. Any future investment arrangement would require separate legal and regulatory review before it could be offered. For advertising, visit <a href="/advertise.html">Business Advertising</a>. For privacy questions, email <a href="mailto:harvesthcn@gmail.com">harvesthcn@gmail.com</a>.</p>
+<p class="note">Your enquiry is reviewed by authorised HarvestHome personnel. Submission does not guarantee acceptance. Investment-related enquiries are expressions of interest only: HarvestHome is not offering shares, investment products, or crowdfunding through this form, and no funds should be sent. Any future investment arrangement would require separate legal and regulatory review before it could be offered. For advertising, visit <a href="/advertise.html">Business Advertising</a>. For privacy questions, email <a href="mailto:support@harvesthome.ng">support@harvesthome.ng</a>.</p>
 </section>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/Config.js?v=v10cachefix1"></script>
@@ -84,7 +84,7 @@
   e.preventDefault(); if(!form.reportValidity())return;
   const d=new FormData(form);
   if(String(d.get('company_fax')||'').trim()){msg.textContent='Unable to submit this enquiry.';return;}
-  if(!window.supabase||!window.HARVESTHOME_CONFIG){msg.textContent='The form is temporarily unavailable. Please email harvesthcn@gmail.com.';return;}
+  if(!window.supabase||!window.HARVESTHOME_CONFIG){msg.textContent='The form is temporarily unavailable. Please email support@harvesthome.ng.';return;}
   button.disabled=true;button.textContent='Submitting…';msg.textContent='';
   try{
    const client=window.supabase.createClient(HARVESTHOME_CONFIG.SUPABASE_URL,HARVESTHOME_CONFIG.SUPABASE_ANON_KEY);
@@ -92,7 +92,7 @@
    const {error}=await client.from('partnership_applications').insert(payload);
    if(error)throw error;
    form.reset();msg.textContent='Thank you. Your partnership enquiry has been submitted successfully and is now under review. HarvestHome will notify you by email when there is an update or when any further information is needed. Please check your inbox and spam/junk folder.';
-  }catch(err){console.error('Partnership enquiry submission failed',err);msg.textContent='We could not submit your enquiry right now. Please try again later or email harvesthcn@gmail.com.';}
+  }catch(err){console.error('Partnership enquiry submission failed',err);msg.textContent='We could not submit your enquiry right now. Please try again later or email support@harvesthome.ng.';}
   finally{button.disabled=false;button.textContent='Submit partnership enquiry';}
  });
 })();

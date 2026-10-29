@@ -88,7 +88,7 @@ a{color:#176b43}.note{font-size:14px;color:#5d6d65}.table-wrap{overflow:auto;mar
 </div>
 <div class="card">
 <h2>Questions?</h2>
-<p>Email <a href="mailto:harvesthcn@gmail.com">harvesthcn@gmail.com</a> and mention “HarvestHome Advertising”.</p>
+<p>Email <a href="mailto:support@harvesthome.ng">support@harvesthome.ng</a> and mention “HarvestHome Advertising”.</p>
 <p><a href="/">← Back to HarvestHome</a></p>
 </div>
 </div>
@@ -199,7 +199,7 @@ window.loadCampaignHistory=async function(){
     detail.scrollIntoView({behavior:"smooth",block:"nearest"});
    }catch(err){detail.innerHTML='<p class="note">We could not load this campaign detail right now. Please try again.</p>'}
   }));
- }catch(err){campaignResult.textContent="We could not load the campaign history right now. Please check the email or contact harvesthcn@gmail.com."}
+ }catch(err){campaignResult.textContent="We could not load the campaign history right now. Please check the email or contact support@harvesthome.ng."}
 };
 document.getElementById("adPayButton")?.addEventListener("click",async()=>{
  const requestId=document.getElementById("adPaymentRequestId").value.trim();
@@ -258,7 +258,7 @@ form.addEventListener("submit",async e=>{
   result.innerHTML="Thank you. Your advertising request has been received.<br><b>Request ID:</b> <code>"+esc(requestId)+"</code><br>Please save this ID. Once HarvestHome approves the request and sets the amount, use it in the payment box below.";
   document.getElementById("adPaymentRequestId").value=requestId;
   document.getElementById("adPaymentEmail").value=d.email||"";
- }catch(err){result.textContent="We could not send the request right now. Please email harvesthcn@gmail.com instead."}
+ }catch(err){result.textContent="We could not send the request right now. Please email support@harvesthome.ng instead."}
 });
 </script>
 </body>

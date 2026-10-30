@@ -1,0 +1,14 @@
+/
+  Cache-Control: no-store
+
+/index.html
+  Cache-Control: no-store
+
+/App.js
+  Cache-Control: no-store
+
+/Config.js
+  Cache-Control: no-store
+
+/Style.css
+  Cache-Control: no-store

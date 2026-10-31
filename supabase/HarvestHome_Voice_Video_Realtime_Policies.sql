@@ -1,5 +1,7 @@
 -- HarvestHome one-to-one call signalling authorization
 -- Apply once, only after reviewing this migration and approving the live database change.
+-- IMPORTANT: Supabase project setting 'Allow public access to channels' must be OFF
+-- to enforce private-only channels. Do not apply while that setting remains ON.
 -- This does not create call tables or store audio, video, or signalling payloads.
 -- Private channel topic format: hh-call:<conversation UUID>
 -- Both participants must already be authenticated and pass conversations RLS.

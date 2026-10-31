@@ -15,7 +15,9 @@ Add optional one-to-one voice and video calls inside an existing buyer–seller 
 - The existing chat is implemented in `App.js` using the `conversations` and `messages` tables.
 - Chat messages are refreshed by a five-second polling timer.
 - Existing conversation SELECT/UPDATE policies restrict access to buyer/seller participants (and staff).
-- Realtime private-channel authorization must be checked and tested before any call signaling is enabled.
+- Realtime private-channel authorization was inspected: there were no existing policies on `realtime.messages` at the time of inspection.
+- A draft participant-only Broadcast policy migration has been added at `supabase/HarvestHome_Voice_Video_Realtime_Policies.sql`; it has NOT been applied to the live database.
+- Supabase documentation requires private channels and the project-level `Allow public access` setting to be disabled for private-only authorization. That project-wide setting has not yet been verified; changing it without checking existing channel usage could affect other Realtime features.
 - The existing chat-media bucket is unrelated to calling and must not be changed.
 
 ## Proposed architecture
@@ -33,10 +35,11 @@ Add optional one-to-one voice and video calls inside an existing buyer–seller 
 - No AdSense units or ad prompts in chat/call UI.
 
 ## Staged delivery
-- Stage A: implement on this feature branch only; no database writes or production deployment.
-- Stage B: review all changed files and SQL/RLS policy behavior; run static checks and test two authenticated accounts.
-- Stage C: create a draft PR for review. Do not merge without the owner's explicit approval.
-- Stage D: only after approval, apply a minimal SQL migration (if required) and deploy in a controlled way.
+- Stage A: prepare the isolated implementation and SQL migration on this feature branch only; no live database writes or production deployment.
+- Stage B: inspect the project's Realtime `Allow public access` setting and inventory any existing Realtime channel usage before deciding whether it can safely be disabled. Do not toggle it blindly.
+- Stage C: review all changed files and SQL/RLS policy behavior; run static checks and test two authenticated accounts.
+- Stage D: create/update a draft PR for review. Do not merge without the owner's explicit approval.
+- Stage E: only after security review and explicit approval, apply the minimal SQL migration (if required) and deploy in a controlled way.
 
 ## Acceptance tests before release
 - Buyer can call only the seller in that same conversation; seller can call only that buyer.

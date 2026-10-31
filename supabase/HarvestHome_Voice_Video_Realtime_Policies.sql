@@ -1,7 +1,8 @@
 -- HarvestHome one-to-one call signalling authorization
--- Apply only after reviewing the Realtime "Allow public access" setting.
--- This migration does not create call tables or store audio/video/signalling payloads.
--- Channel topic format: hh-call:<conversation UUID>
+-- Apply once, only after reviewing this migration and approving the live database change.
+-- This does not create call tables or store audio, video, or signalling payloads.
+-- Private channel topic format: hh-call:<conversation UUID>
+-- Both participants must already be authenticated and pass conversations RLS.
 
 create policy "HarvestHome call participants can receive broadcasts"
 on realtime.messages
@@ -11,11 +12,9 @@ using (
   extension = 'broadcast'
   and exists (
     select 1
-    from public.conversations c
-    where c.id = (
-      substring(realtime.topic() from '^hh-call:([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$')
-    )::uuid
-    and (c.buyer_id = (select auth.uid()) or c.seller_id = (select auth.uid()))
+    from public.conversations as c
+    where realtime.topic() = 'hh-call:' || c.id::text
+      and (c.buyer_id = (select auth.uid()) or c.seller_id = (select auth.uid()))
   )
 );
 
@@ -27,10 +26,8 @@ with check (
   extension = 'broadcast'
   and exists (
     select 1
-    from public.conversations c
-    where c.id = (
-      substring(realtime.topic() from '^hh-call:([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$')
-    )::uuid
-    and (c.buyer_id = (select auth.uid()) or c.seller_id = (select auth.uid()))
+    from public.conversations as c
+    where realtime.topic() = 'hh-call:' || c.id::text
+      and (c.buyer_id = (select auth.uid()) or c.seller_id = (select auth.uid()))
   )
 );

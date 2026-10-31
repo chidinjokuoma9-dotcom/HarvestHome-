@@ -50,3 +50,16 @@ Add optional one-to-one voice and video calls inside an existing buyer–seller 
 - No media is recorded, uploaded, or retained.
 - Public marketplace pages, ads.txt, sitemap.xml, robots.txt, canonical URLs, and existing AdSense placements are unchanged.
 - No paid services, billing settings, or new subscriptions are enabled.
+
+ 
+## Implemented in the draft branch (not deployed)
+- Added one-to-one voice/video call controls inside the existing buyer/seller chat.
+- Signalling uses one private Supabase Realtime Broadcast topic per conversation, named hh-call followed by the conversation UUID.
+- The client checks both conversation participants and verifies sender/recipient IDs on every signal; database RLS policies remain the security boundary.
+- Call states cover invitation, accept, decline, busy, offer/answer, ICE candidates, hang-up and a 45-second no-answer timeout.
+- Microphone mute, camera toggle, incoming call accept/decline, and explicit end-call controls are included.
+- Media tracks and peer connections are closed/stopped when a call ends or the chat is closed.
+- Initial WebRTC configuration uses a public STUN server only. No TURN relay, paid service, recording, or persistent media storage is configured. Some carrier/mobile networks may therefore fail to connect.
+- The recipient must have the same conversation open to receive an incoming call. Background/global incoming-call notifications are not included in this first version.
+- The Realtime RLS migration is still a draft and has NOT been applied to the live database. Calls will not connect until the owner separately approves and applies the migration.
+- This draft has not been browser-tested with two real accounts. Do not merge or deploy until that test passes.

@@ -35,7 +35,7 @@ const seed = [];
 
 const state={view:"marketplace",search:"",sort:"featured",priceMin:"",priceMax:"",country:localStorage.getItem(KEYS.country)||C.DEFAULT_COUNTRY,location:"All locations",category:"All categories",mode:"All",dashboardTab:"overview",authMode:"login",payments:[],transactionFilterSeller:{status:"all",range:"all",search:""},transactionFilterAdmin:{status:"all",range:"all",search:""},sharedListing:null,sharedListingChecked:false};
 let chatTimer=null;
-let activeHarvestCall=null, harvestCallChannel=null, harvestCallConversationId=null, activeChatPeerId=null;
+let activeHarvestCall=null, harvestCallChannel=null, harvestCallConversationId=null, activeChatPeerId=null, harvestCallChannelReady=false;
 const chatImageUrlCache=new Map();
 const CHAT_IMAGE_MARKER=/^\[\[HH_CHAT_IMAGE:([^\]]+)\]\](?:\n([\s\S]*))?$/;
 state.rewardAdmin=[];state.verificationRequests=[];state.sellerPerformance={listings:0,approved:0,pending:0,rejected:0,views:0,chats:0,uniqueBuyers:0,recommendations:0};state.listingPerformance=[];state.featuredListings=[];state.professionalSellers=[];state.advertisingRequests=[];state.advertisingCampaigns=[];state.advertisingReport=[];
@@ -1168,26 +1168,32 @@ async function contact(id){const u=user();if(!u){auth("login");toast("Log in to 
 
 function harvestCallId(){try{return crypto.randomUUID()}catch{return "hh-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,12)}}
 async function cleanupHarvestCallChannel(){
-  const old=harvestCallChannel;harvestCallChannel=null;harvestCallConversationId=null;
+  const old=harvestCallChannel;harvestCallChannel=null;harvestCallConversationId=null;harvestCallChannelReady=false;
   if(old&&sb){try{await sb.removeChannel(old)}catch(error){console.warn("Call channel cleanup skipped:",error?.message||error)}}
 }
 async function ensureHarvestCallChannel(conversationId){
   if(!sb||!authUser)throw new Error("Please log in before making a call.");
-  if(harvestCallChannel&&harvestCallConversationId===conversationId)return harvestCallChannel;
+  if(harvestCallChannel&&harvestCallConversationId===conversationId&&harvestCallChannelReady)return harvestCallChannel;
   await cleanupHarvestCallChannel();
   const channel=sb.channel("hh-call:"+conversationId,{config:{private:true,broadcast:{ack:true,self:false}}});
   channel.on("broadcast",{event:"hh-call-signal"},message=>{handleHarvestCallSignal(message,conversationId).catch(error=>console.warn("Call signal could not be handled:",error?.message||error))});
   harvestCallChannel=channel;harvestCallConversationId=conversationId;
-  await new Promise((resolve,reject)=>{
-    let settled=false;
-    const timeout=setTimeout(()=>{if(!settled){settled=true;reject(new Error("Call connection timed out. Please try again."))}},12000);
-    channel.subscribe((status,error)=>{
-      if(settled)return;
-      if(status==="SUBSCRIBED"){settled=true;clearTimeout(timeout);resolve()}
-      else if(status==="CHANNEL_ERROR"||status==="TIMED_OUT"||status==="CLOSED"){settled=true;clearTimeout(timeout);reject(error||new Error("Private call channel could not connect. The call security setup may still be pending."))}
+  try{
+    await new Promise((resolve,reject)=>{
+      let settled=false;
+      const timeout=setTimeout(()=>{if(!settled){settled=true;reject(new Error("Call connection timed out. Please try again."))}},12000);
+      channel.subscribe((status,error)=>{
+        if(settled)return;
+        if(status==="SUBSCRIBED"){settled=true;clearTimeout(timeout);resolve()}
+        else if(status==="CHANNEL_ERROR"||status==="TIMED_OUT"||status==="CLOSED"){settled=true;clearTimeout(timeout);reject(error||new Error("Private call channel could not connect. The call security setup may still be pending."))}
+      });
     });
-  });
-  return channel;
+    harvestCallChannelReady=true;
+    return channel;
+  }catch(error){
+    await cleanupHarvestCallChannel();
+    throw error;
+  }
 }
 async function sendHarvestCallSignal(kind,extra={}){
   const call=activeHarvestCall,channel=harvestCallChannel;

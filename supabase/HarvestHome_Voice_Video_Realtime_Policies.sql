@@ -13,7 +13,7 @@ using (
     select 1
     from public.conversations c
     where c.id = (
-      substring(realtime.topic() from '^hh-call:([0-9a-fA-F-]{36})$')
+      substring(realtime.topic() from '^hh-call:([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$')
     )::uuid
     and (c.buyer_id = (select auth.uid()) or c.seller_id = (select auth.uid()))
   )
@@ -29,7 +29,7 @@ with check (
     select 1
     from public.conversations c
     where c.id = (
-      substring(realtime.topic() from '^hh-call:([0-9a-fA-F-]{36})$')
+      substring(realtime.topic() from '^hh-call:([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$')
     )::uuid
     and (c.buyer_id = (select auth.uid()) or c.seller_id = (select auth.uid()))
   )

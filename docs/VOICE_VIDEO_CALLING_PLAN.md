@@ -63,3 +63,7 @@ Add optional one-to-one voice and video calls inside an existing buyer–seller 
 - The recipient must have the same conversation open to receive an incoming call. Background/global incoming-call notifications are not included in this first version.
 - The Realtime RLS migration is still a draft and has NOT been applied to the live database. Calls will not connect until the owner separately approves and applies the migration.
 - This draft has not been browser-tested with two real accounts. Do not merge or deploy until that test passes.
+
+
+## Realtime project setting prerequisite
+Supabase documentation states that the project-level "Allow public access to channels" setting must be OFF to enforce private-only channels. The owner confirmed that setting is currently ON. It has deliberately NOT been changed because a project-wide setting change needs the owner's approval. The repository's current main-branch App.js contains no existing Supabase Realtime channel usage; the existing chat uses database queries/polling. Before applying the SQL migration or testing calls, the owner must approve turning public channel access OFF. The Realtime service itself should remain ON.

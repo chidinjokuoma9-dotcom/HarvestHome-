@@ -38,7 +38,7 @@ let chatTimer=null;
  let marketplacePresenceChannel=null,marketplacePresenceUserId=null,marketplacePresenceRefresh=null;
  const marketplaceOnlineSellers=new Set();
 let activeHarvestCall=null, harvestCallChannel=null, harvestCallConversationId=null, activeChatConversationId=null, activeChatPeerId=null, harvestCallChannelReady=false;
-let harvestCallToneTimer=null,harvestCallAudioContext=null;
+let harvestCallToneTimer=null,harvestCallTonePulseTimer=null,harvestCallAudioContext=null;
 let harvestPresenceHeartbeat=null,harvestPresenceExpiry=null,harvestPresenceStartedAt=0,harvestPeerLastSeen=0,harvestPeerPresence="checking";
 const chatImageUrlCache=new Map();
 const CHAT_IMAGE_MARKER=/^\[\[HH_CHAT_IMAGE:([^\]]+)\]\](?:\n([\s\S]*))?$/;
@@ -1203,6 +1203,7 @@ async function contact(id){const u=user();if(!u){auth("login");toast("Log in to 
 function harvestCallId(){try{return crypto.randomUUID()}catch{return "hh-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,12)}}
 function stopHarvestCallTone(){
   if(harvestCallToneTimer){clearInterval(harvestCallToneTimer);harvestCallToneTimer=null}
+  if(harvestCallTonePulseTimer){clearTimeout(harvestCallTonePulseTimer);harvestCallTonePulseTimer=null}
 }
 function playHarvestCallBeep(frequency=660,duration=.22){
   try{
@@ -1224,7 +1225,7 @@ function playHarvestCallCue(kind){
 function startHarvestCallRinging(kind){
   stopHarvestCallTone();
   const incoming=kind==="incoming",frequency=incoming?740:440,duration=incoming?.95:.85;
-  const ring=()=>{playHarvestCallBeep(frequency,duration);if(incoming)setTimeout(()=>{if(activeHarvestCall?.status==="incoming")playHarvestCallBeep(880,.65)},260)};
+  const ring=()=>{playHarvestCallBeep(frequency,duration);if(incoming)harvestCallTonePulseTimer=setTimeout(()=>{harvestCallTonePulseTimer=null;if(activeHarvestCall?.status==="incoming")playHarvestCallBeep(880,.65)},260)};
   ring();harvestCallToneTimer=setInterval(ring,incoming?2100:3000);
 }
 function updateMarketplacePresenceUI(){
@@ -1506,7 +1507,7 @@ async function startHarvestCall(callType){
 }
 async function acceptHarvestCall(){
   const call=activeHarvestCall;if(!call||call.role!=="receiver"||call.status!=="incoming")return;
-  try{stopHarvestCallTone();call.status="connecting";updateHarvestCallUI();await prepareHarvestCallMedia(call);await createHarvestPeerConnection(call);await sendHarvestCallSignal("accept")}
+  try{stopHarvestCallTone();playHarvestCallCue("answered");call.status="connecting";updateHarvestCallUI();await prepareHarvestCallMedia(call);await createHarvestPeerConnection(call);await sendHarvestCallSignal("accept")}
   catch(error){toast(error.message||"Could not accept the call.",true);await endHarvestCall("failed",true)}
 }
 async function endHarvestCall(reason="ended",notifyPeer=true){

@@ -38,6 +38,7 @@ let chatTimer=null;
  let marketplacePresenceChannel=null,marketplacePresenceUserId=null,marketplacePresenceRefresh=null;
  const marketplaceOnlineSellers=new Set();
 let activeHarvestCall=null, harvestCallChannel=null, harvestCallConversationId=null, activeChatConversationId=null, activeChatPeerId=null, harvestCallChannelReady=false;
+let harvestCallToneTimer=null,harvestCallAudioContext=null;
 let harvestPresenceHeartbeat=null,harvestPresenceExpiry=null,harvestPresenceStartedAt=0,harvestPeerLastSeen=0,harvestPeerPresence="checking";
 const chatImageUrlCache=new Map();
 const CHAT_IMAGE_MARKER=/^\[\[HH_CHAT_IMAGE:([^\]]+)\]\](?:\n([\s\S]*))?$/;
@@ -1200,6 +1201,32 @@ async function contact(id){const u=user();if(!u){auth("login");toast("Log in to 
     }}await syncListingPerformance();openChat(c.id,l)}catch(e){toast(e.message||"Could not start the chat.",true)}}
 
 function harvestCallId(){try{return crypto.randomUUID()}catch{return "hh-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,12)}}
+function stopHarvestCallTone(){
+  if(harvestCallToneTimer){clearInterval(harvestCallToneTimer);harvestCallToneTimer=null}
+}
+function playHarvestCallBeep(frequency=660,duration=.22){
+  try{
+    const AudioCtx=window.AudioContext||window.webkitAudioContext;if(!AudioCtx)return;
+    if(!harvestCallAudioContext)harvestCallAudioContext=new AudioCtx();
+    const ctx=harvestCallAudioContext;if(ctx.state==="suspended")ctx.resume().catch(()=>{});
+    const now=ctx.currentTime,osc=ctx.createOscillator(),gain=ctx.createGain();
+    osc.type="sine";osc.frequency.setValueAtTime(frequency,now);
+    gain.gain.setValueAtTime(.0001,now);gain.gain.exponentialRampToValueAtTime(.12,now+.025);
+    gain.gain.setValueAtTime(.12,now+Math.max(.04,duration-.06));gain.gain.exponentialRampToValueAtTime(.0001,now+duration);
+    osc.connect(gain);gain.connect(ctx.destination);osc.start(now);osc.stop(now+duration+.02);
+  }catch(error){console.warn("Call sound could not play:",error?.message||error)}
+}
+function playHarvestCallCue(kind){
+  stopHarvestCallTone();
+  const cues={answered:[880,.16],connected:[1046,.2],declined:[330,.35],ended:[520,.16],missed:[392,.35]};
+  const cue=cues[kind];if(cue)playHarvestCallBeep(cue[0],cue[1]);
+}
+function startHarvestCallRinging(kind){
+  stopHarvestCallTone();
+  const incoming=kind==="incoming",frequency=incoming?740:440,duration=incoming?.95:.85;
+  const ring=()=>{playHarvestCallBeep(frequency,duration);if(incoming)setTimeout(()=>{if(activeHarvestCall?.status==="incoming")playHarvestCallBeep(880,.65)},260)};
+  ring();harvestCallToneTimer=setInterval(ring,incoming?2100:3000);
+}
 function updateMarketplacePresenceUI(){
   queryAll("[data-seller-presence]").forEach(badge=>{
     const online=marketplaceOnlineSellers.has(String(badge.dataset.sellerPresence||""));
@@ -1336,12 +1363,12 @@ async function handleHarvestCallSignal(message,conversationId){
       return;
     }
     activeHarvestCall={conversationId,callId:payload.callId,peerId:payload.from,callType:payload.callType==="video"?"video":"audio",role:"receiver",status:"incoming",pc:null,localStream:null,remoteStream:null,pendingCandidates:[],muted:false,cameraOff:false};
-    updateHarvestCallUI();return;
+    updateHarvestCallUI();startHarvestCallRinging("incoming");return;
   }
   const call=activeHarvestCall;
   if(!call||payload.callId!==call.callId||payload.from!==call.peerId)return;
   if(kind==="accept"&&call.role==="caller"&&call.status==="calling"){
-    clearTimeout(call.timeout);
+    stopHarvestCallTone();playHarvestCallCue("answered");clearTimeout(call.timeout);
     try{
       call.status="connecting";updateHarvestCallUI();
       await prepareHarvestCallMedia(call);await createHarvestPeerConnection(call);
@@ -1430,7 +1457,7 @@ async function createHarvestPeerConnection(call){
       toast("The devices could not establish a direct media route. This network may require a TURN relay.",true);
       endHarvestCall("network-failed",true);
     }else if(pc.iceConnectionState==="connected"||pc.iceConnectionState==="completed"){
-      call.status="connected";call.connectedAt=call.connectedAt||Date.now();updateHarvestCallUI();
+      if(call.status!=="connected")playHarvestCallCue("connected");call.status="connected";call.connectedAt=call.connectedAt||Date.now();updateHarvestCallUI();
     }else if(pc.iceConnectionState==="disconnected"){
       call.status="reconnecting";updateHarvestCallUI();
     }
@@ -1438,7 +1465,7 @@ async function createHarvestPeerConnection(call){
   pc.onconnectionstatechange=()=>{
     if(activeHarvestCall!==call)return;
     call.connectionState=pc.connectionState;
-    if(pc.connectionState==="connected"){call.status="connected";call.connectedAt=call.connectedAt||Date.now();updateHarvestCallUI()}
+    if(pc.connectionState==="connected"){if(call.status!=="connected")playHarvestCallCue("connected");call.status="connected";call.connectedAt=call.connectedAt||Date.now();updateHarvestCallUI()}
     else if(pc.connectionState==="failed"&&pc.iceConnectionState!=="failed"){
       toast("The call connection failed. Please try both devices on the same Wi-Fi or mobile network.",true);
       endHarvestCall("network-failed",true);
@@ -1473,17 +1500,18 @@ async function startHarvestCall(callType){
   try{
     await ensureHarvestCallChannel(activeChatConversationId);
     const call={conversationId:activeChatConversationId,callId:harvestCallId(),peerId:activeChatPeerId,callType:callType==="video"?"video":"audio",role:"caller",status:"calling",pc:null,localStream:null,remoteStream:null,pendingCandidates:[],muted:false,cameraOff:false};
-    activeHarvestCall=call;updateHarvestCallUI();await sendHarvestCallSignal("invite");
+    activeHarvestCall=call;updateHarvestCallUI();startHarvestCallRinging("outgoing");await sendHarvestCallSignal("invite");
     call.timeout=setTimeout(()=>{if(activeHarvestCall===call){toast("No answer. The call has ended.");endHarvestCall("no-answer",true)}},45000);
   }catch(error){activeHarvestCall=null;updateHarvestCallUI();toast(error.message||"Calls are not available yet. Please try again later.",true)}
 }
 async function acceptHarvestCall(){
   const call=activeHarvestCall;if(!call||call.role!=="receiver"||call.status!=="incoming")return;
-  try{call.status="connecting";updateHarvestCallUI();await prepareHarvestCallMedia(call);await createHarvestPeerConnection(call);await sendHarvestCallSignal("accept")}
+  try{stopHarvestCallTone();call.status="connecting";updateHarvestCallUI();await prepareHarvestCallMedia(call);await createHarvestPeerConnection(call);await sendHarvestCallSignal("accept")}
   catch(error){toast(error.message||"Could not accept the call.",true);await endHarvestCall("failed",true)}
 }
 async function endHarvestCall(reason="ended",notifyPeer=true){
   const call=activeHarvestCall;if(!call)return;
+  stopHarvestCallTone();if(reason==="declined"||reason==="decline"||reason==="busy")playHarvestCallCue("declined");else if(reason==="no-answer")playHarvestCallCue("missed");else if(reason==="ended"||reason==="end")playHarvestCallCue("ended");
   activeHarvestCall=null;clearTimeout(call.timeout);
   if(notifyPeer&&harvestCallChannel&&authUser){
     const kind=reason==="declined"?"decline":"end";

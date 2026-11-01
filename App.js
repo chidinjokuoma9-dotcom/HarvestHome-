@@ -36,6 +36,7 @@ const seed = [];
 const state={view:"marketplace",search:"",sort:"featured",priceMin:"",priceMax:"",country:localStorage.getItem(KEYS.country)||C.DEFAULT_COUNTRY,location:"All locations",category:"All categories",mode:"All",dashboardTab:"overview",authMode:"login",payments:[],transactionFilterSeller:{status:"all",range:"all",search:""},transactionFilterAdmin:{status:"all",range:"all",search:""},sharedListing:null,sharedListingChecked:false};
 let chatTimer=null;
 let activeHarvestCall=null, harvestCallChannel=null, harvestCallConversationId=null, activeChatConversationId=null, activeChatPeerId=null, harvestCallChannelReady=false;
+let harvestPresenceHeartbeat=null,harvestPresenceExpiry=null,harvestPresenceStartedAt=0,harvestPeerLastSeen=0,harvestPeerPresence="checking";
 const chatImageUrlCache=new Map();
 const CHAT_IMAGE_MARKER=/^\[\[HH_CHAT_IMAGE:([^\]]+)\]\](?:\n([\s\S]*))?$/;
 state.rewardAdmin=[];state.verificationRequests=[];state.sellerPerformance={listings:0,approved:0,pending:0,rejected:0,views:0,chats:0,uniqueBuyers:0,recommendations:0};state.listingPerformance=[];state.featuredListings=[];state.professionalSellers=[];state.advertisingRequests=[];state.advertisingCampaigns=[];state.advertisingReport=[];
@@ -1167,8 +1168,37 @@ async function contact(id){const u=user();if(!u){auth("login");toast("Log in to 
     }}await syncListingPerformance();openChat(c.id,l)}catch(e){toast(e.message||"Could not start the chat.",true)}}
 
 function harvestCallId(){try{return crypto.randomUUID()}catch{return "hh-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,12)}}
+function updateHarvestPeerPresence(status){
+  harvestPeerPresence=status;
+  const badge=$("#hhPeerPresence");
+  if(!badge)return;
+  badge.className="hh-peer-presence "+(status==="online"?"is-online":status==="offline"?"is-offline":"is-checking");
+  badge.innerHTML='<span class="hh-presence-dot" aria-hidden="true"></span><span>'+(status==="online"?"Online":status==="offline"?"Offline":"Checking status…")+'</span>';
+}
+async function sendHarvestPresence(status,channel=harvestCallChannel,conversationId=harvestCallConversationId){
+  if(!channel||!authUser||!activeChatPeerId||!conversationId)return;
+  try{
+    await channel.send({type:"broadcast",event:"hh-call-signal",payload:{
+      kind:"presence",status,conversationId,from:authUser.id,to:activeChatPeerId,at:Date.now()
+    }});
+  }catch(error){console.warn("Chat presence update skipped:",error?.message||error)}
+}
+function startHarvestPresence(conversationId){
+  clearInterval(harvestPresenceHeartbeat);clearInterval(harvestPresenceExpiry);
+  harvestPresenceStartedAt=Date.now();harvestPeerLastSeen=0;updateHarvestPeerPresence("checking");
+  sendHarvestPresence("online",harvestCallChannel,conversationId);
+  harvestPresenceHeartbeat=setInterval(()=>sendHarvestPresence("online",harvestCallChannel,conversationId),20000);
+  harvestPresenceExpiry=setInterval(()=>{
+    const last=harvestPeerLastSeen||harvestPresenceStartedAt;
+    if(Date.now()-last>45000)updateHarvestPeerPresence("offline");
+  },5000);
+}
 async function cleanupHarvestCallChannel(){
-  const old=harvestCallChannel;harvestCallChannel=null;harvestCallConversationId=null;harvestCallChannelReady=false;
+  const old=harvestCallChannel,oldConversation=harvestCallConversationId;
+  if(old&&harvestCallChannelReady)await sendHarvestPresence("offline",old,oldConversation);
+  clearInterval(harvestPresenceHeartbeat);clearInterval(harvestPresenceExpiry);
+  harvestPresenceHeartbeat=null;harvestPresenceExpiry=null;harvestPresenceStartedAt=0;harvestPeerLastSeen=0;harvestPeerPresence="checking";
+  harvestCallChannel=null;harvestCallConversationId=null;harvestCallChannelReady=false;
   if(old&&sb){try{await sb.removeChannel(old)}catch(error){console.warn("Call channel cleanup skipped:",error?.message||error)}}
 }
 async function ensureHarvestCallChannel(conversationId){
@@ -1205,6 +1235,16 @@ async function handleHarvestCallSignal(message,conversationId){
   const payload=message?.payload||message;
   if(!payload||payload.conversationId!==conversationId||!authUser||payload.to!==authUser.id||payload.from!==activeChatPeerId)return;
   const kind=String(payload.kind||"");
+  if(kind==="presence"){
+    if(payload.status==="online"){
+      harvestPeerLastSeen=Number(payload.at)||Date.now();
+      updateHarvestPeerPresence("online");
+    }else if(payload.status==="offline"){
+      harvestPeerLastSeen=0;
+      updateHarvestPeerPresence("offline");
+    }
+    return;
+  }
   if(kind==="invite"){
     if(activeHarvestCall){
       try{await harvestCallChannel.send({type:"broadcast",event:"hh-call-signal",payload:{kind:"busy",conversationId,callId:payload.callId,from:authUser.id,to:payload.from,at:Date.now()}})}catch{}
@@ -1411,6 +1451,7 @@ async function openHarvestCallChannelForChat(conversationId){
   else throw new Error("You are not a participant in this conversation.");
   if(!activeChatPeerId)throw new Error("The other chat participant could not be verified.");
   await ensureHarvestCallChannel(conversationId);
+  startHarvestPresence(conversationId);
 }
 
 async function openChat(conversationId,listing){
@@ -1433,7 +1474,7 @@ async function renderChatModal(conversationId,listing,silent=false){
     if(error)throw error;
     const clearedAt=clearState?.cleared_at?new Date(clearState.cleared_at).getTime():0;
     const msgs=(allMsgs||[]).filter(m=>!clearedAt||new Date(m.created_at).getTime()>clearedAt);
-    if(!silent)$('#modalRoot').innerHTML=`<div class="modal-backdrop"><div class="modal wide chat-modal"><div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap"><button type="button" class="outline-btn" data-chat-clear>Clear chat</button><button class="modal-close" data-chat-close>×</button></div><span class="eyebrow">Private buyer ↔ seller chat</span><h2>${esc(listing?.title||"HarvestHome listing")}</h2><div class="hh-call-actions"><button type="button" class="outline-btn" data-hh-start-call="audio">📞 Voice call</button><button type="button" class="outline-btn" data-hh-start-call="video">🎥 Video call</button></div><small id="hhCallHint" class="hh-call-hint">Open this chat to receive calls from the other participant.</small><section id="hhCallPanel" class="hh-call-panel" hidden></section><div id="chatMessages" class="chat-messages"></div><form id="chatForm" class="chat-form"><textarea name="message" rows="2" maxlength="1800" placeholder="Write a message to the seller…"></textarea><div class="chat-composer-actions"><label class="chat-photo-btn" for="chatPhotoInput" title="Send a photo">📷 Photo</label><input id="chatPhotoInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden><button class="primary-btn" type="submit">Send message</button></div></form><small class="demo-note">Messages are stored securely in Supabase and only the buyer and seller can access this conversation. Clear chat hides the earlier messages only from your own view; it does not delete them for the other person.</small></div></div>`;
+    if(!silent)$('#modalRoot').innerHTML=`<div class="modal-backdrop"><div class="modal wide chat-modal"><div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap"><button type="button" class="outline-btn" data-chat-clear>Clear chat</button><button class="modal-close" data-chat-close>×</button></div><span class="eyebrow">Private buyer ↔ seller chat</span><h2>${esc(listing?.title||"HarvestHome listing")}</h2><div id="hhPeerPresence" class="hh-peer-presence is-checking" role="status" aria-live="polite"><span class="hh-presence-dot" aria-hidden="true"></span><span>Checking status…</span></div><div class="hh-call-actions"><button type="button" class="outline-btn" data-hh-start-call="audio">📞 Voice call</button><button type="button" class="outline-btn" data-hh-start-call="video">🎥 Video call</button></div><small id="hhCallHint" class="hh-call-hint">Open this chat to receive calls from the other participant.</small><section id="hhCallPanel" class="hh-call-panel" hidden></section><div id="chatMessages" class="chat-messages"></div><form id="chatForm" class="chat-form"><textarea name="message" rows="2" maxlength="1800" placeholder="Write a message to the seller…"></textarea><div class="chat-composer-actions"><label class="chat-photo-btn" for="chatPhotoInput" title="Send a photo">📷 Photo</label><input id="chatPhotoInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden><button class="primary-btn" type="submit">Send message</button></div></form><small class="demo-note">Messages are stored securely in Supabase and only the buyer and seller can access this conversation. Clear chat hides the earlier messages only from your own view; it does not delete them for the other person.</small></div></div>`;
     const box=$("#chatMessages");
     if(!box)return;
     const renderedMsgs=await Promise.all(msgs.map(async m=>{
@@ -1450,7 +1491,7 @@ async function renderChatModal(conversationId,listing,silent=false){
     queryAll("[data-msg-delete]",box).forEach(btn=>{btn.onclick=()=>deleteChatMessage(btn.dataset.msgDelete,conversationId,listing)});
     if(!silent){
       const closeBtn=$("#modalRoot [data-chat-close]");
-      if(closeBtn)closeBtn.onclick=()=>{clearInterval(chatTimer);chatTimer=null;close()};
+      if(closeBtn)closeBtn.onclick=async()=>{clearInterval(chatTimer);chatTimer=null;if(activeHarvestCall)await endHarvestCall("ended",true);await cleanupHarvestCallChannel();activeChatConversationId=null;activeChatPeerId=null;close()};
       queryAll("[data-hh-start-call]").forEach(button=>{button.onclick=()=>startHarvestCall(button.dataset.hhStartCall)});
       const clearBtn=$("#modalRoot [data-chat-clear]");
       if(clearBtn)clearBtn.onclick=()=>clearChatForMe(conversationId,listing);

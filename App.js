@@ -35,6 +35,10 @@ const seed = [];
 
 const state={view:"marketplace",search:"",sort:"featured",priceMin:"",priceMax:"",country:localStorage.getItem(KEYS.country)||C.DEFAULT_COUNTRY,location:"All locations",category:"All categories",mode:"All",dashboardTab:"overview",authMode:"login",payments:[],transactionFilterSeller:{status:"all",range:"all",search:""},transactionFilterAdmin:{status:"all",range:"all",search:""},sharedListing:null,sharedListingChecked:false};
 let chatTimer=null;
+let marketplacePresenceChannel=null,marketplacePresenceUserId=null,marketplacePresenceRefresh=null;
+const marketplaceOnlineSellers=new Set();
+let activeHarvestCall=null, harvestCallChannel=null, harvestCallConversationId=null, activeChatConversationId=null, activeChatPeerId=null, harvestCallChannelReady=false;
+let harvestCallToneTimer=null,harvestCallTonePulseTimer=null,harvestCallAudioContext=null;
 const chatImageUrlCache=new Map();
 const CHAT_IMAGE_MARKER=/^\[\[HH_CHAT_IMAGE:([^\]]+)\]\](?:\n([\s\S]*))?$/;
 state.rewardAdmin=[];state.verificationRequests=[];state.sellerPerformance={listings:0,approved:0,pending:0,rejected:0,views:0,chats:0,uniqueBuyers:0,recommendations:0};state.listingPerformance=[];state.featuredListings=[];state.professionalSellers=[];state.advertisingRequests=[];state.advertisingCampaigns=[];state.advertisingReport=[];
@@ -524,7 +528,7 @@ async function loadProfile(){if(!sb||!authUser){authProfile=null;return}const {d
 async function loadAuth(){if(!sb){render();return}const params=new URLSearchParams(window.location.search);const publicSharedLink=params.get("shared")==="1"||params.get("shared")==="listing"||params.get("public")==="1"||!!params.get("listing");const recoveryUrl=params.get("reset")==="1"||window.location.pathname==="/update-password"||/type=recovery/i.test(window.location.search+" "+window.location.hash);if(recoveryUrl)passwordRecoveryPending=true;
   // Render the marketplace immediately; remote auth/data requests must not leave visitors on the static loading screen.
   render();
-  try{const {data}=await sb.auth.getSession();authUser=data.session?.user||null;await loadProfile();await syncListings();if(publicSharedLink)await ensureSharedListing();await syncFeatured();await syncFavourites();await syncNotifications();await syncPayments();await syncRewards();await syncProfessionalSellers();await syncSellerPerformance();await syncListingPerformance();await syncAdminRewards();await syncVerificationRequests();await syncAdvertising();if(passwordRecoveryPending){state.view="marketplace";render();return}if(publicSharedLink)state.view="marketplace";render();}catch(error){console.warn("HarvestHome startup sync failed:",error?.message||error);render();}}
+  try{const {data}=await sb.auth.getSession();authUser=data.session?.user||null;await loadProfile();await syncListings();await startMarketplacePresence();if(publicSharedLink)await ensureSharedListing();await syncFeatured();await syncFavourites();await syncNotifications();await syncPayments();await syncRewards();await syncProfessionalSellers();await syncSellerPerformance();await syncListingPerformance();await syncAdminRewards();await syncVerificationRequests();await syncAdvertising();if(passwordRecoveryPending){state.view="marketplace";render();return}if(publicSharedLink)state.view="marketplace";render();}catch(error){console.warn("HarvestHome startup sync failed:",error?.message||error);render();}}
 async function syncPayments(){
   if(!sb||!authUser)return;
   try{
@@ -553,6 +557,7 @@ function filtered(){let q=state.search.toLowerCase().trim();const terms=q.split(
 function openListingMediaViewer(listingId,index=0){
   const l=listings().find(x=>String(x.id)===String(listingId));
   if(!l)return;
+  const sellerOnline=!!l.seller_id&&marketplaceOnlineSellers.has(String(l.seller_id));
   const imgs=(l.images||[]).filter(x=>x&&x.data);
   const media=[...imgs.map(x=>({type:"image",data:x.data})),...(l.video?.data?[{type:"video",data:l.video.data}]:[])];
   if(!media.length)return;
@@ -582,6 +587,60 @@ function openListingMediaViewer(listingId,index=0){
   $("#mediaNext")?.addEventListener("click",()=>{current=(current+1)%media.length;update()});
   $("[data-close]")?.addEventListener("click",close);
 }
+function updateMarketplacePresenceUI(){
+  queryAll("[data-seller-presence]").forEach(badge=>{
+    const online=marketplaceOnlineSellers.has(String(badge.dataset.sellerPresence||""));
+    badge.hidden=!authUser?.id;
+    badge.className="hh-listing-presence "+(online?"is-online":"is-offline");
+    badge.innerHTML='<span class="hh-presence-dot" aria-hidden="true"></span>'+(online?"Seller Online":"Seller Offline");
+  });
+}
+function refreshMarketplacePresenceState(){
+  if(!marketplacePresenceChannel)return;
+  const snapshot=marketplacePresenceChannel.presenceState?.()||{};
+  const online=new Set();
+  Object.values(snapshot).flat().forEach(meta=>{const id=String(meta?.user_id||"");if(id)online.add(id)});
+  marketplaceOnlineSellers.clear();online.forEach(id=>marketplaceOnlineSellers.add(id));
+  updateMarketplacePresenceUI();
+}
+async function startMarketplacePresence(){
+  if(!sb)return;
+  const currentUserId=authUser?.id||null;
+  if(marketplacePresenceChannel&&marketplacePresenceUserId===currentUserId)return;
+  if(marketplacePresenceRefresh){clearInterval(marketplacePresenceRefresh);marketplacePresenceRefresh=null;}
+  const old=marketplacePresenceChannel;marketplacePresenceChannel=null;marketplacePresenceUserId=currentUserId;
+  if(old){try{await sb.removeChannel(old)}catch(error){console.warn("Marketplace presence cleanup skipped:",error?.message||error)}}
+  marketplaceOnlineSellers.clear();updateMarketplacePresenceUI();
+  if(!currentUserId)return;
+  const channel=sb.channel("hh-marketplace-presence-v1",{config:{private:true,presence:{key:currentUserId}}});
+  channel.on("presence",{event:"sync"},refreshMarketplacePresenceState);
+  channel.on("presence",{event:"join"},refreshMarketplacePresenceState);
+  channel.on("presence",{event:"leave"},refreshMarketplacePresenceState);
+  marketplacePresenceChannel=channel;
+  channel.subscribe(async status=>{
+    if(status==="SUBSCRIBED"){
+      if(authUser?.id&&marketplacePresenceChannel===channel){
+        try{
+          await channel.track({user_id:authUser.id,online_at:new Date().toISOString()});
+          marketplacePresenceRefresh=setInterval(()=>{
+            if(document.visibilityState!=="hidden"&&authUser?.id&&marketplacePresenceChannel===channel){
+              channel.track({user_id:authUser.id,online_at:new Date().toISOString()}).catch(error=>console.warn("Marketplace presence refresh skipped:",error?.message||error));
+            }
+          },25000);
+        }catch(error){console.warn("Marketplace presence could not be published:",error?.message||error)}
+      }
+      refreshMarketplacePresenceState();
+    }else if(status==="CHANNEL_ERROR"||status==="TIMED_OUT"||status==="CLOSED"){
+      if(marketplacePresenceChannel===channel){marketplaceOnlineSellers.clear();updateMarketplacePresenceUI();}
+    }
+  });
+}
+async function stopMarketplacePresence(){
+  if(marketplacePresenceRefresh){clearInterval(marketplacePresenceRefresh);marketplacePresenceRefresh=null;}
+  const channel=marketplacePresenceChannel;marketplacePresenceChannel=null;marketplacePresenceUserId=null;
+  if(channel){try{if(authUser?.id)await channel.untrack();await sb.removeChannel(channel)}catch(error){console.warn("Marketplace presence shutdown skipped:",error?.message||error)}}
+  marketplaceOnlineSellers.clear();updateMarketplacePresenceUI();
+}
 function card(l){
   let u=user(),f=json(KEYS.favourites,{}),fav=u&&(f[u.email]||[]).includes(l.id);
   const imgs=(l.images||[]).filter(x=>x&&x.data);
@@ -600,7 +659,7 @@ function card(l){
       <span class="listing-category">${esc(displayCategory(l.category))}</span>
       <h3>${esc(l.title)}</h3>
       <p class="location">📍 ${esc(l.location)} · ${esc(l.country)}</p>
-      <div class="seller-trust-row"><p class="seller-line">👤 ${esc(l.seller||'HarvestHome Seller')}</p>${l.sellerVerified?`<span class="trust-badge verified">✓ Verified seller</span>`:""}${l.professionalSeller?`<span class="trust-badge pro">🏆 Verified Professional</span>`:""}</div>
+      <div class="seller-trust-row"><p class="seller-line">👤 ${esc(l.seller||'HarvestHome Seller')}</p><span class="hh-listing-presence ${sellerOnline?"is-online":"is-offline"}" data-seller-presence="${esc(l.seller_id||"")}" aria-live="polite"><span class="hh-presence-dot" aria-hidden="true"></span>${sellerOnline?"Seller Online":"Seller Offline"}</span>${l.sellerVerified?`<span class="trust-badge verified">✓ Verified seller</span>`:""}${l.professionalSeller?`<span class="trust-badge pro">🏆 Verified Professional</span>`:""}</div>
       <p class="description">${esc(l.description)}</p>
       <div class="listing-bottom"><strong>${money(l.price,l.currency||countryInfo().currency)}</strong><span>${l.views||0} views</span></div>
       ${l.video?`<button type="button" data-media-open="${esc(l.id)}" data-media-index="${imgs.length}" style="margin:12px 0;width:100%;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;background:#000;cursor:zoom-in;padding:0">
@@ -1164,7 +1223,293 @@ async function contact(id){const u=user();if(!u){auth("login");toast("Log in to 
     }catch(referralError){
       console.warn('Buyer referral could not be recorded:',referralError.message);
     }}await syncListingPerformance();openChat(c.id,l)}catch(e){toast(e.message||"Could not start the chat.",true)}}
-async function openChat(conversationId,listing){clearInterval(chatTimer);await renderChatModal(conversationId,listing);chatTimer=setInterval(()=>renderChatModal(conversationId,listing,true),5000)}
+function harvestCallId(){try{return crypto.randomUUID()}catch{return "hh-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,12)}}
+function stopHarvestCallTone(){
+  if(harvestCallToneTimer){clearInterval(harvestCallToneTimer);harvestCallToneTimer=null}
+  if(harvestCallTonePulseTimer){clearTimeout(harvestCallTonePulseTimer);harvestCallTonePulseTimer=null}
+}
+function playHarvestCallBeep(frequency=660,duration=.22){
+  try{
+    const AudioCtx=window.AudioContext||window.webkitAudioContext;if(!AudioCtx)return;
+    if(!harvestCallAudioContext)harvestCallAudioContext=new AudioCtx();
+    const ctx=harvestCallAudioContext;if(ctx.state==="suspended")ctx.resume().catch(()=>{});
+    const now=ctx.currentTime,osc=ctx.createOscillator(),gain=ctx.createGain();
+    osc.type="sine";osc.frequency.setValueAtTime(frequency,now);
+    gain.gain.setValueAtTime(.0001,now);gain.gain.exponentialRampToValueAtTime(.12,now+.025);
+    gain.gain.setValueAtTime(.12,now+Math.max(.04,duration-.06));gain.gain.exponentialRampToValueAtTime(.0001,now+duration);
+    osc.connect(gain);gain.connect(ctx.destination);osc.start(now);osc.stop(now+duration+.02);
+  }catch(error){console.warn("Call sound could not play:",error?.message||error)}
+}
+function playHarvestCallCue(kind){
+  stopHarvestCallTone();
+  const cues={answered:[880,.16],connected:[1046,.2],declined:[330,.35],ended:[520,.16],missed:[392,.35]};
+  const cue=cues[kind];if(cue)playHarvestCallBeep(cue[0],cue[1]);
+}
+function startHarvestCallRinging(kind){
+  stopHarvestCallTone();
+  const incoming=kind==="incoming",frequency=incoming?740:440,duration=incoming?.95:.85;
+  const ring=()=>{playHarvestCallBeep(frequency,duration);if(incoming)harvestCallTonePulseTimer=setTimeout(()=>{harvestCallTonePulseTimer=null;if(activeHarvestCall?.status==="incoming")playHarvestCallBeep(880,.65)},260)};
+  ring();harvestCallToneTimer=setInterval(ring,incoming?2100:3000);
+}
+
+async function cleanupHarvestCallChannel(){
+  const old=harvestCallChannel;
+  harvestCallChannel=null;harvestCallConversationId=null;harvestCallChannelReady=false;
+  if(old&&sb){try{await sb.removeChannel(old)}catch(error){console.warn("Call channel cleanup skipped:",error?.message||error)}}
+}
+async function ensureHarvestCallChannel(conversationId){
+  if(!sb||!authUser)throw new Error("Please log in before making a call.");
+  if(harvestCallChannel&&harvestCallConversationId===conversationId&&harvestCallChannelReady)return harvestCallChannel;
+  await cleanupHarvestCallChannel();
+  const channel=sb.channel("hh-call:"+conversationId,{config:{private:true,broadcast:{ack:true,self:false}}});
+  channel.on("broadcast",{event:"hh-call-signal"},message=>{handleHarvestCallSignal(message,conversationId).catch(error=>console.warn("Call signal could not be handled:",error?.message||error))});
+  harvestCallChannel=channel;harvestCallConversationId=conversationId;
+  try{
+    await new Promise((resolve,reject)=>{
+      let settled=false;
+      const timeout=setTimeout(()=>{if(!settled){settled=true;reject(new Error("Call connection timed out. Please try again."))}},12000);
+      channel.subscribe((status,error)=>{
+        if(settled)return;
+        if(status==="SUBSCRIBED"){settled=true;clearTimeout(timeout);resolve()}
+        else if(status==="CHANNEL_ERROR"||status==="TIMED_OUT"||status==="CLOSED"){settled=true;clearTimeout(timeout);reject(error||new Error("Private call channel could not connect. The call security setup may still be pending."))}
+      });
+    });
+    harvestCallChannelReady=true;
+    return channel;
+  }catch(error){
+    await cleanupHarvestCallChannel();
+    throw error;
+  }
+}
+async function sendHarvestCallSignal(kind,extra={}){
+  const call=activeHarvestCall,channel=harvestCallChannel;
+  if(!call||!channel||!authUser)throw new Error("The call connection is not ready.");
+  const result=await channel.send({type:"broadcast",event:"hh-call-signal",payload:{kind,conversationId:call.conversationId,callId:call.callId,from:authUser.id,to:call.peerId,callType:call.callType,at:Date.now(),...extra}});
+  if(result&&result!=="ok"&&result.status!=="ok")throw new Error("The call signal could not be delivered. Please try again.");
+}
+async function handleHarvestCallSignal(message,conversationId){
+  const payload=message?.payload||message;
+  if(!payload||payload.conversationId!==conversationId||!authUser||payload.to!==authUser.id||payload.from!==activeChatPeerId)return;
+  const kind=String(payload.kind||"");
+  if(kind==="invite"){
+    if(activeHarvestCall){
+      try{await harvestCallChannel.send({type:"broadcast",event:"hh-call-signal",payload:{kind:"busy",conversationId,callId:payload.callId,from:authUser.id,to:payload.from,at:Date.now()}})}catch{}
+      return;
+    }
+    activeHarvestCall={conversationId,callId:payload.callId,peerId:payload.from,callType:payload.callType==="video"?"video":"audio",role:"receiver",status:"incoming",pc:null,localStream:null,remoteStream:null,pendingCandidates:[],muted:false,cameraOff:false};
+    updateHarvestCallUI();startHarvestCallRinging("incoming");return;
+  }
+  const call=activeHarvestCall;
+  if(!call||payload.callId!==call.callId||payload.from!==call.peerId)return;
+  if(kind==="accept"&&call.role==="caller"&&call.status==="calling"){
+    stopHarvestCallTone();playHarvestCallCue("answered");clearTimeout(call.timeout);
+    try{
+      call.status="connecting";updateHarvestCallUI();
+      await prepareHarvestCallMedia(call);await createHarvestPeerConnection(call);
+      const offer=await call.pc.createOffer();await call.pc.setLocalDescription(offer);
+      await sendHarvestCallSignal("offer",{description:call.pc.localDescription});
+      call.status="connecting";updateHarvestCallUI();
+    }catch(error){toast(error.message||"Could not start the call.",true);await endHarvestCall("failed",true)}
+    return;
+  }
+  if(kind==="offer"&&call.role==="receiver"&&call.status==="connecting"){
+    try{
+      if(!call.pc){await prepareHarvestCallMedia(call);await createHarvestPeerConnection(call)}
+      await call.pc.setRemoteDescription(payload.description);await flushHarvestIceCandidates(call);
+      const answer=await call.pc.createAnswer();await call.pc.setLocalDescription(answer);
+      await sendHarvestCallSignal("answer",{description:call.pc.localDescription});
+    }catch(error){toast(error.message||"Could not answer the call.",true);await endHarvestCall("failed",true)}
+    return;
+  }
+  if(kind==="answer"&&call.role==="caller"&&call.pc){
+    try{await call.pc.setRemoteDescription(payload.description);await flushHarvestIceCandidates(call)}
+    catch(error){toast("The call connection could not be completed.",true);await endHarvestCall("failed",true)}
+    return;
+  }
+  if(kind==="ice"&&payload.candidate){
+    // ICE candidates can arrive before the receiver has processed the offer
+    // and created its RTCPeerConnection. Keep them on the active call instead
+    // of dropping them; flushHarvestIceCandidates() applies them after the
+    // remote description is set on either side.
+    try{
+      const candidate=new RTCIceCandidate(payload.candidate);
+      if(call.pc?.remoteDescription)await call.pc.addIceCandidate(candidate);
+      else call.pendingCandidates.push(candidate);
+    }catch(error){console.warn("A call network candidate was skipped:",error?.message||error)}
+    return;
+  }
+  if(kind==="decline"||kind==="busy"||kind==="end"){
+    const note=kind==="decline"?"The other person declined the call.":kind==="busy"?"The other person is already on another call.":"The other person ended the call.";
+    await endHarvestCall(kind,false);if(kind!=="end")toast(note);
+  }
+}
+async function prepareHarvestCallMedia(call){
+  if(!navigator.mediaDevices?.getUserMedia)throw new Error("Your browser does not support voice/video calls. Please use an updated browser over HTTPS.");
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true,video:call.callType==="video"?{facingMode:"user"}:false});
+    if(activeHarvestCall!==call){stream.getTracks().forEach(track=>track.stop());throw new Error("This call has already ended.")}
+    call.localStream=stream;
+  }
+  catch(error){
+    if(error?.name==="NotAllowedError"||error?.name==="PermissionDeniedError")throw new Error("Please allow microphone"+(call.callType==="video"?" and camera":"")+" access to make this call.");
+    if(error?.name==="NotFoundError"||error?.name==="DevicesNotFoundError")throw new Error("A required microphone or camera could not be found on this device.");
+    throw new Error(error?.message||"Your microphone or camera could not be started.");
+  }
+  updateHarvestCallUI();
+}
+async function createHarvestPeerConnection(call){
+  if(activeHarvestCall!==call)throw new Error("This call has already ended.");
+  if(typeof RTCPeerConnection==="undefined")throw new Error("This browser does not support WebRTC calling.");
+  // Multiple public STUN endpoints improve address discovery without introducing
+  // a paid relay or changing any HarvestHome backend services.
+  const pc=new RTCPeerConnection({iceServers:[
+    {urls:"stun:stun.l.google.com:19302"},
+    {urls:"stun:stun1.l.google.com:19302"},
+    {urls:"stun:global.stun.twilio.com:3478"}
+  ]});
+  call.pc=pc;
+  (call.localStream?.getTracks()||[]).forEach(track=>pc.addTrack(track,call.localStream));
+  pc.onicecandidate=event=>{
+    if(event.candidate&&activeHarvestCall===call)sendHarvestCallSignal("ice",{candidate:event.candidate.toJSON?event.candidate.toJSON():event.candidate}).catch(error=>console.warn("Call network candidate could not be sent:",error?.message||error));
+  };
+  pc.ontrack=event=>{
+    if(activeHarvestCall!==call)return;
+    if(event.streams&&event.streams[0]){
+      call.remoteStream=event.streams[0];
+    }else{
+      if(!call.remoteStream)call.remoteStream=new MediaStream();
+      if(!call.remoteStream.getTracks().some(track=>track.id===event.track.id))call.remoteStream.addTrack(event.track);
+    }
+    // Reattach after the call panel has rendered its media elements.
+    updateHarvestCallUI();
+    setTimeout(()=>playHarvestRemoteMedia(call),0);
+  };
+  pc.oniceconnectionstatechange=()=>{
+    if(activeHarvestCall!==call)return;
+    call.iceState=pc.iceConnectionState;
+    if(pc.iceConnectionState==="failed"){
+      toast("The devices could not establish a direct media route. This network may require a TURN relay.",true);
+      endHarvestCall("network-failed",true);
+    }else if(pc.iceConnectionState==="connected"||pc.iceConnectionState==="completed"){
+      if(call.status!=="connected")playHarvestCallCue("connected");call.status="connected";call.connectedAt=call.connectedAt||Date.now();updateHarvestCallUI();
+    }else if(pc.iceConnectionState==="disconnected"){
+      call.status="reconnecting";updateHarvestCallUI();
+    }
+  };
+  pc.onconnectionstatechange=()=>{
+    if(activeHarvestCall!==call)return;
+    call.connectionState=pc.connectionState;
+    if(pc.connectionState==="connected"){if(call.status!=="connected")playHarvestCallCue("connected");call.status="connected";call.connectedAt=call.connectedAt||Date.now();updateHarvestCallUI()}
+    else if(pc.connectionState==="failed"&&pc.iceConnectionState!=="failed"){
+      toast("The call connection failed. Please try both devices on the same Wi-Fi or mobile network.",true);
+      endHarvestCall("network-failed",true);
+    }
+  };
+  return pc;
+}
+function playHarvestRemoteMedia(call){
+  if(activeHarvestCall!==call||!call.remoteStream)return;
+  const panel=$("#hhCallPanel");if(!panel)return;
+  const media=[$("#hhRemoteVideo",panel),$("#hhRemoteAudio",panel)].filter(Boolean);
+  media.forEach(element=>{
+    if(element.srcObject!==call.remoteStream)element.srcObject=call.remoteStream;
+    element.muted=false;element.volume=1;
+    const attempt=element.play?.();
+    if(attempt&&typeof attempt.catch==="function")attempt.catch(error=>{
+      call.playbackBlocked=true;
+      const hint=$("#hhCallPlaybackHint",panel);
+      if(hint)hint.textContent="Your browser blocked automatic playback. Tap the play button on the other person's media to hear/see them.";
+    });
+  });
+}
+async function flushHarvestIceCandidates(call){
+  if(!call.pc?.remoteDescription)return;
+  const pending=call.pendingCandidates.splice(0);
+  for(const candidate of pending){try{await call.pc.addIceCandidate(candidate)}catch(error){console.warn("A queued call network candidate was skipped:",error?.message||error)}}
+}
+async function startHarvestCall(callType){
+  if(!sb||!authUser){toast("Please log in before making a call.",true);return}
+  if(activeHarvestCall){toast("A call is already active in this chat.",true);return}
+  if(!activeChatPeerId||!activeChatConversationId){toast("The other chat participant could not be verified.",true);return}
+  try{
+    await ensureHarvestCallChannel(activeChatConversationId);
+    const call={conversationId:activeChatConversationId,callId:harvestCallId(),peerId:activeChatPeerId,callType:callType==="video"?"video":"audio",role:"caller",status:"calling",pc:null,localStream:null,remoteStream:null,pendingCandidates:[],muted:false,cameraOff:false};
+    activeHarvestCall=call;updateHarvestCallUI();startHarvestCallRinging("outgoing");await sendHarvestCallSignal("invite");
+    call.timeout=setTimeout(()=>{if(activeHarvestCall===call){toast("No answer. The call has ended.");endHarvestCall("no-answer",true)}},45000);
+  }catch(error){activeHarvestCall=null;updateHarvestCallUI();toast(error.message||"Calls are not available yet. Please try again later.",true)}
+}
+async function acceptHarvestCall(){
+  const call=activeHarvestCall;if(!call||call.role!=="receiver"||call.status!=="incoming")return;
+  try{stopHarvestCallTone();playHarvestCallCue("answered");call.status="connecting";updateHarvestCallUI();await prepareHarvestCallMedia(call);await createHarvestPeerConnection(call);await sendHarvestCallSignal("accept")}
+  catch(error){toast(error.message||"Could not accept the call.",true);await endHarvestCall("failed",true)}
+}
+async function endHarvestCall(reason="ended",notifyPeer=true){
+  const call=activeHarvestCall;if(!call)return;
+  stopHarvestCallTone();if(reason==="declined"||reason==="decline"||reason==="busy")playHarvestCallCue("declined");else if(reason==="no-answer")playHarvestCallCue("missed");else if(reason==="ended"||reason==="end")playHarvestCallCue("ended");
+  activeHarvestCall=null;clearTimeout(call.timeout);
+  if(notifyPeer&&harvestCallChannel&&authUser){
+    const kind=reason==="declined"?"decline":"end";
+    try{await harvestCallChannel.send({type:"broadcast",event:"hh-call-signal",payload:{kind,conversationId:call.conversationId,callId:call.callId,from:authUser.id,to:call.peerId,reason,at:Date.now()}})}catch{}
+  }
+  try{call.pc?.close()}catch{}
+  (call.localStream?.getTracks()||[]).forEach(track=>{try{track.stop()}catch{}});
+  (call.remoteStream?.getTracks()||[]).forEach(track=>{try{track.stop()}catch{}});
+  updateHarvestCallUI();
+}
+function updateHarvestCallUI(){
+  const panel=$("#hhCallPanel");if(!panel)return;
+  const call=activeHarvestCall;
+  if(!call){panel.hidden=true;panel.innerHTML="";queryAll("[data-hh-start-call]").forEach(button=>button.disabled=false);return}
+  queryAll("[data-hh-start-call]").forEach(button=>button.disabled=true);
+  panel.hidden=false;let body="";
+  if(call.status==="incoming"){
+    body='<div class="hh-call-status"><b>Incoming '+(call.callType==="video"?"video":"voice")+' call</b><span>Someone in this private conversation is calling you.</span></div><div class="hh-call-buttons"><button type="button" class="primary-btn" data-hh-call-accept>Accept</button><button type="button" class="outline-btn" data-hh-call-decline>Decline</button></div>';
+  }else if(call.status==="calling"){
+    body='<div class="hh-call-status"><b>Calling…</b><span>Waiting for the other person to answer.</span></div><div class="hh-call-buttons"><button type="button" class="outline-btn" data-hh-call-end>Cancel call</button></div>';
+  }else{
+    body='<div class="hh-call-status"><b>'+(call.status==="connected"?"Call connected":"Connecting call…")+'</b><span>'+(call.callType==="video"?"Video call":"Voice call")+' · '+(call.status==="connected"?"You are now connected.":"Please wait while the devices connect.")+'</span></div>'+
+      (call.callType==="video"?'<div class="hh-call-videos"><video id="hhRemoteVideo" autoplay playsinline controls></video><video id="hhLocalVideo" autoplay muted playsinline></video></div>':'<audio id="hhRemoteAudio" autoplay controls></audio>')+
+      '<small id="hhCallPlaybackHint" class="hh-call-hint" aria-live="polite"></small>'+
+      '<div class="hh-call-buttons"><button type="button" class="outline-btn" data-hh-call-mute>'+(call.muted?"Unmute microphone":"Mute microphone")+'</button>'+
+      (call.callType==="video"?'<button type="button" class="outline-btn" data-hh-call-camera>'+(call.cameraOff?"Turn camera on":"Turn camera off")+'</button>':'')+
+      '<button type="button" class="outline-btn danger" data-hh-call-end>End call</button></div>';
+  }
+  panel.innerHTML=body;
+  const remoteVideo=$("#hhRemoteVideo",panel),localVideo=$("#hhLocalVideo",panel),remoteAudio=$("#hhRemoteAudio",panel);
+  if(remoteVideo&&call.remoteStream){remoteVideo.srcObject=call.remoteStream;remoteVideo.muted=false;remoteVideo.volume=1;remoteVideo.play?.().catch(()=>{const hint=$("#hhCallPlaybackHint",panel);if(hint)hint.textContent="Tap the play button on the remote video if your browser blocks automatic playback."})}
+  if(localVideo&&call.localStream){localVideo.srcObject=call.localStream;localVideo.muted=true;localVideo.play?.().catch(()=>{})}
+  if(remoteAudio&&call.remoteStream){remoteAudio.srcObject=call.remoteStream;remoteAudio.muted=false;remoteAudio.volume=1;remoteAudio.play?.().catch(()=>{const hint=$("#hhCallPlaybackHint",panel);if(hint)hint.textContent="Tap the play button to hear the other person."})}
+  $("#hhCallPanel [data-hh-call-accept]")?.addEventListener("click",acceptHarvestCall);
+  $("#hhCallPanel [data-hh-call-decline]")?.addEventListener("click",()=>endHarvestCall("declined",true));
+  $("#hhCallPanel [data-hh-call-end]")?.addEventListener("click",()=>endHarvestCall("ended",true));
+  $("#hhCallPanel [data-hh-call-mute]")?.addEventListener("click",()=>{
+    const current=activeHarvestCall;if(!current)return;current.muted=!current.muted;(current.localStream?.getAudioTracks()||[]).forEach(track=>track.enabled=!current.muted);updateHarvestCallUI();
+  });
+  $("#hhCallPanel [data-hh-call-camera]")?.addEventListener("click",()=>{
+    const current=activeHarvestCall;if(!current)return;current.cameraOff=!current.cameraOff;(current.localStream?.getVideoTracks()||[]).forEach(track=>track.enabled=!current.cameraOff);updateHarvestCallUI();
+  });
+}
+
+async function openHarvestCallChannelForChat(conversationId){
+  activeChatConversationId=conversationId;activeChatPeerId=null;
+  const {data:conversation,error}=await sb.from("conversations").select("buyer_id,seller_id").eq("id",conversationId).maybeSingle();
+  if(error)throw error;if(!conversation)throw new Error("This conversation is no longer available.");
+  if(conversation.buyer_id===authUser.id)activeChatPeerId=conversation.seller_id;
+  else if(conversation.seller_id===authUser.id)activeChatPeerId=conversation.buyer_id;
+  else throw new Error("You are not a participant in this conversation.");
+  if(!activeChatPeerId)throw new Error("The other chat participant could not be verified.");
+  await ensureHarvestCallChannel(conversationId);
+}
+
+async function openChat(conversationId,listing){
+  clearInterval(chatTimer);chatTimer=null;
+  if(activeHarvestCall)await endHarvestCall("ended",true);
+  await cleanupHarvestCallChannel();
+  await renderChatModal(conversationId,listing);
+  try{await openHarvestCallChannelForChat(conversationId)}
+  catch(error){console.warn("Voice/video call channel is not ready:",error?.message||error);const hint=$("#hhCallHint");if(hint)hint.textContent="Voice/video calling is unavailable until its secure channel is ready."}
+  chatTimer=setInterval(()=>renderChatModal(conversationId,listing,true),5000);
+}
 async function renderChatModal(conversationId,listing,silent=false){
   if(!sb||!authUser)return;
   try{
@@ -1176,7 +1521,7 @@ async function renderChatModal(conversationId,listing,silent=false){
     if(error)throw error;
     const clearedAt=clearState?.cleared_at?new Date(clearState.cleared_at).getTime():0;
     const msgs=(allMsgs||[]).filter(m=>!clearedAt||new Date(m.created_at).getTime()>clearedAt);
-    if(!silent)$('#modalRoot').innerHTML=`<div class="modal-backdrop"><div class="modal wide chat-modal"><div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap"><button type="button" class="outline-btn" data-chat-clear>Clear chat</button><button class="modal-close" data-chat-close>×</button></div><span class="eyebrow">Private buyer ↔ seller chat</span><h2>${esc(listing?.title||"HarvestHome listing")}</h2><div id="chatMessages" class="chat-messages"></div><form id="chatForm" class="chat-form"><textarea name="message" rows="2" maxlength="1800" placeholder="Write a message to the seller…"></textarea><div class="chat-composer-actions"><label class="chat-photo-btn" for="chatPhotoInput" title="Send a photo">📷 Photo</label><input id="chatPhotoInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden><button class="primary-btn" type="submit">Send message</button></div></form><small class="demo-note">Messages are stored securely in Supabase and only the buyer and seller can access this conversation. Clear chat hides the earlier messages only from your own view; it does not delete them for the other person.</small></div></div>`;
+    if(!silent)$('#modalRoot').innerHTML=`<div class="modal-backdrop"><div class="modal wide chat-modal"><div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap"><button type="button" class="outline-btn" data-chat-clear>Clear chat</button><button class="modal-close" data-chat-close>×</button></div><span class="eyebrow">Private buyer ↔ seller chat</span><h2>${esc(listing?.title||"HarvestHome listing")}</h2><div class="hh-call-actions"><button type="button" class="outline-btn" data-hh-start-call="audio">📞 Voice call</button><button type="button" class="outline-btn" data-hh-start-call="video">🎥 Video call</button></div><small id="hhCallHint" class="hh-call-hint">Open this chat to receive calls from the other participant.</small><details class="hh-call-guidelines" style="margin:10px 0;padding:10px 12px;border:1px solid #dce7dd;border-radius:12px;background:#f7fbf7"><summary style="cursor:pointer;font-weight:800;color:#174d28">🛡️ Voice &amp; video call guidelines</summary><ul style="margin:9px 0 0;padding-left:20px;line-height:1.55;color:#425247"><li>Only call the buyer or seller connected to this private chat. Both people must be logged in and keep this conversation open to receive calls.</li><li>Ask for and respect the other person’s consent. Decline or end a call whenever you feel uncomfortable.</li><li>Be respectful. Do not threaten, harass, bully, intimidate or use calls to spam or scam another user.</li><li>Do not record, screenshot, publish or share another person’s call, image or voice without their permission and any consent required by law.</li><li>Never share your password, one-time verification code, card PIN or banking credentials during a call.</li><li>Use calls to discuss a listing, but independently verify property documents, goods, identity and payment details before making decisions or sending money.</li><li>Report suspicious behaviour or abuse to HarvestHome support.</li></ul></details><section id="hhCallPanel" class="hh-call-panel" hidden></section><div id="chatMessages" class="chat-messages"></div><form id="chatForm" class="chat-form"><textarea name="message" rows="2" maxlength="1800" placeholder="Write a message to the seller…"></textarea><div class="chat-composer-actions"><label class="chat-photo-btn" for="chatPhotoInput" title="Send a photo">📷 Photo</label><input id="chatPhotoInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden><button class="primary-btn" type="submit">Send message</button></div></form><small class="demo-note">Messages are stored securely in Supabase and only the buyer and seller can access this conversation. Clear chat hides the earlier messages only from your own view; it does not delete them for the other person.</small></div></div>`;
     const box=$("#chatMessages");
     if(!box)return;
     const renderedMsgs=await Promise.all(msgs.map(async m=>{
@@ -1193,7 +1538,8 @@ async function renderChatModal(conversationId,listing,silent=false){
     queryAll("[data-msg-delete]",box).forEach(btn=>{btn.onclick=()=>deleteChatMessage(btn.dataset.msgDelete,conversationId,listing)});
     if(!silent){
       const closeBtn=$("#modalRoot [data-chat-close]");
-      if(closeBtn)closeBtn.onclick=()=>{clearInterval(chatTimer);chatTimer=null;close()};
+      if(closeBtn)closeBtn.onclick=async()=>{clearInterval(chatTimer);chatTimer=null;if(activeHarvestCall)await endHarvestCall("ended",true);await cleanupHarvestCallChannel();activeChatConversationId=null;activeChatPeerId=null;close()};
+      queryAll("[data-hh-start-call]").forEach(button=>{button.onclick=()=>startHarvestCall(button.dataset.hhStartCall)});
       const clearBtn=$("#modalRoot [data-chat-clear]");
       if(clearBtn)clearBtn.onclick=()=>clearChatForMe(conversationId,listing);
       const form=$("#chatForm");
@@ -1376,7 +1722,7 @@ async function resetSubmit(e){
 function privacyModal(){const email=SUPPORT_EMAIL;$('#modalRoot').innerHTML='<div class="modal-backdrop"><div class="modal wide" style="max-height:88vh;overflow:auto"><button class="modal-close" data-close>×</button><span class="eyebrow">HarvestHome</span><h2>Privacy Policy</h2><p><b>Last updated:</b> 2 October 2026</p><p>This Privacy Policy explains how HarvestHome collects, uses, stores and shares information when you use our marketplace.</p><h3>1. Information we collect</h3><p>We may collect account information such as your name and email address; seller profile information; listing details, photos and videos; messages and enquiries; payment and transaction references; and technical information needed to operate and secure the website.</p><h3>2. How we use information</h3><p>We use information to create and manage accounts, publish and display listings, connect buyers and sellers, provide messaging and enquiries, process and verify marketplace payments, provide seller services and rewards, prevent fraud and abuse, moderate listings, maintain security, improve the service and respond to complaints.</p><h3>3. Payments</h3><p>Payments for HarvestHome services may be processed by Paystack or another payment provider identified at checkout. HarvestHome does not need your card PIN, one-time password or full payment credentials. Do not send sensitive payment credentials through marketplace messages.</p><h3>4. Cookies and similar technologies</h3><p>HarvestHome may use browser storage, cookies or similar technologies for login sessions, preferences, security, analytics and service functionality. If Google advertising is enabled, Google and its partners may use cookies, web beacons, IP addresses or similar identifiers to serve and measure advertising, subject to applicable Google policies and your available choices.</p><h3>5. Sharing information</h3><p>Information may be shared with service providers that help operate HarvestHome, such as hosting, authentication, storage, payment, security and analytics providers, where necessary for the requested service or legitimate operation of the platform. Public listing information is visible to marketplace visitors as described when you publish it.</p><h3>6. User choices and account requests</h3><p>You should keep your profile and listing information accurate. For privacy questions, correction requests or other data-related enquiries, contact <a href="mailto:'+email+'?subject=HarvestHome%20Privacy%20Enquiry">'+email+'</a>.</p><h3>7. Security and retention</h3><p>We use reasonable technical and organisational measures to protect information, but no online service can guarantee absolute security. We retain information for as long as reasonably necessary for the service, security, dispute resolution, legal obligations and legitimate business records.</p><h3>8. Children</h3><p>HarvestHome is not intended for children under 18 to create accounts or conduct marketplace transactions. If you believe a child has provided personal information, contact us.</p><h3>9. Updates</h3><p>We may update this Privacy Policy as the service, legal requirements or advertising technology changes. The current version will be published on HarvestHome.</p></div></div>';$('[data-close]')?.addEventListener('click',close)}
 function contentPolicyModal(){const email=SUPPORT_EMAIL;$('#modalRoot').innerHTML='<div class="modal-backdrop"><div class="modal wide" style="max-height:88vh;overflow:auto"><button class="modal-close" data-close>×</button><span class="eyebrow">HarvestHome</span><h2>Content & Safety Policy</h2><p><b>Last updated:</b> 2 October 2026</p><p>HarvestHome is a user-generated marketplace. Sellers and buyers are responsible for keeping their contributions lawful, truthful and safe.</p><h3>Allowed content</h3><p>Listings should describe genuine houses, land, equipment, farm produce, services or other marketplace opportunities that the seller is authorised to offer. Photos, videos and descriptions should accurately represent the listing.</p><h3>Prohibited content</h3><p>Do not post scams, impersonation, stolen goods, counterfeit goods, unlawful property offers, dangerous or prohibited goods, fraudulent documents, misleading claims, abusive material, threats, harassment, malware, spam, fake reviews or content that infringes the rights of another person.</p><h3>Moderation</h3><p>Free listings may become publicly visible immediately for 48 hours, but moderators can review, block, hide or remove listings that violate HarvestHome rules. Paid or Featured listings may be subject to the applicable approval workflow. Moderation does not guarantee the accuracy, ownership, legality or value of a listing.</p><h3>Reporting</h3><p>Report suspected fraud, misleading listings, unsafe content or other violations to <a href="mailto:'+email+'?subject=HarvestHome%20Content%20Report">'+email+'</a>. Include the listing link or other useful details where possible.</p><h3>Seller responsibility</h3><p>Because listings can contain user-generated text, images and video, HarvestHome reviews and responds to reports and may restrict accounts or remove content when necessary. Users must not attempt to manipulate rewards, recommendations, views, payments or moderation.</p></div></div>';$('[data-close]')?.addEventListener('click',close)}
 function termsModal(){const email=SUPPORT_EMAIL;$('#modalRoot').innerHTML='<div class="modal-backdrop"><div class="modal wide" style="max-height:88vh;overflow:auto"><button class="modal-close" data-close>×</button><span class="eyebrow">HarvestHome</span><h2>Terms & Conditions</h2><p><b>Last updated:</b> 2 October 2026</p><p>These Terms & Conditions govern your use of HarvestHome, an online marketplace for houses and other property, land, equipment and farm produce. By creating an account, publishing a listing, contacting another user or using a HarvestHome service, you agree to these terms.</p><h3>1. What HarvestHome provides</h3><p>HarvestHome provides an online platform that helps users discover listings, publish offers, communicate with other users and purchase optional marketplace services. HarvestHome is generally a marketplace facilitator, not the owner, seller, landlord, agent or manufacturer of the property, land, equipment or produce listed by users.</p><h3>2. Accounts</h3><p>You must provide accurate information and keep your login details secure. You are responsible for activity carried out through your account. One person must not create or operate fake accounts to manipulate listings, recommendations, rewards, reviews or payments. HarvestHome may suspend or close accounts involved in fraud, abuse, impersonation or other serious violations.</p><h3>3. Seller responsibilities</h3><p>Sellers must provide truthful, current and complete listing information, including title, price, location, category, condition, availability and material restrictions. A seller must have the legal authority and any required permission, licence or approval to offer the property, land, equipment or produce. Sellers must not upload fraudulent, stolen, unlawful, dangerous or misleading content.</p><h3>4. Houses, land and property</h3><p>For property and land, buyers should independently verify ownership, title, survey, boundaries, planning status, permitted use, encumbrances, taxes, physical condition and other relevant records with appropriate authorities and qualified professionals before paying or signing an agreement. A HarvestHome listing, seller profile, verification status or moderator approval is not a guarantee of ownership, title, value, legality or suitability.</p><h3>5. Equipment and farm produce</h3><p>Sellers must accurately describe equipment specifications, condition, defects, quantity and availability. Farm-produce sellers should provide truthful information about type, quantity, freshness, processing, expiry or other material characteristics where applicable. Buyers should inspect goods and confirm suitability before completing a transaction.</p><h3>6. Buyer responsibilities</h3><p>Buyers must use truthful account information, communicate respectfully, carry out appropriate due diligence and keep their own receipts, agreements and payment records. Buyers should not send money to another user merely because a listing appears on HarvestHome. Where HarvestHome provides a specific payment flow, use the disclosed payment process and retain the payment reference.</p><h3>7. Payments and HarvestHome services</h3><p>HarvestHome may offer optional paid services such as Featured listing promotions, seller verification and professional seller services. Payment amounts and service descriptions are shown before payment. Payments may be processed by Paystack or another disclosed provider. A payment for a HarvestHome service does not by itself complete a property sale, lease, equipment sale or produce transaction between users. Refunds, cancellations and service-specific conditions are subject to the applicable service terms and applicable law.</p><div class="dashboard-callout"><b>Free and Featured publication periods</b><p>Sellers may publish a listing free of charge immediately. A free listing is publicly visible for 48 hours from publication and may display a live remaining-time indicator in the seller listing area. No moderator approval is required for free publication, although moderators can access and remove unsuitable listings. Free listings are not counted toward listing-participation, approval, recommendation or unique-buyer referral rewards. A seller may instead purchase a Featured promotion for an approved listing: 7 days for ₦1,150, 14 days for ₦2,150 or 1 month for ₦4,150. Featured promotion duration applies to the Featured placement; the free 48-hour rule does not apply to a listing converted to a paid Featured promotion.</p></div><h3>8. Listing approval and moderation</h3><p>Paid listings and paid Featured promotions require review by an authorised HarvestHome Admin or Moderator before becoming publicly active. Free 48-hour listings do not require approval, but HarvestHome may reject, suspend, hide or remove a listing where it appears inaccurate, unlawful, unsafe, fraudulent, duplicated, prohibited or inconsistent with marketplace standards. Approval is a marketplace moderation decision only; it is not a guarantee that the seller or listing is genuine or legally transferable.</p><h3>9. Photos, videos and listing content</h3><p>You must only upload photos, videos, descriptions, logos and other content that you own or are authorised to use. Content must not infringe copyright, trademarks, privacy, publicity or other rights. You grant HarvestHome permission to host, display and reasonably promote your listing content for operating and marketing the marketplace while your listing is available.</p><h3>10. Recommendations, referrals and rewards</h3><p>HarvestHome may reward legitimate seller participation, buyer recommendations and unique buyer referrals from eligible paid/promoted marketplace activity. Free 48-hour listings do not count toward listing-participation rewards, approval rewards, recommendation rewards or unique-buyer referral rewards. Reward thresholds, points, tiers, campaigns and available rewards may change. Rewards are not guaranteed cash payments unless a particular campaign expressly says so. Fake accounts, self-referrals, repeated recommendations, automated activity or other attempts to manipulate the programme may result in reversal of points or loss of eligibility.</p><h3>11. Communication and enquiries</h3><p>Users may contact sellers through HarvestHome features. Do not use messaging, enquiries or contact information for harassment, spam, threats, scams or unlawful activity. HarvestHome may investigate reported abuse and may restrict accounts where necessary to protect users or the platform.</p><h3>12. Prohibited conduct</h3><p>You must not use HarvestHome for fraud, impersonation, scams, money laundering, unlawful property transactions, stolen goods, prohibited goods, harassment, threats, spam, malicious code, fake reviews, price manipulation, payment abuse or any activity that violates applicable law.</p><h3>13. Complaints and suspected fraud</h3><p>Report suspected fraud, misleading listings, payment problems, safety concerns or other complaints promptly to <a href="mailto:'+email+'?subject=HarvestHome%20Complaint%20or%20Enquiry">'+email+'</a>. Please include the listing, seller, payment reference or other relevant details where available. We may request supporting information while investigating a complaint.</p><h3>14. Privacy and personal information</h3><p>HarvestHome uses account, listing, payment and communication information to operate the marketplace and provide requested services. Personal information will be handled in accordance with applicable Nigerian data-protection requirements and any privacy notice or policy published by HarvestHome. Users should avoid posting unnecessary sensitive personal information in public listing descriptions.</p><h3>15. Availability and security</h3><p>We aim to keep HarvestHome available and secure, but websites and online services can experience maintenance, outages, network failures or other interruptions. Keep your own copies of important contracts, receipts, title documents and payment records. Never share your password, one-time authentication codes or payment credentials with another user.</p><h3>16. Transactions between users</h3><p>Unless HarvestHome expressly states otherwise for a particular service, the actual sale, lease or supply agreement is between the relevant buyer and seller. Users are responsible for negotiating and completing their transaction lawfully, including inspection, documentation, taxes, delivery, possession and other obligations that apply to them.</p><h3>17. Limitation of marketplace role</h3><p>HarvestHome does not promise that every listing is accurate, available, genuine, profitable, suitable or legally transferable, and users should carry out their own due diligence. Nothing in these terms excludes a legal right or protection that cannot lawfully be excluded.</p><h3>18. Changes and termination</h3><p>HarvestHome may update these terms as features, business practices or legal requirements change. The current version and update date will be published on the platform. HarvestHome may suspend or terminate access where necessary to enforce these terms, protect users or comply with law. Accrued payment obligations and other provisions that reasonably need to continue will survive account closure.</p><h3>19. Applicable law and disputes</h3><p>These terms are intended to operate consistently with applicable Nigerian law. Where a dispute concerns a transaction between users, the parties should first attempt good-faith resolution and may use applicable regulatory, mediation or judicial remedies. Nothing here prevents a person from exercising a legal right that cannot lawfully be waived.</p><h3>20. Contact</h3><p>HarvestHome complaints and enquiries: <a href="mailto:'+email+'?subject=HarvestHome%20Complaint%20or%20Enquiry">'+email+'</a>.</p><div class="dashboard-callout"><b>Important</b><p>These terms are drafted around the current HarvestHome marketplace features. They are general platform terms, not legal advice. Before a full commercial launch, especially for property/land transactions, privacy, consumer protection, payments, refunds and seller verification, have a Nigerian-qualified lawyer review the final terms and any separate Privacy Policy, Refund Policy and Seller Policy.</p></div></div></div>';$("#modalRoot [data-close]")?.addEventListener('click',close);}
-function close(){$("#modalRoot").innerHTML=""}
+function close(){activeChatConversationId=null;activeChatPeerId=null;if(activeHarvestCall)endHarvestCall("ended",true).finally(()=>cleanupHarvestCallChannel());else cleanupHarvestCallChannel();$("#modalRoot").innerHTML=""}
 function showSignupEmailConfirmation(email){
   const safeEmail=esc(String(email||"").trim());
   $("#modalRoot").innerHTML=`<div class="modal-backdrop"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="signupEmailTitle" style="width:min(100%,560px);border:3px solid #1f7a3b;box-shadow:0 18px 60px rgba(20,70,35,.22)">
@@ -1734,7 +2080,7 @@ async function del(id){
   toast("Listing deleted.")
 }
 setInterval(()=>{queryAll("[data-free-countdown]").forEach(el=>{const l=listings().find(x=>String(x.id)===String(el.dataset.freeCountdown));if(l)el.textContent="⏳ "+formatFreeCountdown(l);})},1000);
-if(sb){const publicSharedLink=(()=>{const p=new URLSearchParams(window.location.search);return p.get("shared")==="1"||p.get("shared")==="listing"||p.get("public")==="1"||!!p.get("listing")})();sb.auth.onAuthStateChange(async (event,session)=>{authUser=session?.user||null;if(event==="PASSWORD_RECOVERY"){passwordRecoveryPending=true;state.view="marketplace";render();return}if(passwordRecoveryPending){state.view="marketplace";render();return}if(authUser){await loadProfile();await syncFeatured();await syncFavourites();await syncNotifications();await syncRewards();await syncSellerPerformance();await syncListingPerformance();await syncAdminRewards();await syncVerificationRequests();await syncAdvertising();}else{authProfile=null;state.rewardAdmin=[];state.verificationRequests=[];state.sellerPerformance={listings:0,approved:0,pending:0,rejected:0,views:0,chats:0,uniqueBuyers:0,recommendations:0};state.listingPerformance=[];state.featuredListings=[];}await syncListings();if(publicSharedLink){await ensureSharedListing();state.view="marketplace";}render();});loadAuth();}else{render();}
+if(sb){const publicSharedLink=(()=>{const p=new URLSearchParams(window.location.search);return p.get("shared")==="1"||p.get("shared")==="listing"||p.get("public")==="1"||!!p.get("listing")})();sb.auth.onAuthStateChange(async (event,session)=>{authUser=session?.user||null;if(event==="PASSWORD_RECOVERY"){passwordRecoveryPending=true;state.view="marketplace";render();return}if(passwordRecoveryPending){state.view="marketplace";render();return}if(authUser){await loadProfile();await syncFeatured();await syncFavourites();await syncNotifications();await syncRewards();await syncSellerPerformance();await syncListingPerformance();await syncAdminRewards();await syncVerificationRequests();await syncAdvertising();}else{authProfile=null;state.rewardAdmin=[];state.verificationRequests=[];state.sellerPerformance={listings:0,approved:0,pending:0,rejected:0,views:0,chats:0,uniqueBuyers:0,recommendations:0};state.listingPerformance=[];state.featuredListings=[];}await syncListings();if(authUser?.id)await startMarketplacePresence();else await stopMarketplacePresence();if(publicSharedLink){await ensureSharedListing();state.view="marketplace";}render();});loadAuth();}else{render();}
 
 })();
 // HarvestHome responsive publish/moderation patch marker

@@ -589,11 +589,12 @@ function openListingMediaViewer(listingId,index=0){
 function updateMarketplacePresenceUI(){
   queryAll("[data-seller-presence]").forEach(badge=>{
     const online=marketplaceOnlineSellers.has(String(badge.dataset.sellerPresence||""));
+    const listingId=String(badge.dataset.presenceListing||"");
     badge.hidden=!authUser?.id;
     badge.className="hh-listing-presence "+(online?"is-online":"is-offline");
-    badge.disabled=online;
-    badge.setAttribute("aria-label",online?"Seller Online":"Drop a message to this seller");
-    badge.innerHTML='<span class="hh-presence-dot" aria-hidden="true"></span>'+(online?"Seller Online":"Drop a message");
+    badge.innerHTML='<span class="hh-presence-dot" aria-hidden="true"></span>'+(online?"Seller Online":"Seller Offline");
+    const chatButton=queryAll("[data-contact-label]").find(button=>String(button.dataset.contactLabel||"")===listingId);
+    if(chatButton)chatButton.textContent=online?"Chat seller":"Drop a message";
   });
 }
 function refreshMarketplacePresenceState(){
@@ -661,7 +662,7 @@ function card(l){
       <span class="listing-category">${esc(displayCategory(l.category))}</span>
       <h3>${esc(l.title)}</h3>
       <p class="location">📍 ${esc(l.location)} · ${esc(l.country)}</p>
-      <div class="seller-trust-row"><p class="seller-line">👤 ${esc(l.seller||'HarvestHome Seller')}</p><button type="button" class="hh-listing-presence ${sellerOnline?"is-online":"is-offline"}" data-seller-presence="${esc(l.seller_id||"")}" data-contact="${esc(l.id)}" aria-live="polite" aria-label="${sellerOnline?"Seller Online":"Drop a message to this seller"}" ${sellerOnline?"disabled":""}><span class="hh-presence-dot" aria-hidden="true"></span>${sellerOnline?"Seller Online":"Drop a message"}</button>${l.sellerVerified?`<span class="trust-badge verified">✓ Verified seller</span>`:""}${l.professionalSeller?`<span class="trust-badge pro">🏆 Verified Professional</span>`:""}</div>
+      <div class="seller-trust-row"><p class="seller-line">👤 ${esc(l.seller||'HarvestHome Seller')}</p><span class="hh-listing-presence ${sellerOnline?"is-online":"is-offline"}" data-seller-presence="${esc(l.seller_id||"")}" data-presence-listing="${esc(l.id)}" aria-live="polite"><span class="hh-presence-dot" aria-hidden="true"></span>${sellerOnline?"Seller Online":"Seller Offline"}</span>${l.sellerVerified?`<span class="trust-badge verified">✓ Verified seller</span>`:""}${l.professionalSeller?`<span class="trust-badge pro">🏆 Verified Professional</span>`:""}</div>
       <p class="description">${esc(l.description)}</p>
       <div class="listing-bottom"><strong>${money(l.price,l.currency||countryInfo().currency)}</strong><span>${l.views||0} views</span></div>
       ${l.video?`<button type="button" data-media-open="${esc(l.id)}" data-media-index="${imgs.length}" style="margin:12px 0;width:100%;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;background:#000;cursor:zoom-in;padding:0">
@@ -669,7 +670,7 @@ function card(l){
         <div style="padding:7px 10px;background:#fff;font-size:12px;font-weight:600;text-align:left">🎥 Listing video · Tap to view larger</div>
       </button>`:""}
       ${mediaCount>1?`<small style="display:block;margin:6px 0;color:#667085">${imgs.length} photos${l.video?" + 1 video":""} · Tap any media to view larger</small>`:""}
-      <div class="listing-actions"><button class="outline-btn full" data-contact="${esc(l.id)}">Chat seller</button><button class="ghost-btn full" data-recommend="${esc(l.id)}">⭐ Recommend seller</button><button class="ghost-btn full" data-share-social="${esc(l.id)}">↗ Share listing</button><div class="media-links"><a target="_blank" rel="noopener" href="${mapURL(l)}">📍 Map</a></div></div>
+      <div class="listing-actions"><button class="outline-btn full" data-contact="${esc(l.id)}" data-contact-label="${esc(l.id)}">${sellerOnline?"Chat seller":"Drop a message"}</button><button class="ghost-btn full" data-recommend="${esc(l.id)}">⭐ Recommend seller</button><button class="ghost-btn full" data-share-social="${esc(l.id)}">↗ Share listing</button><div class="media-links"><a target="_blank" rel="noopener" href="${mapURL(l)}">📍 Map</a></div></div>
     </div>
   </article>`;
 }

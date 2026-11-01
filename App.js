@@ -557,7 +557,6 @@ function filtered(){let q=state.search.toLowerCase().trim();const terms=q.split(
 function openListingMediaViewer(listingId,index=0){
   const l=listings().find(x=>String(x.id)===String(listingId));
   if(!l)return;
-  const sellerOnline=!!l.seller_id&&marketplaceOnlineSellers.has(String(l.seller_id));
   const imgs=(l.images||[]).filter(x=>x&&x.data);
   const media=[...imgs.map(x=>({type:"image",data:x.data})),...(l.video?.data?[{type:"video",data:l.video.data}]:[])];
   if(!media.length)return;
@@ -643,6 +642,7 @@ async function stopMarketplacePresence(){
 }
 function card(l){
   let u=user(),f=json(KEYS.favourites,{}),fav=u&&(f[u.email]||[]).includes(l.id);
+  const sellerOnline=!!l.seller_id&&marketplaceOnlineSellers.has(String(l.seller_id));
   const imgs=(l.images||[]).filter(x=>x&&x.data);
   const img=imgs[0]?.data;
   const thumbs=imgs.slice(1).map((x,i)=>`<button type="button" data-media-open="${esc(l.id)}" data-media-index="${i+1}" style="border:0;padding:0;background:none;cursor:zoom-in"><img src="${esc(x.data)}" alt="${esc(l.title)} photo ${i+2}" loading="lazy" decoding="async" style="width:72px;height:56px;object-fit:cover;border:2px solid #fff;border-radius:8px;box-shadow:0 1px 5px rgba(0,0,0,.18);background:#eee"></button>`).join("");

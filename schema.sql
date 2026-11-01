@@ -101,6 +101,8 @@ drop policy if exists notifications_read_own on public.notifications;
 create policy notifications_read_own on public.notifications for select using (user_id=auth.uid() or public.is_staff());
 drop policy if exists notifications_update_own on public.notifications;
 create policy notifications_update_own on public.notifications for update using (user_id=auth.uid()) with check (user_id=auth.uid());
+drop policy if exists notifications_delete_own on public.notifications;
+create policy notifications_delete_own on public.notifications for delete to authenticated using ((select auth.uid()) = user_id);
 drop policy if exists notifications_insert_self_or_staff on public.notifications;
 create policy notifications_insert_self_or_staff on public.notifications for insert with check (user_id=auth.uid() or public.is_staff());
 

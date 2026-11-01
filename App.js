@@ -1231,6 +1231,7 @@ function startHarvestCallRinging(kind){
 function updateMarketplacePresenceUI(){
   queryAll("[data-seller-presence]").forEach(badge=>{
     const online=marketplaceOnlineSellers.has(String(badge.dataset.sellerPresence||""));
+    badge.hidden=!authUser?.id;
     badge.className="hh-listing-presence "+(online?"is-online":"is-offline");
     badge.innerHTML='<span class="hh-presence-dot" aria-hidden="true"></span>'+(online?"Seller Online":"Seller Offline");
   });
@@ -1255,8 +1256,9 @@ async function startMarketplacePresence(){
   const old=marketplacePresenceChannel;marketplacePresenceChannel=null;marketplacePresenceUserId=currentUserId;
   if(old){try{await sb.removeChannel(old)}catch(error){console.warn("Marketplace presence cleanup skipped:",error?.message||error)}}
   marketplaceOnlineSellers.clear();updateMarketplacePresenceUI();
-  const presenceKey=currentUserId||("viewer-"+harvestCallId());
-  const channel=sb.channel("hh-marketplace-presence-v1",{config:{private:false,presence:{key:presenceKey}}});
+  if(!currentUserId){updateMarketplacePresenceUI();return;}
+  const presenceKey=currentUserId;
+  const channel=sb.channel("hh-marketplace-presence-v1",{config:{private:true,presence:{key:presenceKey}}});
   channel.on("presence",{event:"sync"},refreshMarketplacePresenceState);
   channel.on("presence",{event:"join"},refreshMarketplacePresenceState);
   channel.on("presence",{event:"leave"},refreshMarketplacePresenceState);

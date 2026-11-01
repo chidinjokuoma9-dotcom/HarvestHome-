@@ -6,6 +6,26 @@
 -- Private channel topic format: hh-call:<conversation UUID>
 -- Both participants must already be authenticated and pass conversations RLS.
 
+-- Authenticated marketplace users can discover one another's seller availability.
+-- Anonymous visitors do not join this private channel or receive presence data.
+create policy "HarvestHome authenticated users can receive marketplace presence"
+on realtime.messages
+for select
+to authenticated
+using (
+  extension = 'presence'
+  and realtime.topic() = 'hh-marketplace-presence-v1'
+);
+
+create policy "HarvestHome authenticated users can publish marketplace presence"
+on realtime.messages
+for insert
+to authenticated
+with check (
+  extension = 'presence'
+  and realtime.topic() = 'hh-marketplace-presence-v1'
+);
+
 create policy "HarvestHome call participants can receive broadcasts"
 on realtime.messages
 for select

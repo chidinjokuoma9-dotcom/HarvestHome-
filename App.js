@@ -1267,23 +1267,67 @@ async function prepareHarvestCallMedia(call){
 async function createHarvestPeerConnection(call){
   if(activeHarvestCall!==call)throw new Error("This call has already ended.");
   if(typeof RTCPeerConnection==="undefined")throw new Error("This browser does not support WebRTC calling.");
-  const pc=new RTCPeerConnection({iceServers:[{urls:"stun:stun.l.google.com:19302"}]});call.pc=pc;
+  // Multiple public STUN endpoints improve address discovery without introducing
+  // a paid relay or changing any HarvestHome backend services.
+  const pc=new RTCPeerConnection({iceServers:[
+    {urls:"stun:stun.l.google.com:19302"},
+    {urls:"stun:stun1.l.google.com:19302"},
+    {urls:"stun:global.stun.twilio.com:3478"}
+  ]});
+  call.pc=pc;
   (call.localStream?.getTracks()||[]).forEach(track=>pc.addTrack(track,call.localStream));
   pc.onicecandidate=event=>{
     if(event.candidate&&activeHarvestCall===call)sendHarvestCallSignal("ice",{candidate:event.candidate.toJSON?event.candidate.toJSON():event.candidate}).catch(error=>console.warn("Call network candidate could not be sent:",error?.message||error));
   };
   pc.ontrack=event=>{
     if(activeHarvestCall!==call)return;
-    if(event.streams&&event.streams[0])call.remoteStream=event.streams[0];
-    else{if(!call.remoteStream)call.remoteStream=new MediaStream();call.remoteStream.addTrack(event.track)}
+    if(event.streams&&event.streams[0]){
+      call.remoteStream=event.streams[0];
+    }else{
+      if(!call.remoteStream)call.remoteStream=new MediaStream();
+      if(!call.remoteStream.getTracks().some(track=>track.id===event.track.id))call.remoteStream.addTrack(event.track);
+    }
+    // Reattach after the call panel has rendered its media elements.
     updateHarvestCallUI();
+    setTimeout(()=>playHarvestRemoteMedia(call),0);
+  };
+  pc.oniceconnectionstatechange=()=>{
+    if(activeHarvestCall!==call)return;
+    call.iceState=pc.iceConnectionState;
+    if(pc.iceConnectionState==="failed"){
+      toast("The devices could not establish a direct media route. This network may require a TURN relay.",true);
+      endHarvestCall("network-failed",true);
+    }else if(pc.iceConnectionState==="connected"||pc.iceConnectionState==="completed"){
+      call.status="connected";call.connectedAt=call.connectedAt||Date.now();updateHarvestCallUI();
+    }else if(pc.iceConnectionState==="disconnected"){
+      call.status="reconnecting";updateHarvestCallUI();
+    }
   };
   pc.onconnectionstatechange=()=>{
     if(activeHarvestCall!==call)return;
-    if(pc.connectionState==="connected"){call.status="connected";call.connectedAt=Date.now();updateHarvestCallUI()}
-    else if(pc.connectionState==="failed"){toast("The network could not establish this call. Some mobile networks require a relay connection.",true);endHarvestCall("network-failed",true)}
+    call.connectionState=pc.connectionState;
+    if(pc.connectionState==="connected"){call.status="connected";call.connectedAt=call.connectedAt||Date.now();updateHarvestCallUI()}
+    else if(pc.connectionState==="failed"&&pc.iceConnectionState!=="failed"){
+      toast("The call connection failed. Please try both devices on the same Wi-Fi or mobile network.",true);
+      endHarvestCall("network-failed",true);
+    }
   };
   return pc;
+}
+function playHarvestRemoteMedia(call){
+  if(activeHarvestCall!==call||!call.remoteStream)return;
+  const panel=$("#hhCallPanel");if(!panel)return;
+  const media=[$("#hhRemoteVideo",panel),$("#hhRemoteAudio",panel)].filter(Boolean);
+  media.forEach(element=>{
+    if(element.srcObject!==call.remoteStream)element.srcObject=call.remoteStream;
+    element.muted=false;element.volume=1;
+    const attempt=element.play?.();
+    if(attempt&&typeof attempt.catch==="function")attempt.catch(error=>{
+      call.playbackBlocked=true;
+      const hint=$("#hhCallPlaybackHint",panel);
+      if(hint)hint.textContent="Your browser blocked automatic playback. Tap the play button on the other person's media to hear/see them.";
+    });
+  });
 }
 async function flushHarvestIceCandidates(call){
   if(!call.pc?.remoteDescription)return;
@@ -1330,16 +1374,17 @@ function updateHarvestCallUI(){
     body='<div class="hh-call-status"><b>Calling…</b><span>Waiting for the other person to answer.</span></div><div class="hh-call-buttons"><button type="button" class="outline-btn" data-hh-call-end>Cancel call</button></div>';
   }else{
     body='<div class="hh-call-status"><b>'+(call.status==="connected"?"Call connected":"Connecting call…")+'</b><span>'+(call.callType==="video"?"Video call":"Voice call")+' · '+(call.status==="connected"?"You are now connected.":"Please wait while the devices connect.")+'</span></div>'+
-      (call.callType==="video"?'<div class="hh-call-videos"><video id="hhRemoteVideo" autoplay playsinline></video><video id="hhLocalVideo" autoplay muted playsinline></video></div>':'<audio id="hhRemoteAudio" autoplay></audio>')+
+      (call.callType==="video"?'<div class="hh-call-videos"><video id="hhRemoteVideo" autoplay playsinline controls></video><video id="hhLocalVideo" autoplay muted playsinline></video></div>':'<audio id="hhRemoteAudio" autoplay controls></audio>')+
+      '<small id="hhCallPlaybackHint" class="hh-call-hint" aria-live="polite"></small>'+
       '<div class="hh-call-buttons"><button type="button" class="outline-btn" data-hh-call-mute>'+(call.muted?"Unmute microphone":"Mute microphone")+'</button>'+
       (call.callType==="video"?'<button type="button" class="outline-btn" data-hh-call-camera>'+(call.cameraOff?"Turn camera on":"Turn camera off")+'</button>':'')+
       '<button type="button" class="outline-btn danger" data-hh-call-end>End call</button></div>';
   }
   panel.innerHTML=body;
   const remoteVideo=$("#hhRemoteVideo",panel),localVideo=$("#hhLocalVideo",panel),remoteAudio=$("#hhRemoteAudio",panel);
-  if(remoteVideo&&call.remoteStream)remoteVideo.srcObject=call.remoteStream;
-  if(localVideo&&call.localStream)localVideo.srcObject=call.localStream;
-  if(remoteAudio&&call.remoteStream)remoteAudio.srcObject=call.remoteStream;
+  if(remoteVideo&&call.remoteStream){remoteVideo.srcObject=call.remoteStream;remoteVideo.muted=false;remoteVideo.volume=1;remoteVideo.play?.().catch(()=>{const hint=$("#hhCallPlaybackHint",panel);if(hint)hint.textContent="Tap the play button on the remote video if your browser blocks automatic playback."})}
+  if(localVideo&&call.localStream){localVideo.srcObject=call.localStream;localVideo.muted=true;localVideo.play?.().catch(()=>{})}
+  if(remoteAudio&&call.remoteStream){remoteAudio.srcObject=call.remoteStream;remoteAudio.muted=false;remoteAudio.volume=1;remoteAudio.play?.().catch(()=>{const hint=$("#hhCallPlaybackHint",panel);if(hint)hint.textContent="Tap the play button to hear the other person."})}
   $("#hhCallPanel [data-hh-call-accept]")?.addEventListener("click",acceptHarvestCall);
   $("#hhCallPanel [data-hh-call-decline]")?.addEventListener("click",()=>endHarvestCall("declined",true));
   $("#hhCallPanel [data-hh-call-end]")?.addEventListener("click",()=>endHarvestCall("ended",true));

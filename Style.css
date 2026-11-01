@@ -205,3 +205,19 @@ body:has(button[data-tab="moderation"].active) .dashboard-content .dashboard-cal
 .hh-moderator-section-body[hidden]{display:none!important}
 .hh-moderator-section-body{min-width:0}
 @media(max-width:600px){.hh-moderator-section-heading{align-items:flex-start!important;flex-wrap:wrap}.hh-moderator-section-heading>.hh-section-toggle{min-height:36px;padding:8px 10px}}
+
+/* Private one-to-one voice and video calls — isolated from marketplace and chat styling */
+.hh-call-actions{display:flex;gap:9px;flex-wrap:wrap;margin:12px 0 4px}
+.hh-call-actions button{min-height:42px}
+.hh-call-hint{display:block;color:#718075;font-size:11px;margin:0 0 10px}
+.hh-call-panel{margin:10px 0 14px;padding:14px;border:1px solid #cfe2d2;border-radius:14px;background:#f4faf5}
+.hh-call-panel[hidden]{display:none}
+.hh-call-status{display:grid;gap:5px;color:#21432b;margin-bottom:12px}
+.hh-call-status b{font-size:15px}
+.hh-call-status span{font-size:12px;color:#65766a}
+.hh-call-buttons{display:flex;gap:8px;flex-wrap:wrap}
+.hh-call-buttons button{min-height:42px}
+.hh-call-videos{display:grid;grid-template-columns:1fr 120px;gap:8px;margin:10px 0}
+.hh-call-videos video{display:block;width:100%;max-height:240px;min-height:110px;object-fit:cover;background:#142019;border-radius:10px}
+.hh-call-videos video:last-child{max-height:110px;min-height:80px}
+@media(max-width:620px){.hh-call-actions{display:grid;grid-template-columns:1fr 1fr}.hh-call-actions button{width:100%;padding:9px 7px;font-size:12px}.hh-call-buttons button{flex:1}.hh-call-videos{grid-template-columns:1fr 88px}.hh-call-videos video{min-height:100px}}

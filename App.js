@@ -591,7 +591,9 @@ function updateMarketplacePresenceUI(){
     const online=marketplaceOnlineSellers.has(String(badge.dataset.sellerPresence||""));
     badge.hidden=!authUser?.id;
     badge.className="hh-listing-presence "+(online?"is-online":"is-offline");
-    badge.innerHTML='<span class="hh-presence-dot" aria-hidden="true"></span>'+(online?"Seller Online":"Seller Offline");
+    badge.disabled=online;
+    badge.setAttribute("aria-label",online?"Seller Online":"Drop a message to this seller");
+    badge.innerHTML='<span class="hh-presence-dot" aria-hidden="true"></span>'+(online?"Seller Online":"Drop a message");
   });
 }
 function refreshMarketplacePresenceState(){
@@ -659,7 +661,7 @@ function card(l){
       <span class="listing-category">${esc(displayCategory(l.category))}</span>
       <h3>${esc(l.title)}</h3>
       <p class="location">📍 ${esc(l.location)} · ${esc(l.country)}</p>
-      <div class="seller-trust-row"><p class="seller-line">👤 ${esc(l.seller||'HarvestHome Seller')}</p><span class="hh-listing-presence ${sellerOnline?"is-online":"is-offline"}" data-seller-presence="${esc(l.seller_id||"")}" aria-live="polite"><span class="hh-presence-dot" aria-hidden="true"></span>${sellerOnline?"Seller Online":"Seller Offline"}</span>${l.sellerVerified?`<span class="trust-badge verified">✓ Verified seller</span>`:""}${l.professionalSeller?`<span class="trust-badge pro">🏆 Verified Professional</span>`:""}</div>
+      <div class="seller-trust-row"><p class="seller-line">👤 ${esc(l.seller||'HarvestHome Seller')}</p><button type="button" class="hh-listing-presence ${sellerOnline?"is-online":"is-offline"}" data-seller-presence="${esc(l.seller_id||"")}" data-contact="${esc(l.id)}" aria-live="polite" aria-label="${sellerOnline?"Seller Online":"Drop a message to this seller"}" ${sellerOnline?"disabled":""}><span class="hh-presence-dot" aria-hidden="true"></span>${sellerOnline?"Seller Online":"Drop a message"}</button>${l.sellerVerified?`<span class="trust-badge verified">✓ Verified seller</span>`:""}${l.professionalSeller?`<span class="trust-badge pro">🏆 Verified Professional</span>`:""}</div>
       <p class="description">${esc(l.description)}</p>
       <div class="listing-bottom"><strong>${money(l.price,l.currency||countryInfo().currency)}</strong><span>${l.views||0} views</span></div>
       ${l.video?`<button type="button" data-media-open="${esc(l.id)}" data-media-index="${imgs.length}" style="margin:12px 0;width:100%;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;background:#000;cursor:zoom-in;padding:0">

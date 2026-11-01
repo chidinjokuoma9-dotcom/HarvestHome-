@@ -35,6 +35,8 @@ const seed = [];
 
 const state={view:"marketplace",search:"",sort:"featured",priceMin:"",priceMax:"",country:localStorage.getItem(KEYS.country)||C.DEFAULT_COUNTRY,location:"All locations",category:"All categories",mode:"All",dashboardTab:"overview",authMode:"login",payments:[],transactionFilterSeller:{status:"all",range:"all",search:""},transactionFilterAdmin:{status:"all",range:"all",search:""},sharedListing:null,sharedListingChecked:false};
 let chatTimer=null;
+ let marketplacePresenceChannel=null,marketplacePresenceUserId=null,marketplacePresenceRefresh=null;
+ const marketplaceOnlineSellers=new Set();
 let activeHarvestCall=null, harvestCallChannel=null, harvestCallConversationId=null, activeChatConversationId=null, activeChatPeerId=null, harvestCallChannelReady=false;
 let harvestPresenceHeartbeat=null,harvestPresenceExpiry=null,harvestPresenceStartedAt=0,harvestPeerLastSeen=0,harvestPeerPresence="checking";
 const chatImageUrlCache=new Map();
@@ -526,7 +528,7 @@ async function loadProfile(){if(!sb||!authUser){authProfile=null;return}const {d
 async function loadAuth(){if(!sb){render();return}const params=new URLSearchParams(window.location.search);const publicSharedLink=params.get("shared")==="1"||params.get("shared")==="listing"||params.get("public")==="1"||!!params.get("listing");const recoveryUrl=params.get("reset")==="1"||window.location.pathname==="/update-password"||/type=recovery/i.test(window.location.search+" "+window.location.hash);if(recoveryUrl)passwordRecoveryPending=true;
   // Render the marketplace immediately; remote auth/data requests must not leave visitors on the static loading screen.
   render();
-  try{const {data}=await sb.auth.getSession();authUser=data.session?.user||null;await loadProfile();await syncListings();if(publicSharedLink)await ensureSharedListing();await syncFeatured();await syncFavourites();await syncNotifications();await syncPayments();await syncRewards();await syncProfessionalSellers();await syncSellerPerformance();await syncListingPerformance();await syncAdminRewards();await syncVerificationRequests();await syncAdvertising();if(passwordRecoveryPending){state.view="marketplace";render();return}if(publicSharedLink)state.view="marketplace";render();}catch(error){console.warn("HarvestHome startup sync failed:",error?.message||error);render();}}
+  try{const {data}=await sb.auth.getSession();authUser=data.session?.user||null;await loadProfile();await syncListings();await startMarketplacePresence();if(publicSharedLink)await ensureSharedListing();await syncFeatured();await syncFavourites();await syncNotifications();await syncPayments();await syncRewards();await syncProfessionalSellers();await syncSellerPerformance();await syncListingPerformance();await syncAdminRewards();await syncVerificationRequests();await syncAdvertising();if(passwordRecoveryPending){state.view="marketplace";render();return}if(publicSharedLink)state.view="marketplace";render();}catch(error){console.warn("HarvestHome startup sync failed:",error?.message||error);render();}}
 async function syncPayments(){
   if(!sb||!authUser)return;
   try{
@@ -586,6 +588,7 @@ function openListingMediaViewer(listingId,index=0){
 }
 function card(l){
   let u=user(),f=json(KEYS.favourites,{}),fav=u&&(f[u.email]||[]).includes(l.id);
+  const sellerOnline=!!l.seller_id&&marketplaceOnlineSellers.has(String(l.seller_id));
   const imgs=(l.images||[]).filter(x=>x&&x.data);
   const img=imgs[0]?.data;
   const thumbs=imgs.slice(1).map((x,i)=>`<button type="button" data-media-open="${esc(l.id)}" data-media-index="${i+1}" style="border:0;padding:0;background:none;cursor:zoom-in"><img src="${esc(x.data)}" alt="${esc(l.title)} photo ${i+2}" loading="lazy" decoding="async" style="width:72px;height:56px;object-fit:cover;border:2px solid #fff;border-radius:8px;box-shadow:0 1px 5px rgba(0,0,0,.18);background:#eee"></button>`).join("");
@@ -602,7 +605,7 @@ function card(l){
       <span class="listing-category">${esc(displayCategory(l.category))}</span>
       <h3>${esc(l.title)}</h3>
       <p class="location">📍 ${esc(l.location)} · ${esc(l.country)}</p>
-      <div class="seller-trust-row"><p class="seller-line">👤 ${esc(l.seller||'HarvestHome Seller')}</p>${l.sellerVerified?`<span class="trust-badge verified">✓ Verified seller</span>`:""}${l.professionalSeller?`<span class="trust-badge pro">🏆 Verified Professional</span>`:""}</div>
+      <div class="seller-trust-row"><p class="seller-line">👤 ${esc(l.seller||'HarvestHome Seller')}</p><span class="hh-listing-presence ${sellerOnline?"is-online":"is-offline"}" data-seller-presence="${esc(l.seller_id||"")}" aria-live="polite"><span class="hh-presence-dot" aria-hidden="true"></span>${sellerOnline?"Seller Online":"Seller Offline"}</span>${l.sellerVerified?`<span class="trust-badge verified">✓ Verified seller</span>`:""}${l.professionalSeller?`<span class="trust-badge pro">🏆 Verified Professional</span>`:""}</div>
       <p class="description">${esc(l.description)}</p>
       <div class="listing-bottom"><strong>${money(l.price,l.currency||countryInfo().currency)}</strong><span>${l.views||0} views</span></div>
       ${l.video?`<button type="button" data-media-open="${esc(l.id)}" data-media-index="${imgs.length}" style="margin:12px 0;width:100%;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;background:#000;cursor:zoom-in;padding:0">
@@ -610,7 +613,7 @@ function card(l){
         <div style="padding:7px 10px;background:#fff;font-size:12px;font-weight:600;text-align:left">🎥 Listing video · Tap to view larger</div>
       </button>`:""}
       ${mediaCount>1?`<small style="display:block;margin:6px 0;color:#667085">${imgs.length} photos${l.video?" + 1 video":""} · Tap any media to view larger</small>`:""}
-      <div class="listing-actions"><button class="outline-btn full" data-contact="${esc(l.id)}">Chat seller</button><button class="ghost-btn full" data-recommend="${esc(l.id)}">⭐ Recommend seller</button><button class="ghost-btn full" data-share-social="${esc(l.id)}">↗ Share listing</button><div class="media-links"><a target="_blank" rel="noopener" href="${mapURL(l)}">📍 Map</a></div></div>
+      <div class="listing-actions"><button class="outline-btn full" data-contact="${esc(l.id)}" data-seller-presence-action="${esc(l.seller_id||"")}">${sellerOnline?"💬 Chat with Seller":"✉️ Leave a Message"}</button><button class="ghost-btn full" data-recommend="${esc(l.id)}">⭐ Recommend seller</button><button class="ghost-btn full" data-share-social="${esc(l.id)}">↗ Share listing</button><div class="media-links"><a target="_blank" rel="noopener" href="${mapURL(l)}">📍 Map</a></div></div>
     </div>
   </article>`;
 }
@@ -1168,6 +1171,59 @@ async function contact(id){const u=user();if(!u){auth("login");toast("Log in to 
     }}await syncListingPerformance();openChat(c.id,l)}catch(e){toast(e.message||"Could not start the chat.",true)}}
 
 function harvestCallId(){try{return crypto.randomUUID()}catch{return "hh-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,12)}}
+function updateMarketplacePresenceUI(){
+  queryAll("[data-seller-presence]").forEach(badge=>{
+    const online=marketplaceOnlineSellers.has(String(badge.dataset.sellerPresence||""));
+    badge.className="hh-listing-presence "+(online?"is-online":"is-offline");
+    badge.innerHTML='<span class="hh-presence-dot" aria-hidden="true"></span>'+(online?"Seller Online":"Seller Offline");
+  });
+  queryAll("[data-seller-presence-action]").forEach(button=>{
+    const online=marketplaceOnlineSellers.has(String(button.dataset.sellerPresenceAction||""));
+    button.textContent=online?"💬 Chat with Seller":"✉️ Leave a Message";
+  });
+}
+function refreshMarketplacePresenceState(){
+  if(!marketplacePresenceChannel)return;
+  const snapshot=marketplacePresenceChannel.presenceState?.()||{};
+  const online=new Set();
+  Object.values(snapshot).flat().forEach(meta=>{const id=String(meta?.user_id||"");if(id)online.add(id)});
+  marketplaceOnlineSellers.clear();online.forEach(id=>marketplaceOnlineSellers.add(id));
+  updateMarketplacePresenceUI();
+}
+async function startMarketplacePresence(){
+  if(!sb)return;
+  const currentUserId=authUser?.id||null;
+  if(marketplacePresenceChannel&&marketplacePresenceUserId===currentUserId)return;
+  if(marketplacePresenceRefresh){clearInterval(marketplacePresenceRefresh);marketplacePresenceRefresh=null;}
+  const old=marketplacePresenceChannel;marketplacePresenceChannel=null;marketplacePresenceUserId=currentUserId;
+  if(old){try{await sb.removeChannel(old)}catch(error){console.warn("Marketplace presence cleanup skipped:",error?.message||error)}}
+  marketplaceOnlineSellers.clear();updateMarketplacePresenceUI();
+  const presenceKey=currentUserId||("viewer-"+harvestCallId());
+  const channel=sb.channel("hh-marketplace-presence-v1",{config:{private:false,presence:{key:presenceKey}}});
+  channel.on("presence",{event:"sync"},refreshMarketplacePresenceState);
+  channel.on("presence",{event:"join"},refreshMarketplacePresenceState);
+  channel.on("presence",{event:"leave"},refreshMarketplacePresenceState);
+  marketplacePresenceChannel=channel;
+  channel.subscribe(async status=>{
+    if(status==="SUBSCRIBED"){
+      if(authUser?.id){
+        try{
+          await channel.track({user_id:authUser.id,online_at:new Date().toISOString()});
+          marketplacePresenceRefresh=setInterval(()=>{if(document.visibilityState!=="hidden"&&authUser?.id&&marketplacePresenceChannel===channel){channel.track({user_id:authUser.id,online_at:new Date().toISOString()}).catch(error=>console.warn("Marketplace presence refresh skipped:",error?.message||error))}},25000);
+        }catch(error){console.warn("Marketplace presence could not be published:",error?.message||error)}
+      }
+      refreshMarketplacePresenceState();
+    }else if(status==="CHANNEL_ERROR"||status==="TIMED_OUT"||status==="CLOSED"){
+      if(marketplacePresenceChannel===channel){marketplaceOnlineSellers.clear();updateMarketplacePresenceUI()}
+    }
+  });
+}
+async function stopMarketplacePresence(){
+  if(marketplacePresenceRefresh){clearInterval(marketplacePresenceRefresh);marketplacePresenceRefresh=null;}
+  const channel=marketplacePresenceChannel;marketplacePresenceChannel=null;marketplacePresenceUserId=null;
+  if(channel){try{if(authUser?.id)await channel.untrack();await sb.removeChannel(channel)}catch(error){console.warn("Marketplace presence shutdown skipped:",error?.message||error)}}
+  marketplaceOnlineSellers.clear();updateMarketplacePresenceUI();
+}
 function updateHarvestPeerPresence(status){
   harvestPeerPresence=status;
   const badge=$("#hhPeerPresence");
@@ -2033,7 +2089,7 @@ async function del(id){
   toast("Listing deleted.")
 }
 setInterval(()=>{queryAll("[data-free-countdown]").forEach(el=>{const l=listings().find(x=>String(x.id)===String(el.dataset.freeCountdown));if(l)el.textContent="⏳ "+formatFreeCountdown(l);})},1000);
-if(sb){const publicSharedLink=(()=>{const p=new URLSearchParams(window.location.search);return p.get("shared")==="1"||p.get("shared")==="listing"||p.get("public")==="1"||!!p.get("listing")})();sb.auth.onAuthStateChange(async (event,session)=>{const previousAuthUserId=authUser?.id||null;authUser=session?.user||null;if(previousAuthUserId&&previousAuthUserId!==authUser?.id){if(activeHarvestCall)await endHarvestCall("ended",true);await cleanupHarvestCallChannel();activeChatConversationId=null;activeChatPeerId=null;}if(event==="PASSWORD_RECOVERY"){passwordRecoveryPending=true;state.view="marketplace";render();return}if(passwordRecoveryPending){state.view="marketplace";render();return}if(authUser){await loadProfile();await syncFeatured();await syncFavourites();await syncNotifications();await syncRewards();await syncSellerPerformance();await syncListingPerformance();await syncAdminRewards();await syncVerificationRequests();await syncAdvertising();}else{authProfile=null;state.rewardAdmin=[];state.verificationRequests=[];state.sellerPerformance={listings:0,approved:0,pending:0,rejected:0,views:0,chats:0,uniqueBuyers:0,recommendations:0};state.listingPerformance=[];state.featuredListings=[];}await syncListings();if(publicSharedLink){await ensureSharedListing();state.view="marketplace";}render();});loadAuth();}else{render();}
+if(sb){const publicSharedLink=(()=>{const p=new URLSearchParams(window.location.search);return p.get("shared")==="1"||p.get("shared")==="listing"||p.get("public")==="1"||!!p.get("listing")})();sb.auth.onAuthStateChange(async (event,session)=>{const previousAuthUserId=authUser?.id||null;authUser=session?.user||null;if(previousAuthUserId&&previousAuthUserId!==authUser?.id){if(activeHarvestCall)await endHarvestCall("ended",true);await cleanupHarvestCallChannel();activeChatConversationId=null;activeChatPeerId=null;}if(event==="PASSWORD_RECOVERY"){passwordRecoveryPending=true;state.view="marketplace";render();return}if(passwordRecoveryPending){state.view="marketplace";render();return}if(authUser){await loadProfile();await syncFeatured();await syncFavourites();await syncNotifications();await syncRewards();await syncSellerPerformance();await syncListingPerformance();await syncAdminRewards();await syncVerificationRequests();await syncAdvertising();}else{authProfile=null;state.rewardAdmin=[];state.verificationRequests=[];state.sellerPerformance={listings:0,approved:0,pending:0,rejected:0,views:0,chats:0,uniqueBuyers:0,recommendations:0};state.listingPerformance=[];state.featuredListings=[];}await syncListings();await startMarketplacePresence();if(publicSharedLink){await ensureSharedListing();state.view="marketplace";}render();});loadAuth();}else{render();}
 
 })();
 // HarvestHome responsive publish/moderation patch marker

@@ -1240,9 +1240,16 @@ async function handleHarvestCallSignal(message,conversationId){
     catch(error){toast("The call connection could not be completed.",true);await endHarvestCall("failed",true)}
     return;
   }
-  if(kind==="ice"&&call.pc&&payload.candidate){
-    try{const candidate=new RTCIceCandidate(payload.candidate);if(call.pc.remoteDescription)await call.pc.addIceCandidate(candidate);else call.pendingCandidates.push(candidate)}
-    catch(error){console.warn("A call network candidate was skipped:",error?.message||error)}
+  if(kind==="ice"&&payload.candidate){
+    // ICE candidates can arrive before the receiver has processed the offer
+    // and created its RTCPeerConnection. Keep them on the active call instead
+    // of dropping them; flushHarvestIceCandidates() applies them after the
+    // remote description is set on either side.
+    try{
+      const candidate=new RTCIceCandidate(payload.candidate);
+      if(call.pc?.remoteDescription)await call.pc.addIceCandidate(candidate);
+      else call.pendingCandidates.push(candidate);
+    }catch(error){console.warn("A call network candidate was skipped:",error?.message||error)}
     return;
   }
   if(kind==="decline"||kind==="busy"||kind==="end"){

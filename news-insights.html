@@ -58,6 +58,7 @@
         <div><h2 id="topics-title">Explore our topics</h2><p>Explore important developments across Africa and every region of the world.</p></div>
       </div>
       <div class="categories">
+        <a class="chip" href="#latest-stories">🗞️ Latest stories</a>
         <a class="chip" href="#world-news">🌍 World News</a>
         <a class="chip" href="#africa">🌍 Africa</a>
         <a class="chip" href="#general-news">📰 General News</a>
@@ -74,6 +75,13 @@
         <a class="chip" href="#technology">💻 Technology</a>
         <a class="chip" href="#harvesthome">🧡 HarvestHome Updates</a>
       </div>
+    </section>
+
+    
+    <section id="latest-stories" aria-labelledby="latest-stories-title" style="margin:0 0 42px">
+      <div class="section-head"><div><h2 id="latest-stories-title">Latest stories</h2><p>New articles approved by the HarvestHome newsroom.</p></div></div>
+      <div id="published-stories" class="grid" aria-live="polite"><p class="muted">Loading the latest published stories…</p></div>
+      <p id="stories-status" class="muted" role="status" style="margin-top:12px"></p>
     </section>
 
     <section id="editors-picks" aria-labelledby="featured-title">
@@ -134,6 +142,54 @@
     <div>© <span id="year"></span> HarvestHome · Connecting Africa. Growing Together. 🧡💚</div>
     <div style="margin-top:7px"><a href="/">Return to the HarvestHome marketplace</a></div>
   </footer>
-  <script>document.getElementById("year").textContent=new Date().getFullYear();</script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/Config.js?v=v10cachefix1"></script>
+  <script>
+  (() => {
+    "use strict";
+    document.getElementById("year").textContent = new Date().getFullYear();
+    const grid = document.getElementById("published-stories");
+    const status = document.getElementById("stories-status");
+    const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+    const dateText = value => {
+      if (!value) return "";
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? "" : date.toLocaleDateString(undefined,{year:"numeric",month:"short",day:"numeric"});
+    };
+    async function loadPublishedStories() {
+      try {
+        if (!window.supabase || !window.HARVESTHOME_CONFIG) throw new Error("News is temporarily unavailable.");
+        const client = window.supabase.createClient(HARVESTHOME_CONFIG.SUPABASE_URL,HARVESTHOME_CONFIG.SUPABASE_ANON_KEY);
+        const {data,error} = await client.from("news_articles")
+          .select("title,slug,category,author_name,excerpt,featured_image_url,source_name,published_at,created_at")
+          .eq("status","published")
+          .order("published_at",{ascending:false})
+          .limit(12);
+        if (error) throw error;
+        if (!data || !data.length) {
+          grid.innerHTML = '<div class="card"><span class="card-icon">📰</span><h3>New stories are on the way</h3><p>Our newsroom is preparing its first approved articles. Please check back soon.</p></div>';
+          return;
+        }
+        grid.innerHTML = data.map(article => {
+          const image = article.featured_image_url && /^https:\/\//i.test(article.featured_image_url)
+            ? '<img src="'+esc(article.featured_image_url)+'" alt="" loading="lazy" style="width:100%;height:150px;object-fit:cover;border-radius:11px;margin-bottom:13px">'
+            : '';
+          const published = dateText(article.published_at || article.created_at);
+          return '<article class="card">'+image+
+            '<span class="tag">'+esc(article.category || "News")+'</span>'+
+            '<h3>'+esc(article.title)+'</h3>'+
+            '<p>'+esc(article.excerpt)+'</p>'+
+            '<p class="help" style="margin-top:auto;margin-bottom:10px">'+esc(article.author_name || "HarvestHome Editorial Team")+(published ? " · "+esc(published) : "")+'</p>'+
+            '<a class="read" href="/news-story.html?slug='+encodeURIComponent(article.slug)+'">Read full story →</a>'+
+            '</article>';
+        }).join("");
+      } catch (error) {
+        grid.innerHTML = '<div class="card"><h3>Stories are temporarily unavailable</h3><p>Please try again shortly.</p></div>';
+        status.textContent = error.message || "Could not load published stories.";
+      }
+    }
+    loadPublishedStories();
+  })();
+  </script>
 </body>
 </html>

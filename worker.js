@@ -159,6 +159,11 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
+    // Never expose database migration drafts or internal Supabase project files as static assets.
+    if (url.pathname.startsWith("/supabase/")) {
+      return new Response("Not found", { status: 404 });
+    }
+
     // Keep the Supabase password-recovery route working through the SPA.
     if (url.pathname === "/update-password") {
       const appUrl = new URL("/", request.url);

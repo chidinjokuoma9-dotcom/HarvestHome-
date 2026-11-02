@@ -59,12 +59,42 @@ async function load(){
    '<h1>'+esc(data.title)+'</h1>'+
    '<p class="meta">By '+esc(data.author_name||"HarvestHome Editorial Team")+(data.published_at?" · "+esc(dateText(data.published_at)):"")+" · "+minutes+" min read"+'</p>'+
    '<p class="summary">'+esc(data.excerpt)+'</p>'+
-   '<div class="story-actions"><button type="button" id="share-story">Share story</button><a href="/news-insights.html">More stories</a></div>'+
+   '<div class="story-actions"><button type="button" id="share-story">Share story</button><button type="button" id="share-picture-link">Share picture + link</button><a href="/news-insights.html">More stories</a></div>'+
    (image?'<img class="cover" src="'+esc(image)+'" alt="">':"")+
    '<div class="body-copy">'+paragraphs+'</div>'+
    (data.source_name?'<div class="source"><strong>Source / publisher:</strong> '+esc(data.source_name)+(source?' · <a href="'+esc(source)+'" target="_blank" rel="noopener noreferrer">View original source ↗</a>':"")+'</div>':(source?'<div class="source"><a href="'+esc(source)+'" target="_blank" rel="noopener noreferrer">View original source ↗</a></div>':""));
   root.innerHTML+='<section class="related"><h2>Related stories</h2><div id="related-stories" class="related-list"><p class="meta">Finding related stories…</p></div></section>';
   document.getElementById("share-story").addEventListener("click",async()=>{const shareAuthor=data.author_name||"HarvestHome Editorial Team";const shareSummary=data.excerpt||data.title;const payload={title:data.title,text:"By "+shareAuthor+" — "+shareSummary,url:location.href};try{if(navigator.share)await navigator.share(payload);else if(navigator.clipboard&&navigator.clipboard.writeText){await navigator.clipboard.writeText(location.href);document.getElementById("share-story").textContent="Link copied";}else window.prompt("Copy this story link:",location.href);}catch(e){if(e.name!=="AbortError")window.prompt("Copy this story link:",location.href);}});
+  document.getElementById("share-picture-link").addEventListener("click",async()=>{
+   const button=document.getElementById("share-picture-link");
+   const shareAuthor=data.author_name||"HarvestHome Editorial Team";
+   const shareText="By "+shareAuthor+" — "+(data.excerpt||data.title);
+   if(!image){window.alert("This story has no featured picture yet. Add a featured photo in News Admin, then publish or update the story.");return;}
+   button.disabled=true;button.textContent="Preparing picture…";
+   try{
+    const response=await fetch(image,{mode:"cors"});
+    if(!response.ok)throw new Error("The featured picture could not be downloaded.");
+    const blob=await response.blob();
+    const mime=blob.type||"image/jpeg";
+    const ext=mime.includes("png")?"png":mime.includes("webp")?"webp":mime.includes("gif")?"gif":"jpg";
+    const file=new File([blob],(data.slug||"harvesthome-story")+"."+ext,{type:mime});
+    const payload={files:[file],title:data.title,text:shareText+"\n"+location.href,url:location.href};
+    if(navigator.share&&(!navigator.canShare||navigator.canShare({files:[file]}))){
+     await navigator.share(payload);
+    }else{
+     const objectUrl=URL.createObjectURL(blob);
+     const a=document.createElement("a");a.href=objectUrl;a.download=file.name;document.body.appendChild(a);a.click();a.remove();
+     const message=data.title+"\n"+shareText+"\n"+location.href;
+     if(navigator.clipboard&&navigator.clipboard.writeText){await navigator.clipboard.writeText(message);}
+     window.alert("The picture has been downloaded and the story link/message copied. Open your social app, attach the downloaded picture, and paste the link. Where supported, social platforms will also generate a picture preview from the link.");
+     setTimeout(()=>URL.revokeObjectURL(objectUrl),60000);
+    }
+   }catch(error){
+    if(error.name!=="AbortError"){
+     window.alert("Could not prepare the picture for sharing. You can still share the story link; its social preview uses the featured picture when the platform supports link previews.");
+    }
+   }finally{button.disabled=false;button.textContent="Share picture + link";}
+  });
   const related=await client.from("news_articles").select("title,slug,excerpt,category").eq("status","published").eq("category",data.category).neq("slug",data.slug).order("published_at",{ascending:false}).limit(4);
   const relatedEl=document.getElementById("related-stories");
   if(!related.error&&related.data&&related.data.length){relatedEl.innerHTML=related.data.map(a=>'<article class="related-card"><span class="tag">'+esc(a.category||"News")+'</span><h3><a href="/news-story.html?slug='+encodeURIComponent(a.slug)+'">'+esc(a.title)+'</a></h3><p>'+esc(a.excerpt||"Read this related story.")+'</p></article>').join("");}

@@ -23,7 +23,7 @@ function escapeHtml(value) {
 }
 
 function replaceMeta(html, attribute, key, value) {
-  const pattern = new RegExp("<meta\\s+" + attribute + "=[\\\"']" + key + "[\\\"']\\s+content=[\\\"'][^\\\"']*[\\\"']\\s*/?>", "i");
+  const pattern = new RegExp("<meta\s+" + attribute + "=[\\\"']" + key + "[\\\"']\s+content=[\\\"'][^\\\"']*[\\\"']\s*/?>", "i");
   const tag = '<meta ' + attribute + '="' + escapeHtml(key) + '" content="' + escapeHtml(value) + '">';
   if (pattern.test(html)) return html.replace(pattern, tag);
   return html.replace(/<\/head>/i, "  " + tag + "\n</head>");
@@ -35,6 +35,77 @@ function replaceTitle(html, title) {
     return html.replace(/<title>[\s\S]*?<\/title>/i, "<title>" + safeTitle + "</title>");
   }
   return html.replace(/<\/head>/i, "  <title>" + safeTitle + "</title>\n</head>");
+}
+
+async function loadPublishedNewsStory(config, slug) {
+  const params = new URLSearchParams({
+    slug: "eq." + slug,
+    status: "eq.published",
+    select: "title,slug,author_name,excerpt,featured_image_url,published_at",
+    limit: "1"
+  });
+  const response = await fetch(config.supabaseUrl + "/rest/v1/news_articles?" + params.toString(), {
+    headers: {
+      apikey: config.anonKey,
+      Authorization: "Bearer " + config.anonKey,
+      Accept: "application/json"
+    }
+  });
+  if (!response.ok) return null;
+  const rows = await response.json();
+  const story = Array.isArray(rows) ? rows[0] : null;
+  if (!story || String(story.status || "published") !== "published") return null;
+  return story;
+}
+
+async function withNewsStoryPreview(env, requestUrl, html, slug) {
+  if (!slug || slug.length > 180) return html;
+  const config = await getPublicConfig(env, requestUrl);
+  if (!config) return html;
+
+  let story;
+  try {
+    story = await loadPublishedNewsStory(config, slug);
+  } catch {
+    return html;
+  }
+  if (!story) return html;
+
+  const author = String(story.author_name || "HarvestHome Editorial Team").trim().slice(0, 120);
+  const title = String(story.title || "News & Insights").trim().slice(0, 180) + " | HarvestHome News & Insights";
+  const excerpt = String(story.excerpt || "Read this story from HarvestHome News & Insights.").trim().replace(/\s+/g, " ").slice(0, 240);
+  const description = ("By " + author + " — " + excerpt).slice(0, 300);
+  const rawImage = String(story.featured_image_url || "").trim();
+  let image = "";
+  try {
+    const parsedImage = new URL(rawImage);
+    if (parsedImage.protocol === "https:") image = parsedImage.href;
+  } catch {}
+  if (!image) image = "https://harvesthome.ng/favicon.svg";
+
+  const canonicalUrl = new URL("/news-story.html", config.publicUrl);
+  canonicalUrl.searchParams.set("slug", String(story.slug || slug));
+  const canonical = canonicalUrl.toString();
+
+  html = replaceTitle(html, title);
+  html = replaceMeta(html, "name", "description", excerpt);
+  html = replaceMeta(html, "property", "og:title", title);
+  html = replaceMeta(html, "property", "og:description", description);
+  html = replaceMeta(html, "property", "og:url", canonical);
+  html = replaceMeta(html, "property", "og:type", "article");
+  html = replaceMeta(html, "property", "og:site_name", "HarvestHome News & Insights");
+  html = replaceMeta(html, "property", "og:image", image);
+  html = replaceMeta(html, "property", "og:image:secure_url", image);
+  html = replaceMeta(html, "property", "og:image:alt", String(story.title || "HarvestHome news story"));
+  html = replaceMeta(html, "property", "article:author", author);
+  html = replaceMeta(html, "name", "author", author);
+  html = replaceMeta(html, "name", "twitter:card", "summary_large_image");
+  html = replaceMeta(html, "name", "twitter:title", title);
+  html = replaceMeta(html, "name", "twitter:description", description);
+  html = replaceMeta(html, "name", "twitter:image", image);
+  html = html.replace(/<link\s+rel=["']canonical["']\s+href=["'][^"']*["']\s*\/?>/i,
+    '<link rel="canonical" href="' + escapeHtml(canonical) + '">');
+  return html;
 }
 
 function publicStorageUrl(baseUrl, storagePath) {
@@ -159,6 +230,11 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
+    // Never expose database migration drafts or internal Supabase project files as static assets.
+    if (url.pathname.startsWith("/supabase/")) {
+      return new Response("Not found", { status: 404 });
+    }
+
     // Keep the Supabase password-recovery route working through the SPA.
     if (url.pathname === "/update-password") {
       const appUrl = new URL("/", request.url);
@@ -190,6 +266,32 @@ export default {
       headers.delete("last-modified");
       headers.set("content-type", "text/html; charset=utf-8");
       headers.set("cache-control", "public, max-age=0, s-maxage=300");
+      return new Response(html, { status: assetResponse.status, headers });
+    }
+
+    // News/social crawlers need server-rendered Open Graph metadata; they do not run page JavaScript.
+    const newsSlug = url.searchParams.get("slug");
+    if (request.method === "GET" && url.pathname === "/news-story.html" && newsSlug) {
+      const assetResponse = await env.ASSETS.fetch(new Request(new URL("/news-story.html", url).toString(), {
+        method: "GET",
+        headers: { Accept: "text/html" }
+      }));
+      if (!assetResponse.ok) return assetResponse;
+
+      let html = await assetResponse.text();
+      try {
+        html = await withNewsStoryPreview(env, url, html, newsSlug);
+      } catch {
+        // A news preview metadata failure must not prevent the story page from opening.
+      }
+
+      const headers = new Headers(assetResponse.headers);
+      headers.delete("content-length");
+      headers.delete("content-encoding");
+      headers.delete("etag");
+      headers.delete("last-modified");
+      headers.set("content-type", "text/html; charset=utf-8");
+      headers.set("cache-control", "public, max-age=0, s-maxage=60");
       return new Response(html, { status: assetResponse.status, headers });
     }
 

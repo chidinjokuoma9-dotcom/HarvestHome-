@@ -17,7 +17,7 @@
     main{max-width:1160px;margin:auto;padding:36px 22px 70px}.section-head{display:flex;align-items:end;justify-content:space-between;gap:20px;margin:0 0 18px}.section-head h2{font-size:clamp(1.5rem,3vw,2rem);line-height:1.2;color:var(--deep);margin:0}.section-head p{margin:6px 0 0;color:var(--muted)}.categories{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 34px}.chip{display:inline-flex;padding:8px 14px;border:1px solid #dce7dd;border-radius:999px;background:#fff;color:var(--deep);font-weight:700;font-size:.88rem;text-decoration:none}.chip:hover{border-color:var(--green);background:#eff7f0}
     .featured{display:grid;grid-template-columns:1fr 1fr;background:#fff;border:1px solid var(--line);border-radius:22px;overflow:hidden;box-shadow:var(--shadow);margin-bottom:42px}.feature-art{min-height:300px;background:linear-gradient(145deg,#dcebdc,#f7ead8);display:grid;place-items:center;padding:32px}.feature-art .art-icon{font-size:5rem;filter:drop-shadow(0 8px 12px rgba(16,75,43,.12))}.feature-copy{padding:clamp(24px,4vw,42px);align-self:center}.tag{display:inline-block;background:#eef6ee;color:var(--green);padding:5px 10px;border-radius:999px;font-size:.75rem;font-weight:800}.feature-copy h3{font-size:clamp(1.55rem,3vw,2.2rem);line-height:1.18;color:var(--deep);margin:14px 0 10px}.feature-copy p{color:var(--muted);margin:0 0 18px}.read{display:inline-flex;align-items:center;gap:8px;color:var(--green);font-weight:800;text-decoration:none}.read:hover{text-decoration:underline}
     .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}.card{background:#fff;border:1px solid var(--line);border-radius:17px;padding:22px;display:flex;flex-direction:column;min-height:245px;box-shadow:0 7px 22px rgba(22,65,39,.04)}.card h3{font-size:1.18rem;line-height:1.3;color:var(--deep);margin:13px 0 9px}.card p{color:var(--muted);font-size:.94rem;margin:0 0 18px}.card .read{margin-top:auto}.card-icon{width:44px;height:44px;border-radius:13px;background:#eff6ee;display:grid;place-items:center;font-size:1.35rem}
-    .standards{margin-top:42px;background:#fff;border:1px solid var(--line);border-radius:18px;padding:25px}.standards h2{margin:0 0 8px;color:var(--deep);font-size:1.35rem}.standards p{margin:0;color:var(--muted)}.standards ul{margin:12px 0 0;padding-left:20px;color:var(--muted)}.contribute{margin-top:22px;padding:26px;border-radius:18px;background:#fff7eb;border:1px solid #f0dfc6;display:flex;justify-content:space-between;align-items:center;gap:20px}.contribute h2{margin:0 0 5px;color:#704314;font-size:1.3rem}.contribute p{margin:0;color:#765f43}.button{display:inline-flex;align-items:center;justify-content:center;padding:11px 17px;border-radius:10px;background:var(--green);color:#fff;text-decoration:none;font-weight:800;white-space:nowrap}.button:hover{background:var(--deep)}
+    .story-tools{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(180px,.7fr);gap:12px;margin:0 0 20px}.story-tools input,.story-tools select{width:100%;padding:13px 14px;border:1px solid #d5e1d6;border-radius:11px;background:#fff;color:var(--ink);font:inherit}.story-meta{color:var(--muted);font-size:.83rem;margin:0 0 12px}.featured-live{margin:0 0 30px}@media(max-width:540px){.story-tools{grid-template-columns:1fr}}.standards{margin-top:42px;background:#fff;border:1px solid var(--line);border-radius:18px;padding:25px}.standards h2{margin:0 0 8px;color:var(--deep);font-size:1.35rem}.standards p{margin:0;color:var(--muted)}.standards ul{margin:12px 0 0;padding-left:20px;color:var(--muted)}.contribute{margin-top:22px;padding:26px;border-radius:18px;background:#fff7eb;border:1px solid #f0dfc6;display:flex;justify-content:space-between;align-items:center;gap:20px}.contribute h2{margin:0 0 5px;color:#704314;font-size:1.3rem}.contribute p{margin:0;color:#765f43}.button{display:inline-flex;align-items:center;justify-content:center;padding:11px 17px;border-radius:10px;background:var(--green);color:#fff;text-decoration:none;font-weight:800;white-space:nowrap}.button:hover{background:var(--deep)}
     footer{background:#103f27;color:#dce9df;padding:25px 22px;text-align:center;font-size:.9rem}footer a{color:#fff;font-weight:700;text-decoration:none}
     @media(max-width:800px){.hero-inner{grid-template-columns:1fr;padding-top:50px}.hero-note{max-width:560px}.featured{grid-template-columns:1fr}.feature-art{min-height:190px}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.contribute{align-items:flex-start;flex-direction:column}}
     @media(max-width:540px){.nav{align-items:flex-start}.navlinks{gap:8px;justify-content:flex-end}.navlinks a{font-size:.82rem}.navlinks .back{padding:6px 9px}.brand img{width:36px;height:36px}.brand small{font-size:.68rem}.hero-inner{padding:42px 18px}.hero h1{font-size:2.55rem}main{padding:28px 16px 48px}.grid{grid-template-columns:1fr}.section-head{display:block}.feature-art{min-height:155px}.contribute{padding:20px}}
@@ -80,7 +80,7 @@
     
     <section id="latest-stories" aria-labelledby="latest-stories-title" style="margin:0 0 42px">
       <div class="section-head"><div><h2 id="latest-stories-title">Latest stories</h2><p>New articles approved by the HarvestHome newsroom.</p></div></div>
-      <div id="published-stories" class="grid" aria-live="polite"><p class="muted">Loading the latest published stories…</p></div>
+      <div class="story-tools" role="search"><input id="story-search" type="search" placeholder="Search headlines and summaries…" aria-label="Search news stories"><select id="story-category" aria-label="Filter stories by topic"><option value="">All topics</option></select></div><div id="live-featured" class="featured-live" aria-live="polite"></div><div id="published-stories" class="grid" aria-live="polite"><p class="muted">Loading the latest published stories…</p></div>
       <p id="stories-status" class="muted" role="status" style="margin-top:12px"></p>
     </section>
 
@@ -148,46 +148,47 @@
   (() => {
     "use strict";
     document.getElementById("year").textContent = new Date().getFullYear();
-    const grid = document.getElementById("published-stories");
-    const status = document.getElementById("stories-status");
-    const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-    const dateText = value => {
-      if (!value) return "";
-      const date = new Date(value);
-      return Number.isNaN(date.getTime()) ? "" : date.toLocaleDateString(undefined,{year:"numeric",month:"short",day:"numeric"});
-    };
-    async function loadPublishedStories() {
-      try {
-        if (!window.supabase || !window.HARVESTHOME_CONFIG) throw new Error("News is temporarily unavailable.");
-        const client = window.supabase.createClient(HARVESTHOME_CONFIG.SUPABASE_URL,HARVESTHOME_CONFIG.SUPABASE_ANON_KEY);
-        const {data,error} = await client.from("news_articles")
-          .select("title,slug,category,author_name,excerpt,featured_image_url,source_name,published_at,created_at")
-          .eq("status","published")
-          .order("published_at",{ascending:false})
-          .limit(12);
-        if (error) throw error;
-        if (!data || !data.length) {
-          grid.innerHTML = '<div class="card"><span class="card-icon">📰</span><h3>New stories are on the way</h3><p>Our newsroom is preparing its first approved articles. Please check back soon.</p></div>';
-          return;
-        }
-        grid.innerHTML = data.map(article => {
-          const image = article.featured_image_url && /^https:\/\//i.test(article.featured_image_url)
-            ? '<img src="'+esc(article.featured_image_url)+'" alt="" loading="lazy" style="width:100%;height:150px;object-fit:cover;border-radius:11px;margin-bottom:13px">'
-            : '';
-          const published = dateText(article.published_at || article.created_at);
-          return '<article class="card">'+image+
-            '<span class="tag">'+esc(article.category || "News")+'</span>'+
-            '<h3>'+esc(article.title)+'</h3>'+
-            '<p>'+esc(article.excerpt)+'</p>'+
-            '<p class="help" style="margin-top:auto;margin-bottom:10px">'+esc(article.author_name || "HarvestHome Editorial Team")+(published ? " · "+esc(published) : "")+'</p>'+
-            '<a class="read" href="/news-story.html?slug='+encodeURIComponent(article.slug)+'">Read full story →</a>'+
-            '</article>';
-        }).join("");
-      } catch (error) {
-        grid.innerHTML = '<div class="card"><h3>Stories are temporarily unavailable</h3><p>Please try again shortly.</p></div>';
-        status.textContent = error.message || "Could not load published stories.";
+
+    const grid=document.getElementById("published-stories");
+    const status=document.getElementById("stories-status");
+    const search=document.getElementById("story-search");
+    const category=document.getElementById("story-category");
+    const featured=document.getElementById("live-featured");
+    const esc=v=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
+    const dateText=v=>{if(!v)return "";const d=new Date(v);return Number.isNaN(d.getTime())?"":d.toLocaleDateString(undefined,{year:"numeric",month:"short",day:"numeric"});};
+    const readingTime=v=>Math.max(1,Math.ceil(String(v||"").trim().split(" ").filter(Boolean).length/200));
+    let stories=[];
+    function card(a){
+      const img=a.featured_image_url&&String(a.featured_image_url).startsWith("https://")?'<img src="'+esc(a.featured_image_url)+'" alt="" loading="lazy" style="width:100%;height:150px;object-fit:cover;border-radius:11px;margin-bottom:13px">':"";
+      const date=dateText(a.published_at||a.created_at);
+      return '<article class="card">'+img+'<span class="tag">'+esc(a.category||"News")+'</span><h3>'+esc(a.title)+'</h3><p>'+esc(a.excerpt)+'</p><p class="story-meta">'+esc(a.author_name||"HarvestHome Editorial Team")+(date?" · "+esc(date):"")+" · "+readingTime(a.content)+" min read"+'</p><a class="read" href="/news-story.html?slug='+encodeURIComponent(a.slug)+'">Read full story →</a></article>';
+    }
+    function render(){
+      const term=search.value.trim().toLowerCase(),topic=category.value;
+      const matches=stories.filter(a=>(!topic||a.category===topic)&&(!term||(String(a.title)+" "+String(a.excerpt)+" "+String(a.category)).toLowerCase().includes(term)));
+      const picks=matches.filter(a=>a.is_breaking).slice(0,2);
+      featured.innerHTML=picks.length?'<div class="section-head"><div><h2>Featured stories</h2><p>Selected newsroom highlights.</p></div></div><div class="grid">'+picks.map(card).join("")+'</div>':"";
+      const rest=matches.filter(a=>!picks.includes(a));
+      grid.innerHTML=rest.length?rest.map(card).join(""):'<div class="card"><h3>'+(stories.length?"No matching stories":"New stories are on the way")+'</h3><p>'+(stories.length?"Try another keyword or topic.":"Our newsroom is preparing its first approved articles. Please check back soon.")+'</p></div>';
+      status.textContent=matches.length+" published stories found.";
+    }
+    async function loadPublishedStories(){
+      try{
+        if(!window.supabase||!window.HARVESTHOME_CONFIG)throw new Error("News is temporarily unavailable.");
+        const client=window.supabase.createClient(HARVESTHOME_CONFIG.SUPABASE_URL,HARVESTHOME_CONFIG.SUPABASE_ANON_KEY);
+        const result=await client.from("news_articles").select("title,slug,category,author_name,excerpt,content,featured_image_url,source_name,published_at,created_at,is_breaking").eq("status","published").order("published_at",{ascending:false}).limit(50);
+        if(result.error)throw result.error;
+        stories=result.data||[];
+        const topics=[...new Set(stories.map(a=>a.category).filter(Boolean))].sort((x,y)=>x.localeCompare(y));
+        category.innerHTML='<option value="">All topics</option>'+topics.map(t=>'<option value="'+esc(t)+'">'+esc(t)+'</option>').join("");
+        render();
+      }catch(error){
+        grid.innerHTML='<div class="card"><h3>Stories are temporarily unavailable</h3><p>Please try again shortly.</p></div>';
+        status.textContent=error.message||"Could not load published stories.";
       }
     }
+    search.addEventListener("input",render);
+    category.addEventListener("change",render);
     loadPublishedStories();
   })();
   </script>

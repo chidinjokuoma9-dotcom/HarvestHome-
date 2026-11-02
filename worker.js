@@ -23,7 +23,7 @@ function escapeHtml(value) {
 }
 
 function replaceMeta(html, attribute, key, value) {
-  const pattern = new RegExp("<meta\\s+" + attribute + "=[\\\"']" + key + "[\\\"']\\s+content=[\\\"'][^\\\"']*[\\\"']\\s*/?>", "i");
+  const pattern = new RegExp("<meta\s+" + attribute + "=[\\\"']" + key + "[\\\"']\s+content=[\\\"'][^\\\"']*[\\\"']\s*/?>", "i");
   const tag = '<meta ' + attribute + '="' + escapeHtml(key) + '" content="' + escapeHtml(value) + '">';
   if (pattern.test(html)) return html.replace(pattern, tag);
   return html.replace(/<\/head>/i, "  " + tag + "\n</head>");
@@ -73,7 +73,7 @@ async function withNewsStoryPreview(env, requestUrl, html, slug) {
 
   const author = String(story.author_name || "HarvestHome Editorial Team").trim().slice(0, 120);
   const title = String(story.title || "News & Insights").trim().slice(0, 180) + " | HarvestHome News & Insights";
-  const excerpt = String(story.excerpt || "Read this story from HarvestHome News & Insights.").trim().replace(/\\s+/g, " ").slice(0, 240);
+  const excerpt = String(story.excerpt || "Read this story from HarvestHome News & Insights.").trim().replace(/\s+/g, " ").slice(0, 240);
   const description = ("By " + author + " — " + excerpt).slice(0, 300);
   const rawImage = String(story.featured_image_url || "").trim();
   let image = "";
@@ -103,7 +103,7 @@ async function withNewsStoryPreview(env, requestUrl, html, slug) {
   html = replaceMeta(html, "name", "twitter:title", title);
   html = replaceMeta(html, "name", "twitter:description", description);
   html = replaceMeta(html, "name", "twitter:image", image);
-  html = html.replace(/<link\\s+rel=["']canonical["']\\s+href=["'][^"']*["']\\s*\\/?>/i,
+  html = html.replace(/<link\s+rel=["']canonical["']\s+href=["'][^"']*["']\s*\/?>/i,
     '<link rel="canonical" href="' + escapeHtml(canonical) + '">');
   return html;
 }

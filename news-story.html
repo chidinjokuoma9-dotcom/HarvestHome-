@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#176b3b"><meta name="robots" content="index,follow">
+<meta name="description" content="Read the latest reporting and insights from HarvestHome.">
+<title>News Story | HarvestHome</title>
+<link rel="canonical" href="https://harvesthome.ng/news-story.html">
+<style>
+:root{--green:#176b3b;--deep:#104b2b;--ink:#203329;--muted:#64736a;--line:#e4ebe5;--paper:#f5f8f4}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.7 system-ui,-apple-system,"Segoe UI",sans-serif}
+header{background:#fff;border-bottom:1px solid var(--line)}.nav{max-width:900px;margin:auto;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;gap:14px}.brand{color:var(--deep);font-weight:850;text-decoration:none}.back{color:var(--green);font-weight:750;text-decoration:none}
+main{max-width:820px;margin:34px auto;padding:0 20px 65px}.crumb{font-size:.9rem;color:var(--muted);margin-bottom:20px}.crumb a{color:var(--green);text-decoration:none;font-weight:700}
+.story{background:#fff;border:1px solid var(--line);border-radius:20px;padding:clamp(22px,5vw,48px);box-shadow:0 12px 32px rgba(22,65,39,.06)}
+.tag{display:inline-block;background:#eef6ee;color:var(--green);padding:5px 11px;border-radius:999px;font-size:.78rem;font-weight:850}
+h1{font-size:clamp(2rem,5vw,3.2rem);line-height:1.12;letter-spacing:-.035em;color:var(--deep);margin:17px 0}
+.meta{color:var(--muted);font-size:.92rem;margin:0 0 25px}.summary{font-size:1.12rem;color:#465b4c;font-weight:550}
+.cover{display:block;width:100%;max-height:430px;object-fit:cover;border-radius:13px;margin:24px 0}
+.body-copy{white-space:pre-wrap;overflow-wrap:anywhere;margin-top:28px}.body-copy p{margin:0 0 1.25em}
+.source{border-top:1px solid var(--line);margin-top:30px;padding-top:18px;color:var(--muted);font-size:.93rem}.source a{color:var(--green);font-weight:750}
+.notice{background:#fff;border:1px solid var(--line);border-radius:14px;padding:25px;color:var(--muted)}
+footer{text-align:center;background:#103f27;color:#dce9df;padding:24px;font-size:.9rem}footer a{color:#fff;font-weight:700;text-decoration:none}
+@media(max-width:540px){.nav{padding:12px 16px}main{margin-top:20px;padding:0 14px 45px}.story{border-radius:14px}}
+</style>
+</head>
+<body>
+<header><div class="nav"><a class="brand" href="/news-insights.html">HarvestHome · News &amp; Insights</a><a class="back" href="/news-insights.html">← All stories</a></div></header>
+<main><div class="crumb"><a href="/news-insights.html">News &amp; Insights</a> / Story</div>
+<article id="story" class="story"><div class="notice">Loading story…</div></article>
+</main>
+<footer>© <span id="year"></span> HarvestHome · Connecting Africa. Growing Together. 🧡💚</footer>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/Config.js?v=v10cachefix1"></script>
+<script>
+(() => {
+"use strict";
+document.getElementById("year").textContent=new Date().getFullYear();
+const root=document.getElementById("story");
+const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const dateText=v=>{if(!v)return "";const d=new Date(v);return Number.isNaN(d.getTime())?"":d.toLocaleDateString(undefined,{year:"numeric",month:"long",day:"numeric"});};
+const safeUrl=v=>{try{const u=new URL(v);return ["https:","http:"].includes(u.protocol)?u.href:"";}catch{return "";}};
+async function load(){
+ try{
+  const slug=new URLSearchParams(location.search).get("slug");
+  if(!slug)throw new Error("This story link is incomplete.");
+  if(!window.supabase||!window.HARVESTHOME_CONFIG)throw new Error("The newsroom is temporarily unavailable.");
+  const client=window.supabase.createClient(HARVESTHOME_CONFIG.SUPABASE_URL,HARVESTHOME_CONFIG.SUPABASE_ANON_KEY);
+  const {data,error}=await client.from("news_articles").select("title,slug,category,author_name,excerpt,content,featured_image_url,source_name,source_url,published_at").eq("slug",slug).eq("status","published").maybeSingle();
+  if(error)throw error;
+  if(!data)throw new Error("This story is unavailable or has not been published.");
+  document.title=data.title+" | HarvestHome News & Insights";
+  document.querySelector('meta[name="description"]').setAttribute("content",String(data.excerpt||"HarvestHome News & Insights").slice(0,300));
+  document.querySelector('link[rel="canonical"]').setAttribute("href",location.origin+location.pathname+"?slug="+encodeURIComponent(data.slug));
+  const source=safeUrl(data.source_url);
+  const image=safeUrl(data.featured_image_url);
+  const paragraphs=String(data.content||"").split(/\n\s*\n/).map(p=>p.trim()).filter(Boolean).map(p=>"<p>"+esc(p).replace(/\n/g,"<br>")+"</p>").join("");
+  root.innerHTML='<span class="tag">'+esc(data.category||"News")+'</span>'+
+   '<h1>'+esc(data.title)+'</h1>'+
+   '<p class="meta">By '+esc(data.author_name||"HarvestHome Editorial Team")+(data.published_at?" · "+esc(dateText(data.published_at)):"")+'</p>'+
+   '<p class="summary">'+esc(data.excerpt)+'</p>'+
+   (image?'<img class="cover" src="'+esc(image)+'" alt="">':"")+
+   '<div class="body-copy">'+paragraphs+'</div>'+
+   (data.source_name?'<div class="source"><strong>Source / publisher:</strong> '+esc(data.source_name)+(source?' · <a href="'+esc(source)+'" target="_blank" rel="noopener noreferrer">View original source ↗</a>':"")+'</div>':(source?'<div class="source"><a href="'+esc(source)+'" target="_blank" rel="noopener noreferrer">View original source ↗</a></div>':""));
+ }catch(error){root.innerHTML='<div class="notice"><h1>Story unavailable</h1><p>'+esc(error.message||"We could not load this story.")+'</p><a class="back" href="/news-insights.html">Return to News &amp; Insights</a></div>';}
+}
+load();
+})();
+</script>
+</body></html>

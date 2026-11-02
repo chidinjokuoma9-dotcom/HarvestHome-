@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#176b3b">
+<title>News Desk | HarvestHome</title>
+<style>
+:root{--green:#176b3b;--dark:#123b29;--orange:#ef8b32;--bg:#f4f7f3;--line:#dce6dc}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#1b3024;font:15px/1.5 system-ui,-apple-system,sans-serif}
+header{background:#fff;border-bottom:1px solid var(--line);padding:16px max(18px,calc((100% - 1180px)/2));display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.brand{font-weight:900;color:var(--green);text-decoration:none;font-size:19px}.brand span{color:var(--orange)}
+main{max-width:1180px;margin:26px auto;padding:0 16px 48px}.eyebrow{color:var(--green);font-size:12px;font-weight:850;letter-spacing:.12em;text-transform:uppercase}
+h1,h2,h3{color:var(--dark);line-height:1.2}h1{font-size:clamp(27px,4vw,38px);margin:6px 0}
+.muted{color:#66756a}.panel{background:white;border:1px solid var(--line);border-radius:16px;padding:20px;margin:16px 0;box-shadow:0 5px 18px #163b2910}
+button,.button{border:0;border-radius:9px;background:var(--green);color:white;padding:11px 16px;font:inherit;font-weight:750;cursor:pointer;text-decoration:none;display:inline-block}
+button.secondary{background:#edf4ed;color:var(--green);border:1px solid #cbd9cc}button.danger{background:#fff0ed;color:#a23828;border:1px solid #f0c9c1}button:disabled{opacity:.55;cursor:wait}
+label{display:block;font-weight:700;margin:12px 0 5px}input,select,textarea{width:100%;padding:11px 12px;border:1px solid #cbd9cc;border-radius:9px;font:inherit;background:white;color:#1b3024}
+textarea{min-height:115px;resize:vertical}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.span2{grid-column:1/-1}
+.notice{padding:12px 14px;background:#eff6ef;border-radius:9px;white-space:pre-wrap}.notice.error{background:#fff0ed;color:#8f2d20}.toolbar{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+.layout{display:grid;grid-template-columns:320px minmax(0,1fr);gap:16px;align-items:start}
+.article{border:1px solid var(--line);border-radius:12px;padding:14px;margin:10px 0}.article h3{margin:6px 0}.badge{display:inline-block;border-radius:99px;padding:3px 9px;background:#edf4ed;color:var(--green);font-size:12px;font-weight:800}.badge.published{background:#e6f5e9}.badge.pending_review{background:#fff3df;color:#87500c}.article small{color:#68766c}.help{font-size:13px;color:#68766c}
+.hidden{display:none!important}
+@media(max-width:800px){.layout{grid-template-columns:1fr}.grid{grid-template-columns:1fr}.span2{grid-column:auto}main{margin-top:18px}}
+</style>
+</head>
+<body>
+<header><a class="brand" href="/news-insights.html">HarvestHome <span>News Desk</span></a><div class="toolbar"><span id="staff-label" class="muted"></span><button id="logout" class="secondary hidden">Sign out</button></div></header>
+<main>
+<div class="eyebrow">Private editorial workspace</div><h1>News &amp; Insights management</h1>
+<p class="muted">Prepare and review HarvestHome stories. Articles remain unpublished until an authorised staff member deliberately publishes them.</p>
+<section id="login-panel" class="panel">
+<h2>Staff sign in</h2><p class="muted">Use your existing HarvestHome Admin or Moderator account. No new account is required.</p>
+<form id="login-form"><label for="email">Account email</label><input id="email" type="email" autocomplete="username" required><label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required><button id="login-button" type="submit" style="margin-top:14px">Sign in</button></form>
+<p id="login-message" class="notice" role="status">Your account must already have Admin or Moderator access.</p>
+</section>
+<section id="workspace" class="hidden">
+<div id="setup-message" class="notice hidden" role="status"></div>
+<div class="layout">
+<aside class="panel"><div class="toolbar" style="justify-content:space-between"><h2 style="margin:0">Story library</h2><button id="refresh" class="secondary" type="button">Refresh</button></div>
+<label for="filter">Show stories</label><select id="filter"><option value="all">All stories</option><option value="draft">Drafts</option><option value="pending_review">Awaiting review</option><option value="published">Published</option><option value="archived">Archived</option></select>
+<div id="article-list" aria-live="polite"><p class="muted">Loading stories…</p></div></aside>
+<section class="panel"><div class="toolbar" style="justify-content:space-between"><div><div class="eyebrow">Editor</div><h2 id="editor-heading" style="margin:4px 0">Create a story</h2></div><button id="new-article" class="secondary" type="button">New story</button></div>
+<form id="article-form">
+<input id="article-id" type="hidden">
+<div class="grid">
+<div class="span2"><label for="title">Headline *</label><input id="title" maxlength="180" required placeholder="Write a clear, accurate headline"></div>
+<div><label for="category">Topic *</label><select id="category" required><option>Government &amp; Policy</option><option>Economy</option><option>Business</option><option>Technology</option><option>Real Estate</option><option>Agriculture</option><option>Farm Produce</option><option>HarvestHome Updates</option><option>Other News</option></select></div>
+<div><label for="author">Byline</label><input id="author" maxlength="100" placeholder="HarvestHome Editorial Team"></div>
+<div class="span2"><label for="excerpt">Short summary *</label><textarea id="excerpt" maxlength="360" required placeholder="A concise summary for the news homepage"></textarea></div>
+<div class="span2"><label for="content">Full story *</label><textarea id="content" style="min-height:240px" required placeholder="Write the article in clear paragraphs. Verify facts and dates before publication."></textarea></div>
+<div class="span2"><label for="image-url">Featured image URL</label><input id="image-url" type="url" maxlength="1000" placeholder="https://…"><p class="help">Use an image you own or have permission to publish. Image uploads can be added in a later stage.</p></div>
+<div><label for="source-name">Source / publisher</label><input id="source-name" maxlength="160" placeholder="Official agency or publication"></div>
+<div><label for="source-url">Source link</label><input id="source-url" type="url" maxlength="1000" placeholder="https://…"></div>
+<div><label for="status">Editorial status</label><select id="status"><option value="draft">Save as draft</option><option value="pending_review">Submit for review</option><option value="published">Publish now</option><option value="archived">Archive</option></select></div>
+<div><label for="breaking">Homepage highlight</label><select id="breaking"><option value="false">Standard story</option><option value="true">Breaking news highlight</option></select></div>
+</div>
+<p class="help">Publishing is available only to existing Admin/Moderator accounts. Use a source link for factual news where appropriate. Do not publish unverified claims, rumours or copied articles.</p>
+<div class="toolbar"><button id="save-button" type="submit">Save story</button><button id="reset-button" class="secondary" type="button">Clear form</button><span id="save-message" class="muted" role="status"></span></div>
+</form></section>
+</div>
+</section>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/Config.js?v=v10cachefix1"></script>
+<script>
+(()=>{
+"use strict";
+const $=id=>document.getElementById(id);let client=null,currentUser=null,articles=[];
+const allowedRoles=["Admin","Moderator"];
+const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const say=(id,msg,error=false)=>{$(id).textContent=msg||"";$(id).classList.toggle("error",!!error)};
+function resetForm(){ $("article-form").reset();$("article-id").value="";$("status").value="draft";$("breaking").value="false";$("editor-heading").textContent="Create a story";$("save-message").textContent=""; }
+function showWorkspace(user){currentUser=user;$("login-panel").classList.add("hidden");$("workspace").classList.remove("hidden");$("logout").classList.remove("hidden");$("staff-label").textContent=user.email+" · "+(user.role||"Staff");loadArticles();}
+async function verifyStaff(user){const {data,error}=await client.from("profiles").select("role,full_name").eq("id",user.id).maybeSingle();if(error)throw error;if(!data||!allowedRoles.includes(data.role))throw new Error("This account does not have HarvestHome Admin or Moderator access.");return {...user,role:data.role,full_name:data.full_name};}
+async function init(){if(!window.supabase||!window.HARVESTHOME_CONFIG){say("login-message","The dashboard configuration could not be loaded. Please contact the site administrator.",true);return;}client=window.supabase.createClient(HARVESTHOME_CONFIG.SUPABASE_URL,HARVESTHOME_CONFIG.SUPABASE_ANON_KEY);const {data:{session},error}=await client.auth.getSession();if(error)return;if(session){try{showWorkspace(await verifyStaff(session.user));}catch(e){await client.auth.signOut();say("login-message",e.message,true);}}}
+$("login-form").addEventListener("submit",async e=>{e.preventDefault();$("login-button").disabled=true;say("login-message","Signing in…");try{const {data,error}=await client.auth.signInWithPassword({email:$("email").value.trim(),password:$("password").value});if(error)throw error;showWorkspace(await verifyStaff(data.user));say("login-message","");}catch(err){if(client)await client.auth.signOut();say("login-message",err.message||"Sign-in failed. Please check your details and staff permissions.",true);}finally{$("login-button").disabled=false;}});
+async function loadArticles(){ $("article-list").innerHTML='<p class="muted">Loading stories…</p>';const {data,error}=await client.from("news_articles").select("*").order("updated_at",{ascending:false}).limit(200);if(error){articles=[];$("article-list").innerHTML="";say("setup-message","The private dashboard layout is ready, but the News articles database table has not been installed yet. No existing HarvestHome tables or data were changed. The database setup SQL is kept separately for review.",true);$("setup-message").classList.remove("hidden");return;} $("setup-message").classList.add("hidden");articles=data||[];renderList();}
+function renderList(){const f=$("filter").value;const rows=articles.filter(a=>f==="all"||a.status===f);$("article-list").innerHTML=rows.length?rows.map(a=>'<article class="article"><span class="badge '+esc(a.status)+'">'+esc(a.status.replace("_"," "))+'</span><h3>'+esc(a.title)+'</h3><small>'+esc(a.category)+' · '+esc(a.author_name||"Editorial Team")+'</small><div style="margin-top:10px"><button class="secondary" type="button" data-edit="'+esc(a.id)+'">Open story</button></div></article>').join(""):'<p class="muted">No stories in this view yet.</p>';}
+function loadIntoForm(a){$("article-id").value=a.id;$("title").value=a.title||"";$("category").value=a.category||"Other News";$("author").value=a.author_name||"";$("excerpt").value=a.excerpt||"";$("content").value=a.content||"";$("image-url").value=a.featured_image_url||"";$("source-name").value=a.source_name||"";$("source-url").value=a.source_url||"";$("status").value=a.status||"draft";$("breaking").value=String(!!a.is_breaking);$("editor-heading").textContent="Edit story";$("save-message").textContent="";}
+$("article-list").addEventListener("click",e=>{const b=e.target.closest("[data-edit]");if(!b)return;const a=articles.find(x=>String(x.id)===b.dataset.edit);if(a)loadIntoForm(a);});
+$("article-form").addEventListener("submit",async e=>{e.preventDefault();const btn=$("save-button");btn.disabled=true;say("save-message","Saving…");const payload={title:$("title").value.trim(),slug:$("title").value.trim().toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,180),category:$("category").value,author_name:$("author").value.trim()||"HarvestHome Editorial Team",excerpt:$("excerpt").value.trim(),content:$("content").value.trim(),featured_image_url:$("image-url").value.trim()||null,source_name:$("source-name").value.trim()||null,source_url:$("source-url").value.trim()||null,status:$("status").value,is_breaking:$("breaking").value==="true",updated_at:new Date().toISOString()};if(payload.status==="published")payload.published_at=new Date().toISOString();try{const id=$("article-id").value;let q=id?client.from("news_articles").update(payload).eq("id",id):client.from("news_articles").insert({...payload,created_by:currentUser.id});const {error}=await q;if(error)throw error;say("save-message","Story saved.");resetForm();await loadArticles();}catch(err){say("save-message",err.message||"Could not save this story. Check the database setup and permissions.",true);}finally{btn.disabled=false;}});
+$("new-article").addEventListener("click",resetForm);$("reset-button").addEventListener("click",resetForm);$("refresh").addEventListener("click",loadArticles);$("filter").addEventListener("change",renderList);$("logout").addEventListener("click",async()=>{await client.auth.signOut();currentUser=null;$("workspace").classList.add("hidden");$("login-panel").classList.remove("hidden");$("logout").classList.add("hidden");$("staff-label").textContent="";say("login-message","You have signed out.");});
+init();
+})();
+</script>
+</body></html>

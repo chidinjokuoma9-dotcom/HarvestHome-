@@ -17,7 +17,7 @@ h1{font-size:clamp(2rem,5vw,3.2rem);line-height:1.12;letter-spacing:-.035em;colo
 .meta{color:var(--muted);font-size:.92rem;margin:0 0 25px}.summary{font-size:1.12rem;color:#465b4c;font-weight:550}
 .cover{display:block;width:100%;max-height:430px;object-fit:cover;border-radius:13px;margin:24px 0}
 .body-copy{white-space:pre-wrap;overflow-wrap:anywhere;margin-top:28px}.body-copy p{margin:0 0 1.25em}
-.source{border-top:1px solid var(--line);margin-top:30px;padding-top:18px;color:var(--muted);font-size:.93rem}.source a{color:var(--green);font-weight:750}
+.story-actions{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0 24px}.story-actions button,.story-actions a{border:1px solid #d7e4d8;background:#f5faf5;color:var(--green);border-radius:9px;padding:9px 13px;font:inherit;font-weight:750;text-decoration:none;cursor:pointer}.related{margin-top:30px}.related h2{color:var(--deep)}.related-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.related-card{background:#f7faf7;border:1px solid var(--line);border-radius:12px;padding:14px}.related-card a{color:var(--green);font-weight:750;text-decoration:none}.related-card p{margin:5px 0 0;color:var(--muted);font-size:.9rem}@media(max-width:540px){.related-list{grid-template-columns:1fr}}.source{border-top:1px solid var(--line);margin-top:30px;padding-top:18px;color:var(--muted);font-size:.93rem}.source a{color:var(--green);font-weight:750}
 .notice{background:#fff;border:1px solid var(--line);border-radius:14px;padding:25px;color:var(--muted)}
 footer{text-align:center;background:#103f27;color:#dce9df;padding:24px;font-size:.9rem}footer a{color:#fff;font-weight:700;text-decoration:none}
 @media(max-width:540px){.nav{padding:12px 16px}main{margin-top:20px;padding:0 14px 45px}.story{border-radius:14px}}
@@ -54,13 +54,22 @@ async function load(){
   const source=safeUrl(data.source_url);
   const image=safeUrl(data.featured_image_url);
   const paragraphs=String(data.content||"").split(/\n\s*\n/).map(p=>p.trim()).filter(Boolean).map(p=>"<p>"+esc(p).replace(/\n/g,"<br>")+"</p>").join("");
+  const minutes=Math.max(1,Math.ceil(String(data.content||"").trim().split(/\s+/).filter(Boolean).length/200));
   root.innerHTML='<span class="tag">'+esc(data.category||"News")+'</span>'+
    '<h1>'+esc(data.title)+'</h1>'+
-   '<p class="meta">By '+esc(data.author_name||"HarvestHome Editorial Team")+(data.published_at?" · "+esc(dateText(data.published_at)):"")+'</p>'+
+   '<p class="meta">By '+esc(data.author_name||"HarvestHome Editorial Team")+(data.published_at?" · "+esc(dateText(data.published_at)):"")+" · "+minutes+" min read"+'</p>'+
    '<p class="summary">'+esc(data.excerpt)+'</p>'+
+   '<div class="story-actions"><button type="button" id="share-story">Share story</button><a href="/news-insights.html">More stories</a></div>'+
    (image?'<img class="cover" src="'+esc(image)+'" alt="">':"")+
    '<div class="body-copy">'+paragraphs+'</div>'+
    (data.source_name?'<div class="source"><strong>Source / publisher:</strong> '+esc(data.source_name)+(source?' · <a href="'+esc(source)+'" target="_blank" rel="noopener noreferrer">View original source ↗</a>':"")+'</div>':(source?'<div class="source"><a href="'+esc(source)+'" target="_blank" rel="noopener noreferrer">View original source ↗</a></div>':""));
+  root.innerHTML+='<section class="related"><h2>Related stories</h2><div id="related-stories" class="related-list"><p class="meta">Finding related stories…</p></div></section>';
+  document.getElementById("share-story").addEventListener("click",async()=>{const payload={title:data.title,text:data.excerpt||data.title,url:location.href};try{if(navigator.share)await navigator.share(payload);else if(navigator.clipboard&&navigator.clipboard.writeText){await navigator.clipboard.writeText(location.href);document.getElementById("share-story").textContent="Link copied";}else window.prompt("Copy this story link:",location.href);}catch(e){if(e.name!=="AbortError")window.prompt("Copy this story link:",location.href);}});
+  const related=await client.from("news_articles").select("title,slug,excerpt,category").eq("status","published").eq("category",data.category).neq("slug",data.slug).order("published_at",{ascending:false}).limit(4);
+  const relatedEl=document.getElementById("related-stories");
+  if(!related.error&&related.data&&related.data.length){relatedEl.innerHTML=related.data.map(a=>'<article class="related-card"><span class="tag">'+esc(a.category||"News")+'</span><h3><a href="/news-story.html?slug='+encodeURIComponent(a.slug)+'">'+esc(a.title)+'</a></h3><p>'+esc(a.excerpt||"Read this related story.")+'</p></article>').join("");}
+  else{relatedEl.innerHTML='<p class="meta">More stories in this topic will appear here as the newsroom publishes them.</p>';}
+
  }catch(error){root.innerHTML='<div class="notice"><h1>Story unavailable</h1><p>'+esc(error.message||"We could not load this story.")+'</p><a class="back" href="/news-insights.html">Return to News &amp; Insights</a></div>';}
 }
 load();

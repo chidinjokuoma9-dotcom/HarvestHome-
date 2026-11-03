@@ -41,7 +41,7 @@ async function loadPublishedNewsStory(config, slug) {
   const params = new URLSearchParams({
     slug: "eq." + slug,
     status: "eq.published",
-    select: "title,slug,author_name,excerpt,featured_image_url,published_at",
+    select: "title,slug,category,author_name,excerpt,content,featured_image_url,source_name,source_url,published_at",
     limit: "1"
   });
   const response = await fetch(config.supabaseUrl + "/rest/v1/news_articles?" + params.toString(), {
@@ -56,6 +56,59 @@ async function loadPublishedNewsStory(config, slug) {
   const story = Array.isArray(rows) ? rows[0] : null;
   if (!story || String(story.status || "published") !== "published") return null;
   return story;
+}
+
+function safeNewsUrl(value) {
+  try {
+    const parsed = new URL(String(value || "").trim());
+    return parsed.protocol === "https:" || parsed.protocol === "http:" ? parsed.href : "";
+  } catch {
+    return "";
+  }
+}
+
+function renderNewsStoryHtml(story, canonical) {
+  const title = String(story.title || "HarvestHome News Story").trim();
+  const author = String(story.author_name || "HarvestHome Editorial Team").trim();
+  const excerpt = String(story.excerpt || "").trim();
+  const content = String(story.content || "");
+  const category = String(story.category || "News").trim();
+  const image = safeNewsUrl(story.featured_image_url);
+  const sourceUrl = safeNewsUrl(story.source_url);
+  const publishedAt = story.published_at && !Number.isNaN(Date.parse(story.published_at))
+    ? new Date(story.published_at).toISOString()
+    : "";
+  const paragraphs = content.split(/\n\s*\n/).map(part => part.trim()).filter(Boolean)
+    .map(part => "<p>" + escapeHtml(part).replace(/\n/g, "<br>") + "</p>").join("\n");
+  const readingMinutes = Math.max(1, Math.ceil(content.trim().split(/\s+/).filter(Boolean).length / 200));
+  const sourceBlock = story.source_name
+    ? '<div class="source"><strong>Source / publisher:</strong> ' + escapeHtml(story.source_name) +
+      (sourceUrl ? ' · <a href="' + escapeHtml(sourceUrl) + '" target="_blank" rel="noopener noreferrer">View original source ↗</a>' : "") + "</div>"
+    : (sourceUrl ? '<div class="source"><a href="' + escapeHtml(sourceUrl) + '" target="_blank" rel="noopener noreferrer">View original source ↗</a></div>' : "");
+  const articleHtml = '<span class="tag">' + escapeHtml(category) + "</span>" +
+    "<h1>" + escapeHtml(title) + "</h1>" +
+    '<p class="meta">By ' + escapeHtml(author) +
+    (publishedAt ? " · " + escapeHtml(new Date(publishedAt).toLocaleDateString("en", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" })) : "") +
+    " · " + readingMinutes + " min read</p>" +
+    (excerpt ? '<p class="summary">' + escapeHtml(excerpt) + "</p>" : "") +
+    '<div class="story-actions"><a href="/news-insights.html">← More stories</a></div>' +
+    (image ? '<img class="cover" src="' + escapeHtml(image) + '" alt="' + escapeHtml(title) + '" fetchpriority="high">' : "") +
+    '<div class="body-copy">' + paragraphs + "</div>" + sourceBlock;
+
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "NewsArticle",
+    "headline": title.slice(0, 110),
+    "description": excerpt.slice(0, 300),
+    "author": { "@type": "Organization", "name": author },
+    "publisher": { "@type": "Organization", "name": "HarvestHome", "url": "https://harvesthome.ng/" },
+    "mainEntityOfPage": canonical,
+    ...(publishedAt ? { "datePublished": publishedAt, "dateModified": publishedAt } : {}),
+    ...(image ? { "image": [image] } : {}),
+    ...(category ? { "articleSection": category } : {})
+  };
+  const jsonLd = JSON.stringify(structuredData).replace(/</g, "\\u003c");
+  return { articleHtml, jsonLd };
 }
 
 async function withNewsStoryPreview(env, requestUrl, html, slug) {
@@ -86,6 +139,7 @@ async function withNewsStoryPreview(env, requestUrl, html, slug) {
   const canonicalUrl = new URL("/news-story.html", config.publicUrl);
   canonicalUrl.searchParams.set("slug", String(story.slug || slug));
   const canonical = canonicalUrl.toString();
+  const rendered = renderNewsStoryHtml(story, canonical);
 
   html = replaceTitle(html, title);
   html = replaceMeta(html, "name", "description", excerpt);
@@ -105,6 +159,13 @@ async function withNewsStoryPreview(env, requestUrl, html, slug) {
   html = replaceMeta(html, "name", "twitter:image", image);
   html = html.replace(/<link\s+rel=["']canonical["']\s+href=["'][^"']*["']\s*\/?>/i,
     '<link rel="canonical" href="' + escapeHtml(canonical) + '">');
+
+  // Put published article content in the initial response so search crawlers
+  // can read it without depending on client-side JavaScript.
+  html = html.replace(/<article\s+id=["']story["']\s+class=["']story["']>[\s\S]*?<\/article>/i,
+    '<article id="story" class="story">' + rendered.articleHtml + "</article>");
+  html = html.replace(/<\/head>/i,
+    '<script type="application/ld+json">' + rendered.jsonLd + "</script>\n</head>");
   return html;
 }
 

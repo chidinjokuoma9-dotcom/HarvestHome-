@@ -16,6 +16,7 @@
     .featured{display:grid;grid-template-columns:1fr 1fr;background:#fff;border:1px solid var(--line);border-radius:22px;overflow:hidden;box-shadow:var(--shadow);margin-bottom:42px}.feature-art{min-height:300px;background:linear-gradient(145deg,#dcebdc,#f7ead8);display:grid;place-items:center;padding:32px}.feature-art .art-icon{font-size:5rem;filter:drop-shadow(0 8px 12px rgba(16,75,43,.12))}.feature-copy{padding:clamp(24px,4vw,42px);align-self:center}.tag{display:inline-block;background:#eef6ee;color:var(--green);padding:5px 10px;border-radius:999px;font-size:.75rem;font-weight:800}.feature-copy h3{font-size:clamp(1.55rem,3vw,2.2rem);line-height:1.18;color:var(--deep);margin:14px 0 10px}.feature-copy p{color:var(--muted);margin:0 0 18px}.read{display:inline-flex;align-items:center;gap:8px;color:var(--green);font-weight:800;text-decoration:none}.read:hover{text-decoration:underline}
     .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}.card{background:#fff;border:1px solid var(--line);border-radius:17px;padding:22px;display:flex;flex-direction:column;min-height:245px;box-shadow:0 7px 22px rgba(22,65,39,.04)}.card h3{font-size:1.18rem;line-height:1.3;color:var(--deep);margin:13px 0 9px}.card p{color:var(--muted);font-size:.94rem;margin:0 0 18px}.card .read{margin-top:auto}.card-icon{width:44px;height:44px;border-radius:13px;background:#eff6ee;display:grid;place-items:center;font-size:1.35rem}
     .story-tools{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(180px,.7fr);gap:12px;margin:0 0 20px}.story-tools input,.story-tools select{width:100%;padding:13px 14px;border:1px solid #d5e1d6;border-radius:11px;background:#fff;color:var(--ink);font:inherit}.story-meta{color:var(--muted);font-size:.83rem;margin:0 0 12px}.featured-live{margin:0 0 30px}@media(max-width:540px){.story-tools{grid-template-columns:1fr}}.standards{margin-top:42px;background:#fff;border:1px solid var(--line);border-radius:18px;padding:25px}.standards h2{margin:0 0 8px;color:var(--deep);font-size:1.35rem}.standards p{margin:0;color:var(--muted)}.standards ul{margin:12px 0 0;padding-left:20px;color:var(--muted)}.contribute{margin-top:22px;padding:26px;border-radius:18px;background:#fff7eb;border:1px solid #f0dfc6;display:flex;justify-content:space-between;align-items:center;gap:20px}.contribute h2{margin:0 0 5px;color:#704314;font-size:1.3rem}.contribute p{margin:0;color:#765f43}.button{display:inline-flex;align-items:center;justify-content:center;padding:11px 17px;border-radius:10px;background:var(--green);color:#fff;text-decoration:none;font-weight:800;white-space:nowrap}.button:hover{background:var(--deep)}
+    .news-ad-card{background:#fff;border:1px solid var(--line);border-radius:17px;padding:18px;box-shadow:0 7px 22px rgba(22,65,39,.05)}.news-ad-card img{display:block;width:100%;height:150px;object-fit:cover;border-radius:11px;margin-bottom:12px}.news-ad-label{display:inline-block;color:#76521e;background:#fff4df;border:1px solid #f0dfc6;border-radius:999px;padding:4px 9px;font-size:.72rem;font-weight:850;letter-spacing:.04em;text-transform:uppercase}.news-ad-card h3{margin:10px 0 7px;color:var(--deep);font-size:1.15rem;line-height:1.3}.news-ad-card p{margin:0 0 14px;color:var(--muted)}
     footer{background:#103f27;color:#dce9df;padding:25px 22px;text-align:center;font-size:.9rem}footer a{color:#fff;font-weight:700;text-decoration:none}
     @media(max-width:800px){.hero-inner{grid-template-columns:1fr;padding-top:50px}.hero-note{max-width:560px}.featured{grid-template-columns:1fr}.feature-art{min-height:190px}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.contribute{align-items:flex-start;flex-direction:column}}
     @media(max-width:540px){.nav{align-items:flex-start}.navlinks{gap:8px;justify-content:flex-end}.navlinks a{font-size:.82rem}.navlinks .back{padding:6px 9px}.brand img{width:36px;height:36px}.brand small{font-size:.68rem}.hero-inner{padding:42px 18px}.hero h1{font-size:2.55rem}main{padding:28px 16px 48px}.grid{grid-template-columns:1fr}.section-head{display:block}.feature-art{min-height:155px}.contribute{padding:20px}}
@@ -81,6 +82,8 @@
       <div class="story-tools" role="search"><input id="story-search" type="search" placeholder="Search headlines and summaries…" aria-label="Search news stories"><select id="story-category" aria-label="Filter stories by topic"><option value="">All topics</option></select></div><div id="live-featured" class="featured-live" aria-live="polite"></div><div id="published-stories" class="grid" aria-live="polite"><p class="muted">Loading the latest published stories…</p></div>
       <p id="stories-status" class="muted" role="status" style="margin-top:12px"></p>
     </section>
+
+    <section id="newsroom-sponsored" aria-labelledby="newsroom-sponsored-title" hidden style="margin:0 0 42px"><div class="section-head"><div><h2 id="newsroom-sponsored-title">Business Spotlight</h2><p>Sponsored opportunities from businesses supporting our readers.</p></div></div><div id="newsroom-sponsored-list" class="grid"></div></section>
 
     <section id="editors-picks" aria-labelledby="featured-title">
       <div class="section-head"><div><h2 id="featured-title">Editor's picks</h2><p>Start with these practical guides from HarvestHome.</p></div></div>
@@ -170,6 +173,17 @@
       grid.innerHTML=rest.length?rest.map(card).join(""):'<div class="card"><h3>'+(stories.length?"No matching stories":"New stories are on the way")+'</h3><p>'+(stories.length?"Try another keyword or topic.":"Our newsroom is preparing its first approved articles. Please check back soon.")+'</p></div>';
       status.textContent=matches.length+" published stories found.";
     }
+    async function loadNewsroomSponsored(client){
+      const section=document.getElementById("newsroom-sponsored"),list=document.getElementById("newsroom-sponsored-list");
+      try{
+        const {data,error}=await client.from("advertising_campaigns").select("id,business_name,headline,description,image_url,target_url").eq("placement","news_homepage").eq("status","approved").lte("starts_at",new Date().toISOString()).gt("ends_at",new Date().toISOString()).order("created_at",{ascending:false}).limit(3);
+        if(error)throw error;const ads=data||[];if(!ads.length)return;
+        list.innerHTML=ads.map(a=>{const image=String(a.image_url||"").startsWith("https://")?'<img src="'+esc(a.image_url)+'" alt="'+esc(a.business_name)+'" loading="lazy">':"";const link=String(a.target_url||"");const safeLink=/^https?:\\/\\//i.test(link)?link:"";return '<article class="news-ad-card" data-ad-impression="'+esc(a.id)+'">'+image+'<span class="news-ad-label">Sponsored</span><h3>'+esc(a.headline||a.business_name)+'</h3><p>'+esc(a.description||a.business_name)+'</p>'+(safeLink?'<a class="read" data-ad-click="'+esc(a.id)+'" href="'+esc(safeLink)+'" target="_blank" rel="noopener noreferrer">Learn more →</a>':"")+'</article>';}).join("");
+        section.hidden=false;const key="hh_news_ads_seen_"+new Date().toISOString().slice(0,10);let seen=[];try{seen=JSON.parse(sessionStorage.getItem(key)||"[]")}catch{}
+        for(const ad of ads){if(!seen.includes(ad.id)){seen.push(ad.id);client.rpc("record_advertising_event",{p_campaign_id:ad.id,p_event_type:"impression"}).then(()=>{}).catch(()=>{});}}sessionStorage.setItem(key,JSON.stringify(seen));
+        list.addEventListener("click",event=>{const link=event.target.closest("[data-ad-click]");if(link)client.rpc("record_advertising_event",{p_campaign_id:link.dataset.adClick,p_event_type:"click"}).then(()=>{}).catch(()=>{});});
+      }catch(error){console.warn("Newsroom advertising is temporarily unavailable:",error.message);}
+    }
     async function loadPublishedStories(){
       try{
         if(!window.supabase||!window.HARVESTHOME_CONFIG)throw new Error("News is temporarily unavailable.");
@@ -177,6 +191,7 @@
         const result=await client.from("news_articles").select("title,slug,category,author_name,excerpt,content,featured_image_url,source_name,published_at,created_at,is_breaking").eq("status","published").order("published_at",{ascending:false}).limit(50);
         if(result.error)throw result.error;
         stories=result.data||[];
+        await loadNewsroomSponsored(client);
         const topics=[...new Set(stories.map(a=>a.category).filter(Boolean))].sort((x,y)=>x.localeCompare(y));
         category.innerHTML='<option value="">All topics</option>'+topics.map(t=>'<option value="'+esc(t)+'">'+esc(t)+'</option>').join("");
         render();

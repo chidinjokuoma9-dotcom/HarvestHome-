@@ -910,6 +910,7 @@ function adminPanel(){
   const pendingAds=state.advertisingRequests.filter(r=>r.status==='pending').length;
   const successfulPayments=allPs.filter(p=>String(p.status||'').toLowerCase()==='success').length;
   return '<div class="panel-heading"><div><span class="eyebrow">Admin workspace</span><h2>Moderation & Payments</h2></div><span class="result-count">'+ls.length+' seller listings · '+allPs.length+' payments</span></div>'+
+  (user().role==='Admin'?'<section class="dashboard-callout" aria-label="Newsroom administration"><b>📰 News & Insights administration</b><p>Manage newsroom articles and control newsroom staff from your private HarvestHome admin dashboard.</p><div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px"><a class="primary-btn" href="/news-admin.html">Open News Admin</a><a class="ghost-btn" href="/news-staff-admin.html">Manage Newsroom Staff</a></div></section>':'')+
   '<section class="hh-admin-overview" aria-label="Workspace overview">'+
   '<article class="hh-admin-stat"><span class="hh-admin-stat-icon">🏡</span><div><span class="hh-admin-stat-label">Seller listings</span><strong>'+ls.length+'</strong><small>Listings in the moderation view</small></div></article>'+
   '<article class="hh-admin-stat"><span class="hh-admin-stat-icon">💳</span><div><span class="hh-admin-stat-label">Payments</span><strong>'+allPs.length+'</strong><small>'+successfulPayments+' marked successful</small></div></article>'+

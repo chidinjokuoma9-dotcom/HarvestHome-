@@ -1352,6 +1352,22 @@ async function handleHarvestCallSignal(message,conversationId){
   const kind=String(payload.kind||"");
   if(kind==="invite"){
     if(activeHarvestCall){
+      const current=activeHarvestCall;
+      // If both people press Call at almost the same time, use a stable user-ID
+      // tie-break so both devices agree which outgoing call becomes the incoming call.
+      const simultaneousOutgoing=current.role==="caller"&&current.status==="calling"&&
+        current.conversationId===conversationId&&current.peerId===payload.from;
+      if(simultaneousOutgoing){
+        if(String(authUser.id).localeCompare(String(payload.from))>0){
+          clearTimeout(current.timeout);
+          stopHarvestCallTone();
+          activeHarvestCall={conversationId,callId:payload.callId,peerId:payload.from,callType:payload.callType==="video"?"video":"audio",role:"receiver",status:"incoming",pc:null,localStream:null,remoteStream:null,pendingCandidates:[],muted:false,cameraOff:false};
+          updateHarvestCallUI();startHarvestCallRinging("incoming");
+        }
+        // The lower user ID keeps the outgoing call; the higher user ID yields.
+        return;
+      }
+      if(current.role==="receiver"&&current.callId===payload.callId)return;
       try{await harvestCallChannel.send({type:"broadcast",event:"hh-call-signal",payload:{kind:"busy",conversationId,callId:payload.callId,from:authUser.id,to:payload.from,at:Date.now()}})}catch{}
       return;
     }

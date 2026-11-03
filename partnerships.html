@@ -55,11 +55,11 @@
 </section>
 <section class="card" id="apply">
 <h2>Apply to work with HarvestHome</h2>
-<p>Use this secure online form for strategic partnerships, supplier or service collaborations, and preliminary investment-related discussions. Advertising enquiries remain on our existing advertising page.</p>
+<p>Use this secure online form for strategic partnerships and supplier or service collaborations. We are not accepting investment or share-purchase applications through this page. Advertising enquiries remain on our existing advertising page.</p>
 <form id="partnership-form" style="display:grid;gap:14px;margin-top:18px">
 <label>Partnership type
 <select name="partnership_type" required style="display:block;width:100%;padding:12px;border:1px solid #cbd9cc;border-radius:9px;margin-top:5px">
-<option value="">Choose one</option><option>Strategic partnership</option><option>Supplier or service provider</option><option>Investment-related discussion (expression of interest only)</option>
+<option value="">Choose one</option><option>Strategic partnership</option><option>Supplier or service provider</option>
 </select></label>
 <label>Organisation or business name<input name="organisation_name" required minlength="2" maxlength="160" autocomplete="organization" style="display:block;width:100%;padding:12px;border:1px solid #cbd9cc;border-radius:9px;margin-top:5px"></label>
 <label>Contact person's name<input name="contact_name" required minlength="2" maxlength="120" autocomplete="name" style="display:block;width:100%;padding:12px;border:1px solid #cbd9cc;border-radius:9px;margin-top:5px"></label>
@@ -73,30 +73,77 @@
 <button class="button" type="submit" id="partnership-submit" style="border:0;cursor:pointer;font:inherit">Submit partnership enquiry</button>
 <p id="partnership-message" role="status" aria-live="polite"></p>
 </form>
-<p class="note">Your enquiry is reviewed by authorised HarvestHome personnel. Submission does not guarantee acceptance. Investment-related enquiries are expressions of interest only: HarvestHome is not offering shares, investment products, or crowdfunding through this form, and no funds should be sent. Any future investment arrangement would require separate legal and regulatory review before it could be offered. For advertising, visit <a href="/advertise">Business Advertising</a>. For privacy questions, email <a href="mailto:harvesthcn@gmail.com">harvesthcn@gmail.com</a>.</p>
+<p class="note">Your enquiry is reviewed by authorised HarvestHome personnel. Submission does not guarantee acceptance. Investment-related enquiries are expressions of interest only: HarvestHome is not offering shares, investment products, or crowdfunding through this form, and no funds should be sent. Any future investment arrangement would require separate legal and regulatory review before it could be offered. For advertising, visit <a href="/advertise">Business Advertising</a>. For privacy questions, email <a href="mailto:support@harvesthome.ng">support@harvesthome.ng</a>.</p>
 </section>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/Config.js?v=v10cachefix1"></script>
 <script>
 (function(){
- const form=document.getElementById('partnership-form'), msg=document.getElementById('partnership-message'), button=document.getElementById('partnership-submit');
+ const form=document.getElementById('partnership-form');
+ const msg=document.getElementById('partnership-message');
+ const button=document.getElementById('partnership-submit');
+ const supportEmail='support@harvesthome.ng';
  form.addEventListener('submit',async function(e){
-  e.preventDefault(); if(!form.reportValidity())return;
+  e.preventDefault();
+  if(!form.reportValidity())return;
   const d=new FormData(form);
   if(String(d.get('company_fax')||'').trim()){msg.textContent='Unable to submit this enquiry.';return;}
-  if(!window.supabase||!window.HARVESTHOME_CONFIG){msg.textContent='The form is temporarily unavailable. Please email harvesthcn@gmail.com.';return;}
-  button.disabled=true;button.textContent='Submitting…';msg.textContent='';
+  const config=window.HARVESTHOME_CONFIG;
+  if(!config||!config.SUPABASE_URL||!config.SUPABASE_ANON_KEY){
+   msg.textContent='The form is temporarily unavailable. Please email '+supportEmail+'.';
+   return;
+  }
+  button.disabled=true;
+  button.textContent='Submitting…';
+  msg.textContent='Sending your enquiry securely…';
+  const payload={
+   partnership_type:String(d.get('partnership_type')||'').trim(),
+   organisation_name:String(d.get('organisation_name')||'').trim(),
+   contact_name:String(d.get('contact_name')||'').trim(),
+   email:String(d.get('email')||'').trim(),
+   phone:String(d.get('phone')||'').trim()||null,
+   country:String(d.get('country')||'').trim(),
+   website:String(d.get('website')||'').trim()||null,
+   proposal:String(d.get('proposal')||'').trim()
+  };
+  const controller=new AbortController();
+  const timeout=setTimeout(()=>controller.abort(),20000);
   try{
-   const client=window.supabase.createClient(HARVESTHOME_CONFIG.SUPABASE_URL,HARVESTHOME_CONFIG.SUPABASE_ANON_KEY);
-   const payload={partnership_type:String(d.get('partnership_type')),organisation_name:String(d.get('organisation_name')).trim(),contact_name:String(d.get('contact_name')).trim(),email:String(d.get('email')).trim(),phone:String(d.get('phone')||'').trim()||null,country:String(d.get('country')).trim(),website:String(d.get('website')||'').trim()||null,proposal:String(d.get('proposal')).trim()};
-   const {error}=await client.from('partnership_applications').insert(payload);
-   if(error)throw error;
-   form.reset();msg.textContent='Thank you. Your partnership enquiry has been submitted successfully and is now under review. HarvestHome will notify you by email when there is an update or when any further information is needed. Please check your inbox and spam/junk folder.';
-  }catch(err){console.error('Partnership enquiry submission failed',err);msg.textContent='We could not submit your enquiry right now. Please try again later or email harvesthcn@gmail.com.';}
-  finally{button.disabled=false;button.textContent='Submit partnership enquiry';}
+   const response=await fetch(config.SUPABASE_URL.replace(/\/$/,'')+'/rest/v1/partnership_applications',{
+    method:'POST',
+    headers:{
+     apikey:config.SUPABASE_ANON_KEY,
+     Authorization:'Bearer '+config.SUPABASE_ANON_KEY,
+     'Content-Type':'application/json',
+     Prefer:'return=minimal'
+    },
+    body:JSON.stringify(payload),
+    signal:controller.signal
+   });
+   if(!response.ok){
+    const detail=await response.text();
+    console.error('Partnership enquiry API response',response.status,detail);
+    if(response.status===400)throw new Error('Some details were not accepted. Please check the partnership type and all required fields.');
+    if(response.status===401||response.status===403)throw new Error('The enquiry service is temporarily blocking submissions. Please contact '+supportEmail+'.');
+    if(response.status===404)throw new Error('The enquiry service is temporarily unavailable. Please contact '+supportEmail+'.');
+    if(response.status===429)throw new Error('Too many attempts. Please wait a few minutes and try again.');
+    throw new Error('We could not save your enquiry right now. Please try again or email '+supportEmail+'.');
+   }
+   form.reset();
+   msg.textContent='Thank you. Your partnership enquiry has been received successfully and is now under review. HarvestHome will contact you by email if there is an update or if further information is needed.';
+  }catch(err){
+   console.error('Partnership enquiry submission failed',err);
+   msg.textContent=err.name==='AbortError'
+    ?'The request timed out before we received confirmation. Please try again. If the problem continues, email '+supportEmail+'.'
+    :(err.message||'We could not submit your enquiry. Please email '+supportEmail+'.');
+  }finally{
+   clearTimeout(timeout);
+   button.disabled=false;
+   button.textContent='Submit partnership enquiry';
+  }
  });
 })();
-</script>
+</script>>
 <a class="back" href="/">← Back to HarvestHome marketplace</a>
 <footer>HarvestHome — Connecting Africa. Growing Together. 🧡💚</footer>
 </main>

@@ -572,6 +572,11 @@ async function syncNewsroomAccess(){
   }
   return wasActive!==!!state.newsroomAccess;
 }
+setInterval(async()=>{
+  if(!authUser||user()?.role!=="Moderator")return;
+  const changed=await syncNewsroomAccess();
+  if(changed&&state.view==="dashboard")render();
+},30000);
 
 async function loadAuth(){if(!sb){render();return}const params=new URLSearchParams(window.location.search);const publicSharedLink=params.get("shared")==="1"||params.get("shared")==="listing"||params.get("public")==="1"||!!params.get("listing");const recoveryUrl=params.get("reset")==="1"||window.location.pathname==="/update-password"||/type=recovery/i.test(window.location.search+" "+window.location.hash);if(recoveryUrl)passwordRecoveryPending=true;
   // Render the marketplace immediately; remote auth/data requests must not leave visitors on the static loading screen.

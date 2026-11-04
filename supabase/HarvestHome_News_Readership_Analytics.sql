@@ -15,6 +15,8 @@ create index if not exists news_article_view_events_article_viewed_idx on privat
 create index if not exists news_article_view_events_visitor_idx on private.news_article_view_events(visitor_id, viewed_at desc);
 alter table private.news_article_view_events enable row level security;
 revoke all on table private.news_article_view_events from public, anon, authenticated;
+drop policy if exists "No direct access to newsroom readership events" on private.news_article_view_events;
+create policy "No direct access to newsroom readership events" on private.news_article_view_events for all to public using (false) with check (false);
 
 create or replace function public.record_news_article_view(p_slug text,p_visitor_id uuid,p_session_id uuid)
 returns boolean language plpgsql security definer set search_path = '' as $function$

@@ -49,6 +49,15 @@ async function load(){
   const {data,error}=await client.from("news_articles").select("title,slug,category,author_name,excerpt,content,featured_image_url,source_name,source_url,published_at").eq("slug",slug).eq("status","published").maybeSingle();
   if(error)throw error;
   if(!data)throw new Error("This story is unavailable or has not been published.");
+  // Count at most one view per article per browser tab session.
+  try{
+   const visitorKey="hh_news_visitor_v1",sessionKey="hh_news_session_v1";
+   let visitorId=localStorage.getItem(visitorKey),sessionId=sessionStorage.getItem(sessionKey);
+   if(!visitorId){visitorId=crypto.randomUUID();localStorage.setItem(visitorKey,visitorId);}
+   if(!sessionId){sessionId=crypto.randomUUID();sessionStorage.setItem(sessionKey,sessionId);}
+   await client.rpc("record_news_article_view",{p_slug:data.slug,p_visitor_id:visitorId,p_session_id:sessionId});
+  }catch(viewError){console.warn("News readership count unavailable:",viewError.message);}
+
   document.title=data.title+" | HarvestHome News & Insights";
   document.querySelector('meta[name="description"]').setAttribute("content",String(data.excerpt||"HarvestHome News & Insights").slice(0,300));
   document.querySelector('link[rel="canonical"]').setAttribute("href",location.origin+location.pathname+"?slug="+encodeURIComponent(data.slug));

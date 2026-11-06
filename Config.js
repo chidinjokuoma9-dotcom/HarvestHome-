@@ -24,7 +24,7 @@ window.HARVESTHOME_CONFIG = {
     { name:"United Kingdom", code:"GB", currency:"GBP", symbol:"£" }, { name:"United States", code:"US", currency:"USD", symbol:"$" },
     { name:"Canada", code:"CA", currency:"CAD", symbol:"C$" }, { name:"United Arab Emirates", code:"AE", currency:"AED", symbol:"AED " }
   ],
-  CATEGORIES: ["All categories", "Houses", "Land", "Equipment", "Farm Produce", "Commercial Property", "Vehicles & Machinery", "Agricultural Services"],
+  CATEGORIES: ["All categories", "Houses", "Land", "Equipment", "Farm Produce", "Commercial Property", "Vehicles & Machinery", "Agricultural Services", "Professional Skill Work"],
   MODES: ["All", "Sale", "Lease"],
   LOCATIONS: { Nigeria:["All locations","Abuja","Lagos","Rivers","Kaduna","Nasarawa","Niger"], Ghana:["All locations","Accra","Kumasi","Takoradi"], Kenya:["All locations","Nairobi","Mombasa","Nakuru"], "South Africa":["All locations","Johannesburg","Cape Town","Durban"], "United Kingdom":["All locations","London","Birmingham","Manchester"], "United States":["All locations","Texas","California","Florida"], Canada:["All locations","Ontario","Alberta","British Columbia"], "United Arab Emirates":["All locations","Dubai","Abu Dhabi","Sharjah"] }
 };

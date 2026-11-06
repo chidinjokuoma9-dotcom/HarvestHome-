@@ -18,7 +18,7 @@ begin
   from public.profiles
   where id = auth.uid();
 
-  if v_role not in ('Admin','Moderator') then
+  if coalesce(v_role,'') not in ('Admin','Moderator') then
     raise exception 'Only an Admin or Moderator can manage featured listings.';
   end if;
 
@@ -128,3 +128,13 @@ end;
 $$;
 
 grant execute on function public.activate_paid_featured_payment(text) to authenticated, service_role;
+
+-- End existing active staff-granted promotions that have no successful
+-- payment record. Keep the rows for audit/history rather than deleting them.
+update public.featured_listings
+set ends_at = now()
+where ends_at > now()
+  and source_payment_id is null
+  and created_by in (
+    select id from public.profiles where role in ('Admin','Moderator')
+  );

@@ -417,6 +417,38 @@ async function fav(id){
 }
 
 function esc(v=""){return String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
+let hhHomepageNewsCache=null,hhHomepageNewsPromise=null;
+async function loadHomepageNews(){
+ const grid=$("#homepage-news-grid"),status=$("#homepage-news-status");
+ if(!grid||!status)return;
+ if(hhHomepageNewsCache){renderHomepageNews(hhHomepageNewsCache);return}
+ if(hhHomepageNewsPromise){await hhHomepageNewsPromise;return}
+ if(!sb){status.textContent="News is temporarily unavailable. Visit News & Insights for published stories.";return}
+ hhHomepageNewsPromise=(async()=>{
+  try{
+   const {data,error}=await sb.from("news_articles").select("title,slug,category,excerpt,featured_image_url,published_at,created_at").eq("status","published").order("published_at",{ascending:false}).limit(4);
+   if(error)throw error;
+   hhHomepageNewsCache=Array.isArray(data)?data:[];
+   renderHomepageNews(hhHomepageNewsCache);
+  }catch(error){
+   console.warn("Homepage news could not be loaded:",error.message);
+   status.textContent="The latest stories could not be loaded right now. Please visit News & Insights.";
+  }finally{hhHomepageNewsPromise=null}
+ })();
+ await hhHomepageNewsPromise;
+}
+function renderHomepageNews(stories){
+ const grid=$("#homepage-news-grid"),status=$("#homepage-news-status");
+ if(!grid||!status)return;
+ if(!stories.length){status.textContent="No published headlines are available yet. Visit News & Insights for our newsroom and editorial resources.";grid.innerHTML="";return}
+ status.textContent="Recently published stories from the HarvestHome newsroom.";
+ grid.innerHTML=stories.map(a=>{
+  const image=String(a.featured_image_url||"").startsWith("https://")?'<img src="'+esc(a.featured_image_url)+'" alt="" loading="lazy" style="width:100%;height:142px;object-fit:cover;border-radius:10px;margin-bottom:12px">':"";
+  const date=a.published_at||a.created_at;
+  const dateLabel=date&&!Number.isNaN(new Date(date).getTime())?new Date(date).toLocaleDateString(undefined,{year:"numeric",month:"short",day:"numeric"}):"";
+  return '<article style="background:#fff;border:1px solid #e1e8e1;border-radius:14px;padding:16px;box-shadow:0 5px 18px rgba(22,65,39,.05);display:flex;flex-direction:column;min-width:0">'+image+'<span class="eyebrow">'+esc(a.category||"News")+'</span><h3 style="font-size:1.08rem;line-height:1.35;margin:9px 0;color:#104b2b">'+esc(a.title)+'</h3><p style="color:#64736a;font-size:.92rem;line-height:1.55;margin:0 0 12px">'+esc(a.excerpt||"Read this story from the HarvestHome newsroom.")+'</p><div style="margin-top:auto;display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><small style="color:#64736a">'+esc(dateLabel)+'</small><a href="/news-story.html?slug='+encodeURIComponent(a.slug||"")+'" style="color:#176b3b;font-weight:800;text-decoration:none">Read story →</a></div></article>';
+ }).join("");
+}
 function money(n,cur){try{return new Intl.NumberFormat("en",{style:"currency",currency:cur,maximumFractionDigits:0}).format(Number(n))}catch{return `${cur} ${n}`}}
 function slug(v){return String(v).toLowerCase().replace(/\s+/g,"-")}
 function toast(m,error=false){let t=$("#toast");if(!t){t=document.createElement("div");t.id="toast";document.body.append(t)}t.textContent=m;t.className="toast "+(error?"error ":"");requestAnimationFrame(()=>t.classList.add("show"));setTimeout(()=>t.classList.remove("show"),2800)}
@@ -601,6 +633,12 @@ function marketplace(){let ls=filtered();return `${header()}${advertisingBlock()
 <section class="section" style="padding:18px 0 4px"><div class="container">${state.advertisingCampaigns.filter(a=>a.placement==="homepage"||a.placement==="marketplace").map(a=>`<div class="dashboard-callout" data-ad-impression="${a.id}" style="margin-bottom:12px;display:flex;gap:16px;align-items:center;flex-wrap:wrap">${a.image_url?`<img src="${esc(a.image_url)}" alt="${esc(a.business_name)}" style="width:180px;height:90px;object-fit:cover;border-radius:10px">`:``}<div style="flex:1;min-width:220px"><span class="eyebrow">Sponsored business</span><h3 style="margin:4px 0">${esc(a.headline)}</h3><p style="margin:0">${esc(a.description||a.business_name)}</p>${a.target_url?`<a href="${esc(a.target_url)}" data-ad-click="${esc(a.id)}" target="_blank" rel="noopener noreferrer" class="primary-btn" style="display:inline-block;margin-top:10px;text-decoration:none">Learn more</a>`:``}</div></div>`).join("")}</div></section><section class="filters-section"><div class="container filter-bar"><select id="countryFilter">${options(C.SUPPORTED_COUNTRIES.map(x=>x.name),state.country)}</select><select id="locationFilter">${options(C.LOCATIONS[state.country]||["All locations"],state.location)}</select><select id="categoryFilter">${options(C.CATEGORIES,state.category)}</select><select id="modeFilter">${options(C.MODES,state.mode)}</select><input id="priceMinFilter" type="number" min="0" inputmode="numeric" placeholder="Min price" value="${state.priceMin}"><input id="priceMaxFilter" type="number" min="0" inputmode="numeric" placeholder="Max price" value="${state.priceMax}"><select id="sortFilter"><option value="featured" ${state.sort==="featured"?"selected":""}>Featured first</option><option value="newest" ${state.sort==="newest"?"selected":""}>Newest first</option><option value="price_low" ${state.sort==="price_low"?"selected":""}>Price: low to high</option><option value="price_high" ${state.sort==="price_high"?"selected":""}>Price: high to low</option></select><button class="clear-btn" data-a="clear">Clear</button></div></section>
 <section class="section" id="categories"><div class="container"><div class="section-heading"><div><span class="eyebrow">Explore</span><h2>Browse categories</h2></div><span class="result-count">${ls.length} results in ${esc(state.country)}</span></div><div class="category-grid">${cat("🏠","Houses","Homes, apartments & property","Houses")}${cat("🌍","Land","Residential & agricultural land","Land")}${cat("📦","Product","Products, machinery & tools","Equipment")}${cat("🌾","Farm Produce","Crops & fresh produce","Farm Produce")}</div></div></section>
 <section class="section listings-section"><div class="container"><div class="section-heading"><div><span class="eyebrow">Marketplace</span><h2>Featured listings</h2></div><span class="result-count">${ls.length} available</span></div><div class="listing-grid">${ls.map(card).join("")||empty()}</div></div></section>
+<section class="section hh-home-news" id="homepage-news" aria-labelledby="homepage-news-title" style="background:#f5f8f4;padding:34px 0">
+<div class="container">
+<div class="section-heading"><div><span class="eyebrow">📰 From our newsroom</span><h2 id="homepage-news-title">Latest News &amp; Insights</h2><p>Useful stories and updates from Africa and around the world.</p></div><a class="outline-btn" href="/news-insights.html" style="text-decoration:none">View all news →</a></div>
+<div id="homepage-news-status" class="demo-note" role="status" aria-live="polite">Loading the latest published stories…</div>
+<div id="homepage-news-grid" class="hh-home-news-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:16px"></div>
+</div></section>
 <div id="hh-guide-slot"></div>
 <section class="country-strip" id="markets"><div class="container"><span class="eyebrow">Explore markets</span><h2>HarvestHome around the world</h2><div class="country-grid">${C.SUPPORTED_COUNTRIES.map(x=>`<button data-country="${esc(x.name)}"><b>${flag(x.code)}</b><span>${esc(x.name)}</span><small>${esc(x.currency)} · ${esc(x.symbol)}</small></button>`).join("")}</div></div></section>
 <section class="section" id="about"><div class="container"><div class="section-heading"><div><span class="eyebrow">About HarvestHome</span><h2>Why HarvestHome exists</h2></div></div><div class="trust-grid"><div><h3>Our purpose</h3><p>HarvestHome is a marketplace built to help people discover, sell, buy and lease property, land, products and farm produce in one trusted place.</p><p>We want sellers to reach more genuine buyers while giving buyers a simpler way to compare opportunities by market, location and currency.</p></div><div><h3>Our goals</h3><ul><li>Connect buyers and sellers across local and international markets.</li><li>Give sellers practical tools to publish and manage listings.</li><li>Use moderation and seller identity information to improve marketplace trust.</li><li>Reward useful seller participation, recommendations and new buyer referrals.</li><li>Build sustainable revenue through optional seller services, payments and advertising.</li></ul></div></div><div class="dashboard-callout" style="margin-top:24px"><b>🏆 HarvestHome reward programme</b><p>Participation earns points. A buyer recommendation gives the seller 5 recommendation points. A verified unique buyer referral gives the seller 10 referral points and counts as one buyer.</p><p><b>Qualification guide:</b> 100 total points or 10 unique buyer referrals = Reward Qualified. 250 total points or 25 unique buyer referrals = Gold level. Rewards are issued according to the active HarvestHome reward campaign and budget.</p></div></div></section><section class="trust-section" id="how"><div class="container trust-grid"><div><span class="eyebrow">Built to scale</span><h2>One trusted marketplace for local and international opportunities.</h2><p>HarvestHome keeps the same simple experience while making countries, currencies and locations part of the marketplace from the start.</p></div><div class="trust-items"><div><span>✓</span><b>Multi-country search</b><small>Switch markets without leaving HarvestHome.</small></div><div><span>✓</span><b>Multi-currency listings</b><small>Display prices in the currency of each market.</small></div><div><span>✓</span><b>Local account tools</b><small>Buyers and sellers can manage activity from one account.</small></div></div></div></section>${footer()}`}
@@ -1710,6 +1748,7 @@ if(passwordRecoveryPending){
   queryAll("[data-toggle-password]").forEach(btn=>{btn.addEventListener("mousedown",e=>e.preventDefault());btn.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();togglePasswordVisibility(btn)})});
   return;
 }
+if(state.view==="marketplace")loadHomepageNews();
 const homiLauncher=$("#homiLauncher"),homiPanel=$("#homiPanel");
 if(homiLauncher){
   let homiDragged=false,homiPointer=null,homiStartX=0,homiStartY=0,homiLeft=0,homiTop=0;

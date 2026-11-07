@@ -224,3 +224,109 @@ body:has(button[data-tab="moderation"].active) .dashboard-content .dashboard-cal
 
 /* Marketplace seller availability badges */
 .hh-listing-presence{display:inline-flex;align-items:center;gap:6px;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:800;line-height:1.4;white-space:nowrap;background:#f1f5f1;color:#647168}.hh-listing-presence.is-online{background:#e8f7ed;color:#176b3b}.hh-listing-presence.is-offline{background:#f1f3f2;color:#657168}.hh-presence-dot{width:8px;height:8px;border-radius:50%;background:#9aa59c;display:inline-block;flex:0 0 8px}.hh-listing-presence.is-online .hh-presence-dot{background:#1b9b50;box-shadow:0 0 0 3px rgba(27,155,80,.12)}
+
+
+/* Desktop header width stability — presentation only.
+   Keep the page viewport from expanding when staff controls or unread counts appear.
+   Mobile/tablet rules below the existing breakpoints remain unchanged. */
+@media(min-width:951px){
+  .site-header .nav-wrap{
+    min-width:0;
+    gap:clamp(10px,1.35vw,20px);
+  }
+  .site-header .brand{
+    flex:0 0 auto;
+    min-width:0;
+  }
+  .site-header .desktop-nav{
+    flex:0 1 auto;
+    min-width:0;
+    gap:clamp(8px,1vw,16px);
+    white-space:nowrap;
+  }
+  .site-header .nav-actions{
+    flex:0 1 auto;
+    min-width:0;
+    align-items:center;
+    gap:6px;
+  }
+  .site-header .nav-actions select{
+    flex:0 1 132px;
+    width:132px;
+    min-width:0;
+    max-width:132px;
+  }
+  .site-header .nav-actions>.ghost-btn,
+  .site-header .nav-actions>.primary-btn{
+    flex:0 1 auto;
+    min-width:0;
+    padding-left:10px;
+    padding-right:10px;
+    white-space:nowrap;
+  }
+  .site-header .nav-actions>.account-btn{
+    max-width:205px;
+    overflow:hidden;
+  }
+  /* The unread badge floats over a fixed-size bell button, so its count
+     cannot change the header's measured width. */
+  .site-header .nav-actions>button[data-a="notifications"]{
+    position:relative;
+    display:inline-flex;
+    flex:0 0 42px;
+    align-items:center;
+    justify-content:center;
+    width:42px;
+    min-width:42px;
+    height:40px;
+    padding:8px;
+  }
+  .site-header .nav-actions>button[data-a="notifications"] .status-pill{
+    position:absolute;
+    top:-7px;
+    right:-7px;
+    min-width:18px;
+    height:18px;
+    padding:1px 5px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    box-sizing:border-box;
+    font-size:10px;
+    line-height:1;
+    border:2px solid #fbfcf8;
+  }
+}
+/* At narrower desktop widths, retain all account/staff controls and use the
+   existing menu for the secondary site links rather than allowing overflow. */
+@media(min-width:951px) and (max-width:1100px){
+  .site-header .desktop-nav{display:none}
+  .site-header .nav-wrap{gap:12px}
+  .site-header .nav-actions{margin-left:auto}
+}
+
+
+/* Desktop page-body width consistency.
+   Expand the shared page container and account/profile panels on desktop only.
+   Tablet and mobile container rules remain governed by their existing breakpoints. */
+@media(min-width:951px){
+  .container{
+    width:min(1440px,calc(100% - 64px));
+  }
+  .profile-page>.profile-card,
+  .profile-page>.dashboard-callout{
+    max-width:none;
+    width:100%;
+  }
+  .profile-page>.profile-card{
+    grid-template-columns:minmax(150px,190px) minmax(0,1fr);
+  }
+  .dashboard-content{
+    width:100%;
+    max-width:none;
+    min-width:0;
+  }
+  .dashboard-layout{
+    grid-template-columns:220px minmax(0,1fr);
+  }
+}

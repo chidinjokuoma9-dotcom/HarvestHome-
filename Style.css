@@ -330,3 +330,23 @@ body:has(button[data-tab="moderation"].active) .dashboard-content .dashboard-cal
     grid-template-columns:220px minmax(0,1fr);
   }
 }
+
+
+/* Ensure the rendered application and every shared section container use the
+   available viewport width. This also covers tablet-sized desktop-mode views,
+   where a desktop-only breakpoint would otherwise leave the old narrow width. */
+html,body{width:100%;max-width:100%;min-width:0}
+#app{display:block;width:100%;max-width:100%;min-width:0}
+.container{
+  width:calc(100% - 40px);
+  max-width:1600px;
+  min-width:0;
+  margin-left:auto;
+  margin-right:auto;
+}
+@media(max-width:620px){
+  .container{
+    width:calc(100% - 24px);
+    max-width:none;
+  }
+}

@@ -350,3 +350,35 @@ html,body{width:100%;max-width:100%;min-width:0}
     max-width:none;
   }
 }
+
+
+/* Full-width marketplace canvas.
+   Keep each top-level marketplace band aligned to the viewport, rather than
+   allowing a nested content wrapper to constrain the coloured section bands.
+   The existing inner .container remains responsible for readable gutters. */
+@media(min-width:621px){
+  html,body{width:100%;max-width:100%;min-width:0}
+  body{overflow-x:hidden}
+  body>#app,
+  body>#app>#app,
+  #app{
+    display:block;
+    width:100%;
+    max-width:none;
+    min-width:0;
+  }
+  #app>.site-header,
+  #app>section,
+  #app>footer{
+    width:100%;
+    max-width:none;
+    min-width:0;
+  }
+  #app .container{
+    width:calc(100% - 40px);
+    max-width:1600px;
+    min-width:0;
+    margin-left:auto;
+    margin-right:auto;
+  }
+}

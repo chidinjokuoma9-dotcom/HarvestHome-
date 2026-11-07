@@ -304,3 +304,29 @@ body:has(button[data-tab="moderation"].active) .dashboard-content .dashboard-cal
   .site-header .nav-wrap{gap:12px}
   .site-header .nav-actions{margin-left:auto}
 }
+
+
+/* Desktop page-body width consistency.
+   Expand the shared page container and account/profile panels on desktop only.
+   Tablet and mobile container rules remain governed by their existing breakpoints. */
+@media(min-width:951px){
+  .container{
+    width:min(1440px,calc(100% - 64px));
+  }
+  .profile-page>.profile-card,
+  .profile-page>.dashboard-callout{
+    max-width:none;
+    width:100%;
+  }
+  .profile-page>.profile-card{
+    grid-template-columns:minmax(150px,190px) minmax(0,1fr);
+  }
+  .dashboard-content{
+    width:100%;
+    max-width:none;
+    min-width:0;
+  }
+  .dashboard-layout{
+    grid-template-columns:220px minmax(0,1fr);
+  }
+}

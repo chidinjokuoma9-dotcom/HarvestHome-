@@ -4,7 +4,7 @@ const C = window.HARVESTHOME_CONFIG || { APP_NAME:"HarvestHome", VERSION:"V8", S
 const SUPPORT_EMAIL = "support@harvesthome.ng";
 const sb = (window.supabase && C.SUPABASE_URL && C.SUPABASE_ANON_KEY && C.SUPABASE_URL.startsWith("http")) ? window.supabase.createClient(C.SUPABASE_URL, C.SUPABASE_ANON_KEY,{auth:{flowType:"implicit",detectSessionInUrl:true,persistSession:true,autoRefreshToken:true}}) : null;
 let authUser = null, authProfile = null, passwordRecoveryPending = sessionStorage.getItem("hh_password_reset_pending")==="1" || new URLSearchParams(window.location.search).get("reset")==="1" || window.location.pathname==="/update-password" || /type=recovery/i.test(window.location.search+" "+window.location.hash);
-const KEYS = {users:"hh_v4_users",session:"hh_v4_session",favourites:"hh_v4_favourites",enquiries:"hh_v4_enquiries",sellerListings:"hh_v4_seller_listings",country:"hh_v4_country",currency:"hh_v4_currency",reset:"hh_v6_reset_tokens",payments:"hh_v6_payments",notifications:"hh_v8_notifications",notificationReads:"hh_v8_notification_reads",notificationDismissals:"hh_v10_notification_dismissals",rewards:"hh_v9_rewards",recommendations:"hh_v9_recommendations"};
+const KEYS = {users:"hh_v4_users",session:"hh_v4_session",favourites:"hh_v4_favourites",enquiries:"hh_v4_enquiries",sellerListings:"hh_v4_seller_listings",country:"hh_v4_country",currency:"hh_v4_currency",reset:"hh_v6_reset_tokens",payments:"hh_v6_payments",notifications:"hh_v8_notifications",notificationReads:"hh_v8_notification_reads",notificationDismissals:"hh_v10_notification_dismissals",rewards:"hh_v9_rewards",recommendations:"hh_v9_recommendations",missedCalls:"hh_v1_pending_missed_calls"};
 const DEMO_ADMIN={email:"admin@harvesthome.app",name:"HarvestHome Admin",password:"Admin123!",role:"Admin"};
 const V5 = {maxImages:6,maxVideoMB:25};
 const mapURL=l=>`https://www.openstreetmap.org/search?query=${encodeURIComponent(`${l.location||""}, ${l.country||""}`)}`;
@@ -41,6 +41,7 @@ let activeHarvestCall=null, harvestCallChannel=null, harvestCallConversationId=n
 let harvestCallToneTimer=null,harvestCallTonePulseTimer=null,harvestCallAudioContext=null;
 const chatImageUrlCache=new Map();
 const CHAT_IMAGE_MARKER=/^\[\[HH_CHAT_IMAGE:([^\]]+)\]\](?:\n([\s\S]*))?$/;
+const CHAT_CALL_MARKER=/^\[\[HH_MISSED_CALL:([a-zA-Z0-9-]+):(audio|video)\]\]$/;
 state.rewardAdmin=[];state.verificationRequests=[];state.sellerPerformance={listings:0,approved:0,pending:0,rejected:0,views:0,chats:0,uniqueBuyers:0,recommendations:0};state.listingPerformance=[];state.featuredListings=[];state.professionalSellers=[];state.advertisingRequests=[];state.advertisingCampaigns=[];state.advertisingReport=[];
 const $=(s,r=document)=>r.querySelector(s), queryAll=(s,r=document)=>{const found=r.querySelectorAll(s);if(!found)return [];if(typeof found.forEach==="function")return Array.from(found);if(typeof found[Symbol.iterator]==="function")return Array.from(found);return [found]};
 const json=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}};
@@ -616,7 +617,7 @@ setInterval(async()=>{
 async function loadAuth(){if(!sb){render();return}const params=new URLSearchParams(window.location.search);const publicSharedLink=params.get("shared")==="1"||params.get("shared")==="listing"||params.get("public")==="1"||!!params.get("listing");const recoveryUrl=params.get("reset")==="1"||window.location.pathname==="/update-password"||/type=recovery/i.test(window.location.search+" "+window.location.hash);if(recoveryUrl)passwordRecoveryPending=true;
   // Render the marketplace immediately; remote auth/data requests must not leave visitors on the static loading screen.
   render();
-  try{const {data}=await sb.auth.getSession();authUser=data.session?.user||null;await loadProfile();await syncNewsroomAccess();await syncListings();await startMarketplacePresence();if(publicSharedLink)await ensureSharedListing();await syncFeatured();await syncFavourites();await syncNotifications();await syncPayments();await syncRewards();await syncProfessionalSellers();await syncSellerPerformance();await syncListingPerformance();await syncAdminRewards();await syncVerificationRequests();await syncAdvertising();if(passwordRecoveryPending){state.view="marketplace";render();return}if(publicSharedLink)state.view="marketplace";render();}catch(error){console.warn("HarvestHome startup sync failed:",error?.message||error);render();}}
+  try{const {data}=await sb.auth.getSession();authUser=data.session?.user||null;await loadProfile();await flushHarvestMissedCalls();await syncNewsroomAccess();await syncListings();await startMarketplacePresence();if(publicSharedLink)await ensureSharedListing();await syncFeatured();await syncFavourites();await syncNotifications();await syncPayments();await syncRewards();await syncProfessionalSellers();await syncSellerPerformance();await syncListingPerformance();await syncAdminRewards();await syncVerificationRequests();await syncAdvertising();if(passwordRecoveryPending){state.view="marketplace";render();return}if(publicSharedLink)state.view="marketplace";render();}catch(error){console.warn("HarvestHome startup sync failed:",error?.message||error);render();}}
 async function syncPayments(){
   if(!sb||!authUser)return false;
   if(state.paymentsLoading)return false;
@@ -739,6 +740,13 @@ function updateMarketplacePresenceUI(){
     const chatButton=queryAll("[data-contact-label]").find(button=>String(button.dataset.contactLabel||"")===listingId);
     if(chatButton)chatButton.textContent=online?"Chat seller":"Drop a message";
   });
+  updateHarvestCallHint();
+}
+function updateHarvestCallHint(){
+  const hint=$("#hhCallHint");if(!hint)return;
+  if(!activeChatPeerId){hint.textContent="Open this chat to receive calls from the other participant.";return}
+  const online=marketplaceOnlineSellers.has(String(activeChatPeerId));
+  hint.textContent=online?"The other participant is online. Both people must stay connected for a live call.":"The other participant is offline. You can leave a message; if a call is unanswered, a missed-call note will be saved in this chat for them to see when they return.";
 }
 function refreshMarketplacePresenceState(){
   if(!marketplacePresenceChannel)return;
@@ -1604,6 +1612,27 @@ async function flushHarvestIceCandidates(call){
   const pending=call.pendingCandidates.splice(0);
   for(const candidate of pending){try{await call.pc.addIceCandidate(candidate)}catch(error){console.warn("A queued call network candidate was skipped:",error?.message||error)}}
 }
+async function flushHarvestMissedCalls(){
+  if(!sb||!authUser)return;
+  const pending=json(KEYS.missedCalls,[]),remaining=[];
+  for(const item of pending){
+    if(!item||item.senderId!==authUser.id){remaining.push(item);continue}
+    try{
+      const {data:existing,error:lookupError}=await sb.from("messages").select("id").eq("conversation_id",item.conversationId).eq("sender_id",authUser.id).eq("body",item.body).limit(1);
+      if(lookupError)throw lookupError;
+      if(!existing?.length){const {error:insertError}=await sb.from("messages").insert({conversation_id:item.conversationId,sender_id:authUser.id,body:item.body});if(insertError)throw insertError}
+      const {error:updateError}=await sb.from("conversations").update({updated_at:item.createdAt}).eq("id",item.conversationId);
+      if(updateError)throw updateError;
+    }catch(error){remaining.push(item);console.warn("Missed-call note will be retried when connected:",error?.message||error)}
+  }
+  put(KEYS.missedCalls,remaining);
+}
+async function recordHarvestMissedCall(call){
+  if(!call||call.role!=="caller"||!authUser?.id)return;
+  const item={conversationId:call.conversationId,callId:call.callId,callType:call.callType==="video"?"video":"audio",senderId:authUser.id,createdAt:new Date().toISOString(),body:"[[HH_MISSED_CALL:"+call.callId+":"+(call.callType==="video"?"video":"audio")+"]]"};
+  const pending=json(KEYS.missedCalls,[]);if(!pending.some(x=>x?.callId===item.callId)){pending.push(item);put(KEYS.missedCalls,pending)}
+  await flushHarvestMissedCalls();
+}
 async function startHarvestCall(callType){
   if(!sb||!authUser){toast("Please log in before making a call.",true);return}
   if(activeHarvestCall){toast("A call is already active in this chat.",true);return}
@@ -1612,7 +1641,7 @@ async function startHarvestCall(callType){
     await ensureHarvestCallChannel(activeChatConversationId);
     const call={conversationId:activeChatConversationId,callId:harvestCallId(),peerId:activeChatPeerId,callType:callType==="video"?"video":"audio",role:"caller",status:"calling",pc:null,localStream:null,remoteStream:null,pendingCandidates:[],muted:false,cameraOff:false};
     activeHarvestCall=call;updateHarvestCallUI();startHarvestCallRinging("outgoing");await sendHarvestCallSignal("invite");
-    call.timeout=setTimeout(()=>{if(activeHarvestCall===call){toast("No answer. The call has ended.");endHarvestCall("no-answer",true)}},45000);
+    call.timeout=setTimeout(()=>{if(activeHarvestCall===call){toast("No answer. A missed-call note will be saved in this chat.");endHarvestCall("no-answer",true)}},45000);
   }catch(error){activeHarvestCall=null;updateHarvestCallUI();toast(error.message||"Calls are not available yet. Please try again later.",true)}
 }
 async function acceptHarvestCall(){
@@ -1624,6 +1653,7 @@ async function endHarvestCall(reason="ended",notifyPeer=true){
   const call=activeHarvestCall;if(!call)return;
   stopHarvestCallTone();if(reason==="declined"||reason==="decline"||reason==="busy")playHarvestCallCue("declined");else if(reason==="no-answer")playHarvestCallCue("missed");else if(reason==="ended"||reason==="end")playHarvestCallCue("ended");
   activeHarvestCall=null;clearTimeout(call.timeout);
+  if(reason==="no-answer"&&call.role==="caller"){try{await recordHarvestMissedCall(call)}catch(error){console.warn("Missed-call note could not be queued:",error?.message||error)}}
   if(notifyPeer&&harvestCallChannel&&authUser){
     const kind=reason==="declined"?"decline":"end";
     try{await harvestCallChannel.send({type:"broadcast",event:"hh-call-signal",payload:{kind,conversationId:call.conversationId,callId:call.callId,from:authUser.id,to:call.peerId,reason,at:Date.now()}})}catch{}
@@ -1675,6 +1705,7 @@ async function openHarvestCallChannelForChat(conversationId){
   else if(conversation.seller_id===authUser.id)activeChatPeerId=conversation.buyer_id;
   else throw new Error("You are not a participant in this conversation.");
   if(!activeChatPeerId)throw new Error("The other chat participant could not be verified.");
+  updateHarvestCallHint();
   await ensureHarvestCallChannel(conversationId);
 }
 
@@ -1699,11 +1730,14 @@ async function renderChatModal(conversationId,listing,silent=false){
     const clearedAt=clearState?.cleared_at?new Date(clearState.cleared_at).getTime():0;
     const msgs=(allMsgs||[]).filter(m=>!clearedAt||new Date(m.created_at).getTime()>clearedAt);
     if(!silent)$('#modalRoot').innerHTML=`<div class="modal-backdrop"><div class="modal wide chat-modal"><div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap"><button type="button" class="outline-btn" data-chat-clear>Clear chat</button><button class="modal-close" data-chat-close>×</button></div><span class="eyebrow">Private buyer ↔ seller chat</span><h2>${esc(listing?.title||"HarvestHome listing")}</h2><div class="hh-call-actions"><button type="button" class="outline-btn" data-hh-start-call="audio">📞 Voice call</button><button type="button" class="outline-btn" data-hh-start-call="video">🎥 Video call</button></div><small id="hhCallHint" class="hh-call-hint">Open this chat to receive calls from the other participant.</small><details class="hh-call-guidelines" style="margin:10px 0;padding:10px 12px;border:1px solid #dce7dd;border-radius:12px;background:#f7fbf7"><summary style="cursor:pointer;font-weight:800;color:#174d28">🛡️ Voice &amp; video call guidelines</summary><ul style="margin:9px 0 0;padding-left:20px;line-height:1.55;color:#425247"><li>Only call the buyer or seller connected to this private chat. Both people must be logged in and keep this conversation open to receive calls.</li><li>Ask for and respect the other person’s consent. Decline or end a call whenever you feel uncomfortable.</li><li>Be respectful. Do not threaten, harass, bully, intimidate or use calls to spam or scam another user.</li><li>Do not record, screenshot, publish or share another person’s call, image or voice without their permission and any consent required by law.</li><li>Never share your password, one-time verification code, card PIN or banking credentials during a call.</li><li>Use calls to discuss a listing, but independently verify property documents, goods, identity and payment details before making decisions or sending money.</li><li>Report suspicious behaviour or abuse to HarvestHome support.</li></ul></details><section id="hhCallPanel" class="hh-call-panel" hidden></section><div id="chatMessages" class="chat-messages"></div><form id="chatForm" class="chat-form"><textarea name="message" rows="2" maxlength="1800" placeholder="Write a message to the seller…"></textarea><div class="chat-composer-actions"><label class="chat-photo-btn" for="chatPhotoInput" title="Send a photo">📷 Photo</label><input id="chatPhotoInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden><button class="primary-btn" type="submit">Send message</button></div></form><small class="demo-note">Messages are stored securely in Supabase and only the buyer and seller can access this conversation. Clear chat hides the earlier messages only from your own view; it does not delete them for the other person.</small></div></div>`;
+    updateHarvestCallHint();
     const box=$("#chatMessages");
     if(!box)return;
     const renderedMsgs=await Promise.all(msgs.map(async m=>{
+      const callMatch=String(m.body||"").match(CHAT_CALL_MARKER);
       const imageMatch=String(m.body||"").match(CHAT_IMAGE_MARKER);let content="";
-      if(imageMatch){const path=imageMatch[1];let cached=chatImageUrlCache.get(path);
+      if(callMatch){const kind=callMatch[2];content='<div class="hh-chat-call-event"><b>'+(kind==="video"?"🎥 Missed video call":"📞 Missed voice call")+'</b><p>The other participant tried to reach you. You can call back from this chat.</p></div>'}
+      else if(imageMatch){const path=imageMatch[1];let cached=chatImageUrlCache.get(path);
         if(!cached||cached.expiresAt<Date.now()+60000){const signed=await sb.storage.from("chat-media").createSignedUrl(path,3600);if(signed.error)throw signed.error;cached={url:signed.data.signedUrl,expiresAt:Date.now()+3500000};chatImageUrlCache.set(path,cached)}
         content='<a class="chat-image-link" href="'+esc(cached.url)+'" target="_blank" rel="noopener noreferrer"><img class="chat-image" src="'+esc(cached.url)+'" alt="Photo shared in this conversation" loading="lazy"></a>'+(imageMatch[2]?'<p>'+esc(imageMatch[2])+'</p>':"");
       }else{content="<p>"+esc(m.body)+"</p>"}

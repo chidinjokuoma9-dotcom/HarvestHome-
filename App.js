@@ -1627,6 +1627,7 @@ async function flushHarvestMissedCalls(){
   }
   put(KEYS.missedCalls,remaining);
 }
+window.addEventListener("online",()=>{if(authUser)flushHarvestMissedCalls().catch(error=>console.warn("Missed-call retry skipped:",error?.message||error))});
 async function recordHarvestMissedCall(call){
   if(!call||call.role!=="caller"||!authUser?.id)return;
   const item={conversationId:call.conversationId,callId:call.callId,callType:call.callType==="video"?"video":"audio",senderId:authUser.id,createdAt:new Date().toISOString(),body:"[[HH_MISSED_CALL:"+call.callId+":"+(call.callType==="video"?"video":"audio")+"]]"};

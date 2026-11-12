@@ -338,3 +338,24 @@ body:has(button[data-tab="moderation"].active) .dashboard-content .dashboard-cal
   .menu-toggle{margin-left:auto}
   .nav-actions{width:100%;justify-content:flex-end}
 }
+
+
+/* Full-viewport layout correction for mobile, tablet and desktop.
+   Keep the page shell and every full-width section aligned to the device viewport. */
+html,body{width:100%;max-width:100%;min-width:0}
+body{overflow-x:clip}
+#app{width:100%;max-width:100%;min-width:0}
+.site-header,.hero,.filters-section,.section,.country-strip,.trust-section,footer{width:100%;max-width:100%}
+.container{width:min(1160px,calc(100% - 36px));max-width:100%;min-width:0}
+@media(max-width:760px){
+  .nav-wrap{width:calc(100% - 24px);gap:8px;min-width:0}
+  .brand{min-width:0;flex:1 1 auto}
+  .menu-toggle{margin-left:0;flex:0 0 42px}
+  .nav-actions{flex:1 1 100%;width:100%;min-width:0;justify-content:flex-end;flex-wrap:wrap;gap:6px}
+  .nav-actions>*{min-width:0;max-width:100%}
+  .nav-actions .account-btn,.nav-actions .primary-btn.small{white-space:nowrap}
+}
+@media(max-width:420px){
+  .container{width:calc(100% - 24px)}
+  .nav-actions{justify-content:space-between}
+}

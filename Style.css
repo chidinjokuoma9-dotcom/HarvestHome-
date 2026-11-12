@@ -359,3 +359,313 @@ body{overflow-x:clip}
   .container{width:calc(100% - 24px)}
   .nav-actions{justify-content:space-between}
 }
+
+
+/* Desktop header width stability — presentation only.
+   Keep the page viewport from expanding when staff controls or unread counts appear.
+   Mobile/tablet rules below the existing breakpoints remain unchanged. */
+@media(min-width:951px){
+  .site-header .nav-wrap{
+    min-width:0;
+    gap:clamp(10px,1.35vw,20px);
+  }
+  .site-header .brand{
+    flex:0 0 auto;
+    min-width:0;
+  }
+  .site-header .desktop-nav{
+    flex:0 1 auto;
+    min-width:0;
+    gap:clamp(8px,1vw,16px);
+    white-space:nowrap;
+  }
+  .site-header .nav-actions{
+    flex:0 1 auto;
+    min-width:0;
+    align-items:center;
+    gap:6px;
+  }
+  .site-header .nav-actions select{
+    flex:0 1 132px;
+    width:132px;
+    min-width:0;
+    max-width:132px;
+  }
+  .site-header .nav-actions>.ghost-btn,
+  .site-header .nav-actions>.primary-btn{
+    flex:0 1 auto;
+    min-width:0;
+    padding-left:10px;
+    padding-right:10px;
+    white-space:nowrap;
+  }
+  .site-header .nav-actions>.account-btn{
+    max-width:205px;
+    overflow:hidden;
+  }
+  /* The unread badge floats over a fixed-size bell button, so its count
+     cannot change the header's measured width. */
+  .site-header .nav-actions>button[data-a="notifications"]{
+    position:relative;
+    display:inline-flex;
+    flex:0 0 42px;
+    align-items:center;
+    justify-content:center;
+    width:42px;
+    min-width:42px;
+    height:40px;
+    padding:8px;
+  }
+  .site-header .nav-actions>button[data-a="notifications"] .status-pill{
+    position:absolute;
+    top:-7px;
+    right:-7px;
+    min-width:18px;
+    height:18px;
+    padding:1px 5px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    box-sizing:border-box;
+    font-size:10px;
+    line-height:1;
+    border:2px solid #fbfcf8;
+  }
+}
+/* At narrower desktop widths, retain all account/staff controls and use the
+   existing menu for the secondary site links rather than allowing overflow. */
+@media(min-width:951px) and (max-width:1100px){
+  .site-header .desktop-nav{display:none}
+  .site-header .nav-wrap{gap:12px}
+  .site-header .nav-actions{margin-left:auto}
+}
+
+
+/* Desktop page-body width consistency.
+   Expand the shared page container and account/profile panels on desktop only.
+   Tablet and mobile container rules remain governed by their existing breakpoints. */
+@media(min-width:951px){
+  .container{
+    width:min(1440px,calc(100% - 64px));
+  }
+  .profile-page>.profile-card,
+  .profile-page>.dashboard-callout{
+    max-width:none;
+    width:100%;
+  }
+  .profile-page>.profile-card{
+    grid-template-columns:minmax(150px,190px) minmax(0,1fr);
+  }
+  .dashboard-content{
+    width:100%;
+    max-width:none;
+    min-width:0;
+  }
+  .dashboard-layout{
+    grid-template-columns:220px minmax(0,1fr);
+  }
+}
+
+
+/* Ensure the rendered application and every shared section container use the
+   available viewport width. This also covers tablet-sized desktop-mode views,
+   where a desktop-only breakpoint would otherwise leave the old narrow width. */
+html,body{width:100%;max-width:100%;min-width:0}
+#app{display:block;width:100%;max-width:100%;min-width:0}
+.container{
+  width:calc(100% - 40px);
+  max-width:1600px;
+  min-width:0;
+  margin-left:auto;
+  margin-right:auto;
+}
+@media(max-width:620px){
+  .container{
+    width:calc(100% - 24px);
+    max-width:none;
+  }
+}
+
+
+/* Full-width marketplace canvas.
+   Keep each top-level marketplace band aligned to the viewport, rather than
+   allowing a nested content wrapper to constrain the coloured section bands.
+   The existing inner .container remains responsible for readable gutters. */
+@media(min-width:621px){
+  html,body{width:100%;max-width:100%;min-width:0}
+  body{overflow-x:hidden}
+  body>#app,
+  body>#app>#app,
+  #app{
+    display:block;
+    width:100%;
+    max-width:none;
+    min-width:0;
+  }
+  #app>.site-header,
+  #app>section,
+  #app>footer{
+    width:100%;
+    max-width:none;
+    min-width:0;
+  }
+  #app .container{
+    width:calc(100% - 40px);
+    max-width:1600px;
+    min-width:0;
+    margin-left:auto;
+    margin-right:auto;
+  }
+}
+
+
+/* Logged-in desktop/desktop-mode viewport width correction.
+   Force the document canvas and app root to the actual viewport width even if
+   a parent layout or inherited max-width constrains the normal 100% chain.
+   Inner .container elements continue to control readable content gutters. */
+@media(min-width:621px){
+  html,
+  body{
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    margin-left:0!important;
+    margin-right:0!important;
+  }
+  body>#app,
+  #app{
+    display:block!important;
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    margin-left:0!important;
+    margin-right:0!important;
+  }
+  #app>.site-header,
+  #app>section,
+  #app>footer{
+    width:100%!important;
+    max-width:none!important;
+    min-width:0!important;
+  }
+}
+
+
+/* Desktop-only compact header typography and spacing.
+   Keep the full navigation and signed-in controls inside the viewport.
+   Mobile styling is intentionally untouched. */
+@media(min-width:951px){
+  .site-header .nav-wrap{
+    gap:clamp(8px,1vw,14px);
+    min-width:0;
+  }
+  .site-header .brand{
+    gap:7px;
+    flex:0 1 auto;
+  }
+  .site-header .brand strong{font-size:16px;white-space:nowrap}
+  .site-header .brand small{font-size:9px;white-space:nowrap}
+  .site-header .desktop-nav{
+    gap:clamp(7px,.8vw,12px);
+    margin-left:auto;
+    flex:0 1 auto;
+    min-width:0;
+  }
+  .site-header .desktop-nav button,
+  .site-header .desktop-nav a{
+    font-size:12px;
+    line-height:1.25;
+    white-space:nowrap;
+  }
+  .site-header .nav-actions{
+    gap:5px;
+    flex:0 1 auto;
+    min-width:0;
+  }
+  .site-header .nav-actions select{
+    flex:0 1 112px;
+    width:112px;
+    min-width:0;
+    max-width:112px;
+    padding:8px 20px 8px 7px;
+    font-size:11px;
+  }
+  .site-header .nav-actions>.ghost-btn,
+  .site-header .nav-actions>.primary-btn{
+    font-size:11px;
+    line-height:1.2;
+    padding:8px 9px;
+  }
+  .site-header .nav-actions>.account-btn{
+    max-width:145px;
+    min-width:0;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+}
+
+
+/* Stronger desktop header fit: prevent the signed-in navigation row
+   from forcing content beyond the page. Mobile rules remain unchanged. */
+@media (min-width: 951px) {
+  .site-header .nav-wrap {
+    width: min(100% - 24px, 1600px);
+    gap: 6px;
+    justify-content: space-between;
+  }
+  .site-header .brand {
+    flex: 0 1 155px;
+    min-width: 0;
+    gap: 5px;
+  }
+  .site-header .brand-mark {
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
+    border-radius: 9px;
+  }
+  .site-header .brand-mark img { width: 23px; height: 23px; }
+  .site-header .brand strong { font-size: 14px; letter-spacing: -.4px; }
+  .site-header .brand small { font-size: 8px; }
+  .site-header .desktop-nav {
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-content: center;
+    gap: clamp(3px, .45vw, 8px);
+    margin: 0 4px;
+  }
+  .site-header .desktop-nav button,
+  .site-header .desktop-nav a {
+    padding: 5px 3px;
+    font-size: 10px;
+    letter-spacing: -.15px;
+    white-space: nowrap;
+  }
+  .site-header .nav-actions {
+    flex: 0 1 auto;
+    min-width: 0;
+    gap: 3px;
+    margin: 0;
+  }
+  .site-header .nav-actions select {
+    width: 82px;
+    min-width: 0;
+    max-width: 82px;
+    padding: 6px 15px 6px 5px;
+    font-size: 9px;
+  }
+  .site-header .nav-actions > .ghost-btn,
+  .site-header .nav-actions > .primary-btn {
+    min-width: 0;
+    padding: 6px 6px;
+    font-size: 9px;
+    letter-spacing: -.15px;
+    white-space: nowrap;
+  }
+  .site-header .nav-actions > .account-btn {
+    max-width: 105px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}

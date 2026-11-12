@@ -276,3 +276,65 @@ body:has(button[data-tab="moderation"].active) .dashboard-content .dashboard-cal
 @media(prefers-reduced-motion:reduce){
   .hero,.hero-card,.hero h1 span,.hero .eyebrow{animation:none}
 }
+
+
+/* Responsive header and footer layout — presentation only; no marketplace logic changes. */
+.footer-grid{
+  grid-template-columns:minmax(220px,1.7fr) repeat(4,minmax(0,1fr));
+  align-items:start;
+}
+.footer-grid>div{min-width:0;display:flex;flex-direction:column;align-items:flex-start}
+.footer-grid a,
+.footer-grid button{
+  display:block;
+  max-width:100%;
+  margin:7px 0;
+  padding:0;
+  text-align:left;
+  line-height:1.5;
+  white-space:normal;
+  overflow-wrap:anywhere;
+  word-break:normal;
+}
+.footer-grid small{
+  display:block;
+  max-width:100%;
+  color:#aebbb1;
+  line-height:1.5;
+  overflow-wrap:anywhere;
+}
+.footer-grid p{max-width:32ch;overflow-wrap:anywhere}
+.footer-bottom{overflow-wrap:anywhere}
+@media(max-width:950px){
+  .footer-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:26px 22px}
+  .footer-grid>div{min-width:0}
+  .nav-wrap{gap:10px}
+  .brand{min-width:0;flex:0 1 auto}
+  .brand strong{white-space:nowrap}
+  .menu-toggle{margin-left:auto;flex:0 0 42px}
+  .nav-actions{min-width:0;gap:6px;flex:0 1 auto}
+  .nav-actions select{max-width:112px;min-width:0}
+  .nav-actions .account-btn,
+  .nav-actions .primary-btn.small{padding:9px 10px;font-size:12px;white-space:nowrap}
+}
+@media(max-width:620px){
+  .footer-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:24px 16px}
+  .footer-grid>div{min-width:0}
+  .footer-brand{font-size:clamp(16px,4.5vw,20px);flex-wrap:wrap}
+  .footer-grid a,.footer-grid button{font-size:14px}
+  .nav-wrap{gap:6px}
+  .brand{flex:1 1 auto}
+  .brand strong{font-size:14px}
+  .menu-toggle{margin-left:0}
+  .nav-actions{flex:0 1 auto;gap:4px}
+  .nav-actions select{max-width:88px;padding:8px 4px;font-size:11px}
+  .nav-actions .account-btn,
+  .nav-actions .primary-btn.small{padding:8px 7px;font-size:11px}
+}
+@media(max-width:420px){
+  .footer-grid{grid-template-columns:minmax(0,1fr)}
+  .nav-wrap{flex-wrap:wrap}
+  .brand{flex:1 1 calc(100% - 52px)}
+  .menu-toggle{margin-left:auto}
+  .nav-actions{width:100%;justify-content:flex-end}
+}

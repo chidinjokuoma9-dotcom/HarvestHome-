@@ -224,3 +224,55 @@ body:has(button[data-tab="moderation"].active) .dashboard-content .dashboard-cal
 
 /* Marketplace seller availability badges */
 .hh-listing-presence{display:inline-flex;align-items:center;gap:6px;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:800;line-height:1.4;white-space:nowrap;background:#f1f5f1;color:#647168}.hh-listing-presence.is-online{background:#e8f7ed;color:#176b3b}.hh-listing-presence.is-offline{background:#f1f3f2;color:#657168}.hh-presence-dot{width:8px;height:8px;border-radius:50%;background:#9aa59c;display:inline-block;flex:0 0 8px}.hh-listing-presence.is-online .hh-presence-dot{background:#1b9b50;box-shadow:0 0 0 3px rgba(27,155,80,.12)}
+
+
+/* Homepage hero colour rotation — visual-only; preserves all content and controls */
+.hero{
+  background:radial-gradient(circle at 85% 15%,#dff0df 0,transparent 34%),linear-gradient(180deg,#f3f8f0,#fbfcf8);
+  animation:hhHeroColourCycle 42s ease-in-out infinite;
+}
+.hero-card{
+  background:#174e2e;
+  animation:hhHeroCardColourCycle 42s ease-in-out infinite;
+}
+.hero h1 span{animation:hhHeroAccentColourCycle 42s ease-in-out infinite}
+.hero .eyebrow{animation:hhHeroEyebrowColourCycle 42s ease-in-out infinite}
+@keyframes hhHeroColourCycle{
+  0%,14.285%{background:radial-gradient(circle at 85% 15%,#f4d98a 0,transparent 34%),linear-gradient(180deg,#fff8e7,#fffdf7)}
+  14.286%,28.57%{background:radial-gradient(circle at 85% 15%,#a9d5f2 0,transparent 34%),linear-gradient(180deg,#edf6ff,#fbfdff)}
+  28.571%,42.855%{background:radial-gradient(circle at 85% 15%,#e8c9a9 0,transparent 34%),linear-gradient(180deg,#fbf0e5,#fffaf5)}
+  42.856%,57.14%{background:radial-gradient(circle at 85% 15%,#b6d9a6 0,transparent 34%),linear-gradient(180deg,#eef7e9,#fbfdf9)}
+  57.141%,71.425%{background:radial-gradient(circle at 85% 15%,#b9c8d8 0,transparent 34%),linear-gradient(180deg,#edf2f7,#fbfcff)}
+  71.426%,85.71%{background:radial-gradient(circle at 85% 15%,#c9b9e8 0,transparent 34%),linear-gradient(180deg,#f4effc,#fcfaff)}
+  85.711%,100%{background:radial-gradient(circle at 85% 15%,#a9dfd0 0,transparent 34%),linear-gradient(180deg,#eaf8f3,#fbfdfc)}
+}
+@keyframes hhHeroCardColourCycle{
+  0%,14.285%{background-color:#80601d}
+  14.286%,28.57%{background-color:#174f83}
+  28.571%,42.855%{background-color:#795033}
+  42.856%,57.14%{background-color:#32633b}
+  57.141%,71.425%{background-color:#46576b}
+  71.426%,85.71%{background-color:#514078}
+  85.711%,100%{background-color:#176b60}
+}
+@keyframes hhHeroAccentColourCycle{
+  0%,14.285%{color:#936b16}
+  14.286%,28.57%{color:#17649b}
+  28.571%,42.855%{color:#8b5630}
+  42.856%,57.14%{color:#34733e}
+  57.141%,71.425%{color:#4b6076}
+  71.426%,85.71%{color:#684e91}
+  85.711%,100%{color:#147c6c}
+}
+@keyframes hhHeroEyebrowColourCycle{
+  0%,14.285%{color:#936b16}
+  14.286%,28.57%{color:#17649b}
+  28.571%,42.855%{color:#8b5630}
+  42.856%,57.14%{color:#34733e}
+  57.141%,71.425%{color:#4b6076}
+  71.426%,85.71%{color:#684e91}
+  85.711%,100%{color:#147c6c}
+}
+@media(prefers-reduced-motion:reduce){
+  .hero,.hero-card,.hero h1 span,.hero .eyebrow{animation:none}
+}

@@ -414,3 +414,58 @@ html,body{width:100%;max-width:100%;min-width:0}
     min-width:0!important;
   }
 }
+
+
+/* Desktop-only compact header typography and spacing.
+   Keep the full navigation and signed-in controls inside the viewport.
+   Mobile styling is intentionally untouched. */
+@media(min-width:951px){
+  .site-header .nav-wrap{
+    gap:clamp(8px,1vw,14px);
+    min-width:0;
+  }
+  .site-header .brand{
+    gap:7px;
+    flex:0 1 auto;
+  }
+  .site-header .brand strong{font-size:16px;white-space:nowrap}
+  .site-header .brand small{font-size:9px;white-space:nowrap}
+  .site-header .desktop-nav{
+    gap:clamp(7px,.8vw,12px);
+    margin-left:auto;
+    flex:0 1 auto;
+    min-width:0;
+  }
+  .site-header .desktop-nav button,
+  .site-header .desktop-nav a{
+    font-size:12px;
+    line-height:1.25;
+    white-space:nowrap;
+  }
+  .site-header .nav-actions{
+    gap:5px;
+    flex:0 1 auto;
+    min-width:0;
+  }
+  .site-header .nav-actions select{
+    flex:0 1 112px;
+    width:112px;
+    min-width:0;
+    max-width:112px;
+    padding:8px 20px 8px 7px;
+    font-size:11px;
+  }
+  .site-header .nav-actions>.ghost-btn,
+  .site-header .nav-actions>.primary-btn{
+    font-size:11px;
+    line-height:1.2;
+    padding:8px 9px;
+  }
+  .site-header .nav-actions>.account-btn{
+    max-width:145px;
+    min-width:0;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+}

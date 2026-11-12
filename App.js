@@ -614,10 +614,46 @@ setInterval(async()=>{
   if(changed&&state.view==="dashboard")render();
 },30000);
 
-async function loadAuth(){if(!sb){render();return}const params=new URLSearchParams(window.location.search);const publicSharedLink=params.get("shared")==="1"||params.get("shared")==="listing"||params.get("public")==="1"||!!params.get("listing");const recoveryUrl=params.get("reset")==="1"||window.location.pathname==="/update-password"||/type=recovery/i.test(window.location.search+" "+window.location.hash);if(recoveryUrl)passwordRecoveryPending=true;
-  // Render the marketplace immediately; remote auth/data requests must not leave visitors on the static loading screen.
-  render();
-  try{const {data}=await sb.auth.getSession();authUser=data.session?.user||null;await loadProfile();await flushHarvestMissedCalls();await syncNewsroomAccess();await syncListings();await startMarketplacePresence();if(publicSharedLink)await ensureSharedListing();await syncFeatured();await syncFavourites();await syncNotifications();await syncPayments();await syncRewards();await syncProfessionalSellers();await syncSellerPerformance();await syncListingPerformance();await syncAdminRewards();await syncVerificationRequests();await syncAdvertising();if(passwordRecoveryPending){state.view="marketplace";render();return}if(publicSharedLink)state.view="marketplace";render();}catch(error){console.warn("HarvestHome startup sync failed:",error?.message||error);render();}}
+async function loadAuth(){
+  if(!sb){render();return}
+  const params=new URLSearchParams(window.location.search);
+  const publicSharedLink=params.get("shared")==="1"||params.get("shared")==="listing"||params.get("public")==="1"||!!params.get("listing");
+  const recoveryUrl=params.get("reset")==="1"||window.location.pathname==="/update-password"||/type=recovery/i.test(window.location.search+" "+window.location.hash);
+  if(recoveryUrl)passwordRecoveryPending=true;
+  try{
+    // Resolve the persisted Supabase session before showing signed-out controls.
+    // This prevents the brief login/join flash on page refresh.
+    const {data}=await sb.auth.getSession();
+    authUser=data.session?.user||null;
+    await loadProfile();
+    if(passwordRecoveryPending){state.view="marketplace";render();return}
+    if(publicSharedLink)state.view="marketplace";
+    // Show the app as soon as auth is known; the remaining data sync can finish
+    // in the background without delaying the first usable page.
+    render();
+    await flushHarvestMissedCalls();
+    await syncNewsroomAccess();
+    await syncListings();
+    await startMarketplacePresence();
+    if(publicSharedLink)await ensureSharedListing();
+    await syncFeatured();
+    await syncFavourites();
+    await syncNotifications();
+    await syncPayments();
+    await syncRewards();
+    await syncProfessionalSellers();
+    await syncSellerPerformance();
+    await syncListingPerformance();
+    await syncAdminRewards();
+    await syncVerificationRequests();
+    await syncAdvertising();
+    render();
+  }catch(error){
+    console.warn("HarvestHome startup sync failed:",error?.message||error);
+    // Always release the initial screen if the session or a data request fails.
+    render();
+  }
+}
 async function syncPayments(){
   if(!sb||!authUser)return false;
   if(state.paymentsLoading)return false;

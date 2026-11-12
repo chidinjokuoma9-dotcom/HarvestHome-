@@ -469,3 +469,68 @@ html,body{width:100%;max-width:100%;min-width:0}
     white-space:nowrap;
   }
 }
+
+
+/* Stronger desktop header fit: prevent the signed-in navigation row
+   from forcing content beyond the page. Mobile rules remain unchanged. */
+@media (min-width: 951px) {
+  .site-header .nav-wrap {
+    width: min(100% - 24px, 1600px);
+    gap: 6px;
+    justify-content: space-between;
+  }
+  .site-header .brand {
+    flex: 0 1 155px;
+    min-width: 0;
+    gap: 5px;
+  }
+  .site-header .brand-mark {
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
+    border-radius: 9px;
+  }
+  .site-header .brand-mark img { width: 23px; height: 23px; }
+  .site-header .brand strong { font-size: 14px; letter-spacing: -.4px; }
+  .site-header .brand small { font-size: 8px; }
+  .site-header .desktop-nav {
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-content: center;
+    gap: clamp(3px, .45vw, 8px);
+    margin: 0 4px;
+  }
+  .site-header .desktop-nav button,
+  .site-header .desktop-nav a {
+    padding: 5px 3px;
+    font-size: 10px;
+    letter-spacing: -.15px;
+    white-space: nowrap;
+  }
+  .site-header .nav-actions {
+    flex: 0 1 auto;
+    min-width: 0;
+    gap: 3px;
+    margin: 0;
+  }
+  .site-header .nav-actions select {
+    width: 82px;
+    min-width: 0;
+    max-width: 82px;
+    padding: 6px 15px 6px 5px;
+    font-size: 9px;
+  }
+  .site-header .nav-actions > .ghost-btn,
+  .site-header .nav-actions > .primary-btn {
+    min-width: 0;
+    padding: 6px 6px;
+    font-size: 9px;
+    letter-spacing: -.15px;
+    white-space: nowrap;
+  }
+  .site-header .nav-actions > .account-btn {
+    max-width: 105px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}

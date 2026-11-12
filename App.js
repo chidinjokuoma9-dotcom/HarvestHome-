@@ -33,7 +33,7 @@ async function optimizeListingImage(file){
 
 const seed = [];
 
-const state={view:"marketplace",search:"",sort:"featured",priceMin:"",priceMax:"",country:localStorage.getItem(KEYS.country)||C.DEFAULT_COUNTRY,location:"All locations",category:"All categories",mode:"All",dashboardTab:"overview",authMode:"login",payments:[],paymentsSyncError:"",paymentsLastSyncedAt:null,paymentsLoading:false,paymentsLoadedCount:0,transactionFilterSeller:{status:"all",range:"all",search:""},transactionFilterAdmin:{status:"all",range:"all",search:"",service:"all"},sharedListing:null,sharedListingChecked:false,newsroomAccess:false};
+const state={view:"marketplace",search:"",sort:"featured",priceMin:"",priceMax:"",country:localStorage.getItem(KEYS.country)||C.DEFAULT_COUNTRY,location:"All locations",category:"All categories",mode:"All",dashboardTab:"overview",authMode:"login",payments:[],paymentsSyncError:"",paymentsLastSyncedAt:null,paymentsLoading:false,paymentsLoadedCount:0,transactionFilterSeller:{status:"all",range:"all",search:"",service:"all"},transactionFilterAdmin:{status:"all",range:"all",search:"",service:"all"},sharedListing:null,sharedListingChecked:false,newsroomAccess:false};
 let chatTimer=null;
 let marketplacePresenceChannel=null,marketplacePresenceUserId=null,marketplacePresenceRefresh=null;
 const marketplaceOnlineSellers=new Set();
@@ -1374,14 +1374,18 @@ function dashTab(u,favs,mine,enq){
   }
     if(state.dashboardTab==="payments"){
   const allPs=(state.payments||[]).filter(p=>!authUser||String(p.user_id||"")===String(authUser.id)),f=state.transactionFilterSeller,ps=filterTransactions(allPs,f);
-  const successful=allPs.filter(p=>p.status==="success").length,pending=allPs.filter(p=>p.status==="initialized").length,failed=allPs.filter(p=>["failed","abandoned","reversed"].includes(String(p.status||"").toLowerCase())).length;
-  return '<div class="panel-heading"><div><span class="eyebrow">Billing & transactions</span><h2>Transaction history</h2></div><div style="display:flex;gap:8px;flex-wrap:wrap">'+'<button class="primary-btn" data-a="pay">Make a payment</button></div></div>'+
-    '<div class="dashboard-callout"><b>Keep your history under control</b><p>Filter by date or status, or search a reference/listing. Clear filters only resets the view; it never deletes payment records.</p></div>'+
+  const successful=allPs.filter(p=>String(p.status||"").toLowerCase()==="success").length,pending=allPs.filter(p=>["initialized","pending","processing"].includes(String(p.status||"").toLowerCase())).length,failed=allPs.filter(p=>["failed","abandoned","reversed"].includes(String(p.status||"").toLowerCase())).length;
+  const featurePayments=ps.filter(p=>paymentServiceInfo(p).key==="featured");
+  const badgePayments=ps.filter(p=>["verification","pro","verified_pro"].includes(paymentServiceInfo(p).key));
+  const otherPayments=ps.filter(p=>!["featured","verification","pro","verified_pro"].includes(paymentServiceInfo(p).key));
+  const paymentTable=rows=>rows.length?'<div class="table-wrap"><table><thead><tr><th>Date</th><th>Transaction</th><th>Listing</th><th>Service</th><th>Amount</th><th>Status</th></tr></thead><tbody>'+rows.map(p=>'<tr><td>'+(p.created_at?new Date(p.created_at).toLocaleString():"—")+'</td><td><code>'+esc(p.reference||"—")+'</code></td><td><b>'+esc(p.listings?.title||"No listing linked")+'</b></td><td>'+esc(paymentServiceInfo(p).label)+'</td><td>'+money((Number(p.amount)||0)/100,p.currency||"NGN")+'</td><td><span class="status-pill '+slug(p.status||"initialized")+'">'+esc(p.status||"initialized")+'</span></td></tr>').join("")+'</tbody></table></div>':'<div class="empty-state compact"><div>🔎</div><h3>No payments in this section</h3><p>Payments matching this section will appear here when recorded.</p></div>';
+  return '<div class="panel-heading"><div><span class="eyebrow">Billing & transactions</span><h2>My payments</h2></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="primary-btn" data-a="pay">Make a payment</button></div></div>'+
+    '<div class="dashboard-callout"><b>Your payments, clearly organised</b><p>Feature payments and seller badge payments are shown in separate sections below. This page is available to both buyers and sellers. Filters only change what you see; they never delete payment records.</p></div>'+
     '<div class="stat-grid"><div class="stat"><span>Total transactions</span><strong>'+allPs.length+'</strong></div><div class="stat"><span>Successful</span><strong>'+successful+'</strong></div><div class="stat"><span>Pending</span><strong>'+pending+'</strong></div><div class="stat"><span>Failed / reversed</span><strong>'+failed+'</strong></div></div>'+
     transactionFilters(f,"seller")+
-    (ps.length?'<div class="table-wrap"><table><thead><tr><th>Date</th><th>Transaction</th><th>Listing</th><th>Service</th><th>Amount</th><th>Status</th></tr></thead><tbody>'+
-      ps.map(p=>'<tr><td>'+(p.created_at?new Date(p.created_at).toLocaleString():"—")+'</td><td><code>'+esc(p.reference||"—")+'</code></td><td><b>'+esc(p.listings?.title||"No listing linked")+'</b></td><td>'+esc(p.service||"Marketplace")+'</td><td>'+money((Number(p.amount)||0)/100,p.currency||"NGN")+'</td><td><span class="status-pill '+slug(p.status||"initialized")+'">'+esc(p.status||"initialized")+'</span></td></tr>').join("")+
-    '</tbody></table></div>':'<div class="empty-state compact"><div>🔎</div><h3>No matching transactions</h3><p>Change the filters to see more transactions.</p></div>');
+    '<div class="panel-heading" style="margin-top:26px"><div><span class="eyebrow">Listing promotion</span><h2>⭐ Feature payments ('+featurePayments.length+')</h2></div></div>'+paymentTable(featurePayments)+
+    '<div class="panel-heading" style="margin-top:30px"><div><span class="eyebrow">Seller services</span><h2>🛡️ Badge & seller service payments ('+badgePayments.length+')</h2></div></div>'+paymentTable(badgePayments)+
+    '<div class="panel-heading" style="margin-top:30px"><div><span class="eyebrow">Other transactions</span><h2>Other payments ('+otherPayments.length+')</h2></div></div>'+paymentTable(otherPayments);
 }
   if(state.dashboardTab==="moderation")return adminPanel();
   if(state.dashboardTab==="revenue")return revenueDashboard();

@@ -1,5 +1,5 @@
 -- HarvestHome News & Insights article comments.
--- Authenticated comments are held for moderator approval before public display.
+-- Signed-in readers' comments publish immediately; newsroom staff can remove inappropriate comments.
 -- This feature is isolated from marketplace listings, seller reviews and payments.
 
 create table if not exists public.news_article_comments (
@@ -9,7 +9,7 @@ create table if not exists public.news_article_comments (
   author_id uuid not null references public.profiles(id) on delete cascade,
   author_name text not null,
   comment text not null check (char_length(trim(comment)) between 2 and 2000),
-  status text not null default 'pending' check (status in ('pending','published','hidden')),
+  status text not null default 'published' check (status in ('pending','published','hidden')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   check (parent_id is null or parent_id <> id)
@@ -82,11 +82,22 @@ declare
   v_article_id uuid;
   v_author_name text;
   v_comment text := trim(coalesce(p_comment, ''));
+  v_recent_count integer;
   v_id uuid;
 begin
   if v_uid is null then raise exception 'Please sign in to comment.'; end if;
   if char_length(v_comment) < 2 or char_length(v_comment) > 2000 then
     raise exception 'Comments must be between 2 and 2,000 characters.';
+  end if;
+
+  -- Limit rapid submissions per account to reduce spam without requiring pre-approval.
+  perform pg_advisory_xact_lock(hashtextextended(v_uid::text, 0));
+  select count(*) into v_recent_count
+  from public.news_article_comments c
+  where c.author_id = v_uid
+    and c.created_at > now() - interval '10 minutes';
+  if v_recent_count >= 5 then
+    raise exception 'You have reached the comment limit. Please wait a few minutes before posting again.';
   end if;
 
   select a.id into v_article_id
@@ -114,7 +125,7 @@ begin
   insert into public.news_article_comments
     (article_id, parent_id, author_id, author_name, comment, status)
   values
-    (v_article_id, p_parent_id, v_uid, v_author_name, v_comment, 'pending')
+    (v_article_id, p_parent_id, v_uid, v_author_name, v_comment, 'published')
   returning id into v_id;
 
   return v_id;
@@ -192,14 +203,14 @@ begin
   from public.news_article_comments c
   join public.news_articles a on a.id = c.article_id
   left join public.news_article_comment_reports r on r.comment_id = c.id
-  where c.status in ('pending','published','hidden')
-    and (c.status = 'pending' or exists (
+  where c.status in ('published','hidden')
+    and exists (
       select 1 from public.news_article_comment_reports open_report
       where open_report.comment_id = c.id and open_report.status = 'open'
-    ))
+    )
   group by c.id, c.article_id, a.slug, a.title, c.parent_id,
            c.author_name, c.comment, c.status, c.created_at
-  order by (c.status = 'pending') desc, c.created_at desc
+  order by c.created_at desc
   limit 250;
 end;
 $$;

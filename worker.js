@@ -240,14 +240,14 @@ async function createNewsSitemapResponse(env, requestUrl) {
       if (!slug || !title || !date) return "";
       const articleUrl = new URL("/news-story.html", requestUrl.origin);
       articleUrl.searchParams.set("slug", slug);
-      return "  <url>\\n    <loc>" + xmlEscape(articleUrl.toString()) + "</loc>\\n    <news:news>\\n" +
-        "      <news:publication><news:name>HarvestHome</news:name><news:language>en</news:language></news:publication>\\n" +
-        "      <news:publication_date>" + xmlEscape(date) + "</news:publication_date>\\n" +
-        "      <news:title>" + xmlEscape(title) + "</news:title>\\n    </news:news>\\n  </url>";
+      return "  <url>\n    <loc>" + xmlEscape(articleUrl.toString()) + "</loc>\n    <news:news>\n" +
+        "      <news:publication><news:name>HarvestHome</news:name><news:language>en</news:language></news:publication>\n" +
+        "      <news:publication_date>" + xmlEscape(date) + "</news:publication_date>\n" +
+        "      <news:title>" + xmlEscape(title) + "</news:title>\n    </news:news>\n  </url>";
     }).filter(Boolean);
-    const xml = '<?xml version="1.0" encoding="UTF-8"?>\\n' +
-      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">\\n' +
-      entries.join("\\n") + (entries.length ? "\\n" : "") + '</urlset>';
+    const xml = '<?xml version="1.0" encoding="UTF-8"?>\n' +
+      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">\n' +
+      entries.join("\n") + (entries.length ? "\n" : "") + '</urlset>';
     return new Response(xml, { status: 200, headers: { "content-type": "application/xml; charset=utf-8", "cache-control": "public, max-age=0, s-maxage=300" } });
   } catch {
     return new Response("News sitemap temporarily unavailable.", { status: 503 });

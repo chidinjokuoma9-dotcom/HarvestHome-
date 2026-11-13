@@ -66,6 +66,21 @@ create policy seller_review_reports_read_staff on public.seller_review_reports
     exists (select 1 from public.profiles p where p.id = (select auth.uid()) and p.role in ('Admin','Moderator'))
   );
 
+create or replace function public.get_seller_review_summary(p_seller_id uuid)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $
+  select jsonb_build_object(
+    'review_count', count(*),
+    'average_rating', coalesce(round(avg(r.rating)::numeric, 2), 0)
+  )
+  from public.seller_reviews r
+  where r.seller_id = p_seller_id and r.status = 'published';
+$;
+
 create or replace function public.get_seller_review_context(p_seller_id uuid)
 returns jsonb
 language plpgsql
@@ -254,12 +269,14 @@ begin
 end;
 $$;
 
+revoke execute on function public.get_seller_review_summary(uuid) from public;
 revoke execute on function public.get_seller_review_context(uuid) from public, anon;
 revoke execute on function public.submit_seller_review(uuid, integer, text) from public, anon;
 revoke execute on function public.reply_to_seller_review(uuid, text) from public, anon;
 revoke execute on function public.report_seller_review(uuid, text) from public, anon;
 revoke execute on function public.get_seller_review_moderation_queue() from public, anon;
 revoke execute on function public.moderate_seller_review(uuid, text) from public, anon;
+grant execute on function public.get_seller_review_summary(uuid) to anon, authenticated;
 grant execute on function public.get_seller_review_context(uuid) to authenticated;
 grant execute on function public.submit_seller_review(uuid, integer, text) to authenticated;
 grant execute on function public.reply_to_seller_review(uuid, text) to authenticated;

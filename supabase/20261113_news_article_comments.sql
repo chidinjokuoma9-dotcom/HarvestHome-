@@ -63,7 +63,7 @@ as $$
   join public.news_articles a on a.id = c.article_id
   where a.slug = p_slug and a.status = 'published'
     and c.status = 'published'
-  order by c.created_at asc
+  order by c.created_at desc
   limit 200;
 $$;
 
@@ -222,7 +222,7 @@ begin
   ) then
     raise exception 'Only active HarvestHome newsroom staff can moderate comments.';
   end if;
-  if p_decision not in ('published','hidden') then
+  if p_decision is null or p_decision not in ('published','hidden') then
     raise exception 'Choose Publish or Hide.';
   end if;
 
@@ -230,6 +230,12 @@ begin
   set status = p_decision, updated_at = now()
   where id = p_comment_id;
   if not found then raise exception 'Comment not found.'; end if;
+
+  if p_decision = 'hidden' then
+    update public.news_article_comments
+    set status = 'hidden', updated_at = now()
+    where parent_id = p_comment_id;
+  end if;
 
   if p_decision = 'published' then
     update public.news_article_comment_reports

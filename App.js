@@ -402,11 +402,16 @@ async function openSellerReviews(sellerId,sellerName="HarvestHome Seller"){
   const root=$("#modalRoot");if(!root)return;
   root.innerHTML='<div class="modal-backdrop"><div class="modal wide"><p>Loading seller reviews…</p></div></div>';
   try{
-    const reviewResult=await sb.from("seller_reviews")
-      .select("id,reviewer_id,reviewer_name,rating,comment,seller_reply,seller_replied_at,created_at,status")
-      .eq("seller_id",sellerId).eq("status","published")
-      .order("created_at",{ascending:false}).limit(50);
+    const [reviewResult,summaryResult]=await Promise.all([
+      sb.from("seller_reviews")
+        .select("id,reviewer_id,reviewer_name,rating,comment,seller_reply,seller_replied_at,created_at,status")
+        .eq("seller_id",sellerId).eq("status","published")
+        .order("created_at",{ascending:false}).limit(50),
+      sb.rpc("get_seller_review_summary",{p_seller_id:sellerId})
+    ]);
     if(reviewResult.error)throw reviewResult.error;
+    if(summaryResult.error)throw summaryResult.error;
+    const summary=summaryResult.data||{};
     let context=null;
     if(authUser){
       const c=await sb.rpc("get_seller_review_context",{p_seller_id:sellerId});
@@ -414,7 +419,7 @@ async function openSellerReviews(sellerId,sellerName="HarvestHome Seller"){
       context=c.data||null;
     }
     const reviews=reviewResult.data||[];
-    const average=reviews.length?reviews.reduce((sum,r)=>sum+Number(r.rating||0),0)/reviews.length:0;
+    const average=Number(summary.average_rating||0),totalReviews=Number(summary.review_count||0);
     const canReply=!!authUser&&String(authUser.id)===String(sellerId);
     const reviewCards=reviews.map(r=>{
       const own=!!authUser&&String(authUser.id)===String(r.reviewer_id);

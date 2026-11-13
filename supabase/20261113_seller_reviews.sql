@@ -66,14 +66,14 @@ language sql
 stable
 security definer
 set search_path = ''
-as $
+as $summary$
   select jsonb_build_object(
     'review_count', count(*),
     'average_rating', coalesce(round(avg(r.rating)::numeric, 2), 0)
   )
   from public.seller_reviews r
   where r.seller_id = p_seller_id and r.status = 'published';
-$;
+$summary$;
 
 create or replace function public.get_seller_review_context(p_seller_id uuid)
 returns jsonb

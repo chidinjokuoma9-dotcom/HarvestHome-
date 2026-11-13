@@ -2,4 +2,5 @@ User-agent: *
 Allow: /
 
 Sitemap: https://harvesthome.ng/sitemap.xml
-Sitemap: https://harvesthome.ng/news-sitemap.xml\nSitemap: https://harvesthome.ng/marketplace-sitemap.xml\n
+Sitemap: https://harvesthome.ng/news-sitemap.xml
+Sitemap: https://harvesthome.ng/marketplace-sitemap.xml

@@ -2,3 +2,4 @@ User-agent: *
 Allow: /
 
 Sitemap: https://harvesthome.ng/sitemap.xml
+Sitemap: https://harvesthome.ng/news-sitemap.xml

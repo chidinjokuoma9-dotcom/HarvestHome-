@@ -215,9 +215,10 @@ begin
 end;
 $$;
 
+drop function if exists public.get_seller_review_moderation_queue();
 create or replace function public.get_seller_review_moderation_queue()
 returns table (
-  id uuid, seller_id uuid, reviewer_name text, rating smallint, comment text,
+  id uuid, seller_id uuid, seller_name text, reviewer_name text, rating smallint, comment text,
   status text, created_at timestamptz, report_count bigint, report_reasons text
 )
 language plpgsql
@@ -230,14 +231,15 @@ begin
   end if;
 
   return query
-  select r.id, r.seller_id, r.reviewer_name, r.rating, r.comment, r.status, r.created_at,
+  select r.id, r.seller_id, coalesce(p.full_name, 'HarvestHome Seller'), r.reviewer_name, r.rating, r.comment, r.status, r.created_at,
          count(rep.id) filter (where rep.status = 'open') as report_count,
          coalesce(string_agg(rep.reason, ' | ') filter (where rep.status = 'open'), '') as report_reasons
   from public.seller_reviews r
   left join public.seller_review_reports rep on rep.review_id = r.id
+  left join public.profiles p on p.id = r.seller_id
   where r.status = 'pending'
      or exists (select 1 from public.seller_review_reports open_rep where open_rep.review_id = r.id and open_rep.status = 'open')
-  group by r.id
+  group by r.id, p.full_name
   order by (r.status = 'pending') desc, r.created_at asc;
 end;
 $$;

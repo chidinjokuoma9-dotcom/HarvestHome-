@@ -149,7 +149,7 @@ async function load(){
   commentForm.addEventListener("submit",async event=>{
     event.preventDefault();const button=document.getElementById("submit-comment"),value=document.getElementById("comment-text").value.trim();if(!value)return;
     button.disabled=true;commentMessage.textContent="Posting your comment…";
-    try{const {error}=await client.rpc("submit_news_article_comment",{p_slug:data.slug,p_comment:value,p_parent_id:replyTo});if(error)throw error;commentForm.reset();clearReply();commentMessage.textContent="Your comment is now published. Thank you for joining the discussion.";}
+    try{const {error}=await client.rpc("submit_news_article_comment",{p_slug:data.slug,p_comment:value,p_parent_id:replyTo});if(error)throw error;commentForm.reset();clearReply();commentMessage.textContent="Your comment is now published. Thank you for joining the discussion.";await loadArticleComments();}
     catch(err){commentMessage.textContent=err.message||"Your comment could not be submitted.";console.warn("News comment submission failed:",err.message);}
     finally{button.disabled=false;}
   });

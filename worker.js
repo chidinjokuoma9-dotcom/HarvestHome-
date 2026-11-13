@@ -372,6 +372,76 @@ async function withListingPreview(env, requestUrl, html, listingId) {
   return html;
 }
 
+
+async function createMarketplaceSitemapResponse(env, requestUrl) {
+  const config = await getPublicConfig(env, requestUrl);
+  if (!config) return new Response("Marketplace sitemap temporarily unavailable.", { status: 503 });
+
+  try {
+    const urls = [];
+    const seen = new Set();
+    const pageSize = 500;
+    const maxUrls = 50000;
+    let offset = 0;
+
+    while (offset < maxUrls) {
+      const params = new URLSearchParams({
+        status: "eq.approved",
+        select: "id,publication_plan,publish_expires_at",
+        order: "id.asc",
+        limit: String(Math.min(pageSize, maxUrls - offset)),
+        offset: String(offset)
+      });
+      const response = await fetch(config.supabaseUrl + "/rest/v1/listings?" + params.toString(), {
+        headers: {
+          apikey: config.anonKey,
+          Authorization: "Bearer " + config.anonKey,
+          Accept: "application/json"
+        }
+      });
+      if (!response.ok) throw new Error("Approved marketplace listings could not be loaded.");
+
+      const rows = await response.json();
+      if (!Array.isArray(rows) || rows.length === 0) break;
+
+      for (const listing of rows) {
+        const id = String(listing?.id || "").trim();
+        if (!id || seen.has(id)) continue;
+
+        const isFree = String(listing.publication_plan || "free").toLowerCase() === "free";
+        const expiresAt = listing.publish_expires_at ? new Date(listing.publish_expires_at).getTime() : 0;
+        if (isFree && expiresAt && expiresAt <= Date.now()) continue;
+
+        seen.add(id);
+        const listingUrl = new URL("/", config.publicUrl);
+        listingUrl.searchParams.set("listing", id);
+        listingUrl.searchParams.set("shared", "listing");
+        listingUrl.searchParams.set("preview", "3");
+        listingUrl.searchParams.set("share_version", "3");
+        urls.push("  <url><loc>" + escapeHtml(listingUrl.toString()) + "</loc></url>");
+      }
+
+      offset += rows.length;
+      if (rows.length < pageSize) break;
+    }
+
+    const xml = '<?xml version="1.0" encoding="UTF-8"?>\n' +
+      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
+      urls.join("\n") + (urls.length ? "\n" : "") +
+      '</urlset>';
+
+    return new Response(xml, {
+      status: 200,
+      headers: {
+        "content-type": "application/xml; charset=utf-8",
+        "cache-control": "public, max-age=0, s-maxage=300"
+      }
+    });
+  } catch {
+    return new Response("Marketplace sitemap temporarily unavailable.", { status: 503 });
+  }
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -387,6 +457,10 @@ export default {
       return env.ASSETS.fetch(new Request(appUrl, request));
     }
 
+
+    if (request.method === "GET" && url.pathname === "/marketplace-sitemap.xml") {
+      return createMarketplaceSitemapResponse(env, url);
+    }
 
     if (request.method === "GET" && url.pathname === "/news-sitemap.xml") {
       return createNewsSitemapResponse(env, url);

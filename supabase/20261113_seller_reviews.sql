@@ -77,7 +77,7 @@ $summary$;
 
 create or replace function public.get_seller_reviews(p_seller_id uuid)
 returns table (
-  review_id uuid,
+  id uuid,
   reviewer_name text,
   rating smallint,
   comment text,

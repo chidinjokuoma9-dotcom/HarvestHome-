@@ -115,7 +115,7 @@ async function load(){
     }
    }finally{button.disabled=false;button.textContent="Share picture + link";}
   });
-  root.innerHTML+='<section class="comments" id="article-comments" aria-labelledby="comments-title"><div class="comments-head"><div><h2 id="comments-title">Reader comments</h2><p class="meta">Join a respectful discussion. Comments appear publicly only after newsroom approval.</p></div><span id="comments-count" class="tag">Loading…</span></div><div id="comments-list" aria-live="polite"><p class="meta">Loading comments…</p></div><div class="comment-form-wrap"><h3>Join the conversation</h3><div id="comment-signin" class="meta" hidden><a href="/">Sign in to your HarvestHome account</a> to leave a comment or reply.</div><form id="comment-form" hidden><label for="comment-text">Your comment</label><textarea id="comment-text" minlength="2" maxlength="2000" rows="4" required placeholder="Share a relevant, respectful thought…"></textarea><div class="comment-form-actions"><span id="replying-to" class="meta"></span><button type="button" id="cancel-reply" hidden>Cancel reply</button><button type="submit" id="submit-comment">Submit comment</button></div><p id="comment-message" class="meta" role="status"></p></form></div></section>';
+  root.innerHTML+='<section class="comments" id="article-comments" aria-labelledby="comments-title"><div class="comments-head"><div><h2 id="comments-title">Reader comments</h2><p class="meta">Join a respectful discussion. Comments appear immediately; readers can report inappropriate content for newsroom review.</p></div><span id="comments-count" class="tag">Loading…</span></div><div id="comments-list" aria-live="polite"><p class="meta">Loading comments…</p></div><div class="comment-form-wrap"><h3>Join the conversation</h3><div id="comment-signin" class="meta" hidden><a href="/">Sign in to your HarvestHome account</a> to leave a comment or reply.</div><form id="comment-form" hidden><label for="comment-text">Your comment</label><textarea id="comment-text" minlength="2" maxlength="2000" rows="4" required placeholder="Share a relevant, respectful thought…"></textarea><div class="comment-form-actions"><span id="replying-to" class="meta"></span><button type="button" id="cancel-reply" hidden>Cancel reply</button><button type="submit" id="submit-comment">Submit comment</button></div><p id="comment-message" class="meta" role="status"></p></form></div></section>';
   const commentForm=document.getElementById("comment-form"),commentList=document.getElementById("comments-list"),commentMessage=document.getElementById("comment-message");
   let commentUser=null,replyTo=null;
   const commentDate=v=>{const d=new Date(v);return Number.isNaN(d.getTime())?"":d.toLocaleString(undefined,{dateStyle:"medium",timeStyle:"short"});};
@@ -130,7 +130,7 @@ async function load(){
       commentForm.hidden=!commentUser;
       document.getElementById("comment-signin").hidden=!!commentUser;
       const rows=Array.isArray(commentsData)?commentsData:[];
-      document.getElementById("comments-count").textContent=rows.length+" approved";
+      document.getElementById("comments-count").textContent=rows.length+" comments";
       if(!rows.length){commentList.innerHTML='<p class="meta">No comments yet. Be the first to start a thoughtful discussion.</p>';return;}
       const roots=rows.filter(r=>!r.parent_id),children=new Map();
       rows.filter(r=>r.parent_id).forEach(r=>{if(!children.has(r.parent_id))children.set(r.parent_id,[]);children.get(r.parent_id).push(r);});
@@ -148,8 +148,8 @@ async function load(){
   document.getElementById("cancel-reply").addEventListener("click",clearReply);
   commentForm.addEventListener("submit",async event=>{
     event.preventDefault();const button=document.getElementById("submit-comment"),value=document.getElementById("comment-text").value.trim();if(!value)return;
-    button.disabled=true;commentMessage.textContent="Submitting for moderator approval…";
-    try{const {error}=await client.rpc("submit_news_article_comment",{p_slug:data.slug,p_comment:value,p_parent_id:replyTo});if(error)throw error;commentForm.reset();clearReply();commentMessage.textContent="Thank you. Your comment has been submitted and will appear after moderator approval.";}
+    button.disabled=true;commentMessage.textContent="Posting your comment…";
+    try{const {error}=await client.rpc("submit_news_article_comment",{p_slug:data.slug,p_comment:value,p_parent_id:replyTo});if(error)throw error;commentForm.reset();clearReply();commentMessage.textContent="Your comment is now published. Thank you for joining the discussion.";}
     catch(err){commentMessage.textContent=err.message||"Your comment could not be submitted.";console.warn("News comment submission failed:",err.message);}
     finally{button.disabled=false;}
   });

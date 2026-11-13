@@ -671,43 +671,6 @@ html,body{width:100%;max-width:100%;min-width:0}
 }
 
 
-/* Fade hero text briefly as the homepage colour palette changes.
-   The existing 42-second colour cycle and all marketplace behaviour stay intact. */
-.hero-copy .eyebrow,
-.hero-copy h1,
-.hero-copy>p,
-.hero-copy .quick-stats,
-.hero-card .hero-card-icon,
-.hero-card h3,
-.hero-card p,
-.hero-card .outline-btn{
-  animation:hhHeroTextFadeCycle 42s ease-in-out infinite;
-}
-@keyframes hhHeroTextFadeCycle{
-  0%,12.8%{opacity:1}
-  14.0%{opacity:0}
-  15.5%,27.1%{opacity:1}
-  28.3%{opacity:0}
-  29.8%,41.4%{opacity:1}
-  42.6%{opacity:0}
-  44.1%,55.7%{opacity:1}
-  56.9%{opacity:0}
-  58.4%,70.0%{opacity:1}
-  71.2%{opacity:0}
-  72.7%,84.3%{opacity:1}
-  85.5%{opacity:0}
-  87.0%,100%{opacity:1}
-}
-@media(prefers-reduced-motion:reduce){
-  .hero-copy .eyebrow,
-  .hero-copy h1,
-  .hero-copy>p,
-  .hero-copy .quick-stats,
-  .hero-card .hero-card-icon,
-  .hero-card h3,
-  .hero-card p,
-  .hero-card .outline-btn{animation:none}
-}
 
 
 /* HarvestHome 2026 visual refinement.

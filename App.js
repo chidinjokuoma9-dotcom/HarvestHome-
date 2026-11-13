@@ -442,7 +442,7 @@ async function openSellerReviews(sellerId,sellerName="HarvestHome Seller"){
     root.innerHTML=`<div class="modal-backdrop" data-review-backdrop><section class="modal wide hh-reviews-modal" role="dialog" aria-modal="true" aria-labelledby="hhReviewsTitle">
       <button type="button" class="modal-close" data-review-close aria-label="Close">×</button>
       <span class="eyebrow">HarvestHome seller reputation</span><h2 id="hhReviewsTitle">${esc(sellerName)} · Reviews</h2>
-      <div class="hh-review-summary"><strong>${average?average.toFixed(1):"—"}</strong><span><b>${average?"★".repeat(Math.round(average)):"No ratings yet"}</b><small>${reviews.length} published review${reviews.length===1?"":"s"}</small></span></div>
+      <div class="hh-review-summary"><strong>${average?average.toFixed(1):"—"}</strong><span><b>${average?"★".repeat(Math.round(average)):"No ratings yet"}</b><small>${totalReviews} published review${totalReviews===1?"":"s"}</small></span></div>
       ${reviewForm}
       <div class="hh-review-list"><h3>Buyer feedback</h3>${reviewCards||'<div class="empty-state compact"><div>⭐</div><h3>No published reviews yet</h3><p>Verified chat participants can be the first to share their experience.</p></div>'}</div>
       <small class="demo-note">Reviews reflect individual experiences and are not a guarantee of a seller, listing, product, or transaction. Always carry out your own checks.</small>

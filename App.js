@@ -419,7 +419,7 @@ async function openSellerReviews(sellerId,sellerName="HarvestHome Seller"){
     const average=Number(summary.average_rating||0),totalReviews=Number(summary.review_count||0);
     const canReply=!!authUser&&String(authUser.id)===String(sellerId);
     const reviewCards=reviews.map(r=>{
-      const own=!!authUser&&String(authUser.id)===String(r.is_own);
+      const own=!!authUser&&r.is_own===true;
       return `<article class="hh-review-card">
         <div class="hh-review-top"><div><b>${esc(r.reviewer_name||"HarvestHome buyer")}</b><small>${new Date(r.created_at).toLocaleDateString()}</small></div><strong aria-label="${Number(r.rating)} out of 5 stars">${"★".repeat(Number(r.rating)||0)}<span>${"☆".repeat(5-(Number(r.rating)||0))}</span></strong></div>
         <p>${esc(r.comment)}</p>

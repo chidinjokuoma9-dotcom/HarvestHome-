@@ -403,10 +403,7 @@ async function openSellerReviews(sellerId,sellerName="HarvestHome Seller"){
   root.innerHTML='<div class="modal-backdrop"><div class="modal wide"><p>Loading seller reviews…</p></div></div>';
   try{
     const [reviewResult,summaryResult]=await Promise.all([
-      sb.from("seller_reviews")
-        .select("id,reviewer_id,reviewer_name,rating,comment,seller_reply,seller_replied_at,created_at,status")
-        .eq("seller_id",sellerId).eq("status","published")
-        .order("created_at",{ascending:false}).limit(50),
+      sb.rpc("get_seller_reviews",{p_seller_id:sellerId}),
       sb.rpc("get_seller_review_summary",{p_seller_id:sellerId})
     ]);
     if(reviewResult.error)throw reviewResult.error;
@@ -422,7 +419,7 @@ async function openSellerReviews(sellerId,sellerName="HarvestHome Seller"){
     const average=Number(summary.average_rating||0),totalReviews=Number(summary.review_count||0);
     const canReply=!!authUser&&String(authUser.id)===String(sellerId);
     const reviewCards=reviews.map(r=>{
-      const own=!!authUser&&String(authUser.id)===String(r.reviewer_id);
+      const own=!!authUser&&String(authUser.id)===String(r.is_own);
       return `<article class="hh-review-card">
         <div class="hh-review-top"><div><b>${esc(r.reviewer_name||"HarvestHome buyer")}</b><small>${new Date(r.created_at).toLocaleDateString()}</small></div><strong aria-label="${Number(r.rating)} out of 5 stars">${"★".repeat(Number(r.rating)||0)}<span>${"☆".repeat(5-(Number(r.rating)||0))}</span></strong></div>
         <p>${esc(r.comment)}</p>

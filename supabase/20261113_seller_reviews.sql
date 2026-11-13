@@ -39,10 +39,10 @@ create index if not exists seller_review_reports_status_created_idx
 alter table public.seller_reviews enable row level security;
 alter table public.seller_review_reports enable row level security;
 
+-- Keep the new tables inaccessible through direct Data API table queries.
+-- All client access is mediated by the narrowly scoped RPC functions below.
 revoke all on table public.seller_reviews from anon, authenticated;
-grant select on table public.seller_reviews to anon, authenticated;
 revoke all on table public.seller_review_reports from anon, authenticated;
-grant select on table public.seller_review_reports to authenticated;
 
 drop policy if exists seller_reviews_public_read on public.seller_reviews;
 create policy seller_reviews_public_read on public.seller_reviews
@@ -74,6 +74,30 @@ as $summary$
   from public.seller_reviews r
   where r.seller_id = p_seller_id and r.status = 'published';
 $summary$;
+
+create or replace function public.get_seller_reviews(p_seller_id uuid)
+returns table (
+  review_id uuid,
+  reviewer_name text,
+  rating smallint,
+  comment text,
+  seller_reply text,
+  seller_replied_at timestamptz,
+  created_at timestamptz,
+  is_own boolean
+)
+language sql
+stable
+security definer
+set search_path = ''
+as $reviews$
+  select r.id, r.reviewer_name, r.rating, r.comment, r.seller_reply,
+         r.seller_replied_at, r.created_at, (auth.uid() = r.reviewer_id)
+  from public.seller_reviews r
+  where r.seller_id = p_seller_id and r.status = 'published'
+  order by r.created_at desc
+  limit 50;
+$reviews$;
 
 create or replace function public.get_seller_review_context(p_seller_id uuid)
 returns jsonb
@@ -266,6 +290,7 @@ end;
 $$;
 
 revoke execute on function public.get_seller_review_summary(uuid) from public;
+revoke execute on function public.get_seller_reviews(uuid) from public;
 revoke execute on function public.get_seller_review_context(uuid) from public, anon;
 revoke execute on function public.submit_seller_review(uuid, integer, text) from public, anon;
 revoke execute on function public.reply_to_seller_review(uuid, text) from public, anon;
@@ -273,6 +298,7 @@ revoke execute on function public.report_seller_review(uuid, text) from public, 
 revoke execute on function public.get_seller_review_moderation_queue() from public, anon;
 revoke execute on function public.moderate_seller_review(uuid, text) from public, anon;
 grant execute on function public.get_seller_review_summary(uuid) to anon, authenticated;
+grant execute on function public.get_seller_reviews(uuid) to anon, authenticated;
 grant execute on function public.get_seller_review_context(uuid) to authenticated;
 grant execute on function public.submit_seller_review(uuid, integer, text) to authenticated;
 grant execute on function public.reply_to_seller_review(uuid, text) to authenticated;

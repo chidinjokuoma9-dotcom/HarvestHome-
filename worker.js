@@ -41,7 +41,7 @@ async function loadPublishedNewsStory(config, slug) {
   const params = new URLSearchParams({
     slug: "eq." + slug,
     status: "eq.published",
-    select: "title,slug,category,author_name,excerpt,content,featured_image_url,source_name,source_url,published_at",
+    select: "title,slug,category,author_name,excerpt,content,featured_image_url,source_name,source_url,published_at,status",
     limit: "1"
   });
   const response = await fetch(config.supabaseUrl + "/rest/v1/news_articles?" + params.toString(), {
@@ -167,6 +167,91 @@ async function withNewsStoryPreview(env, requestUrl, html, slug) {
   html = html.replace(/<\/head>/i,
     '<script type="application/ld+json">' + rendered.jsonLd + "</script>\n</head>");
   return html;
+}
+
+
+async function loadPublishedNewsStories(config, limit = 50, since = "") {
+  const query = {
+    status: "eq.published",
+    select: "title,slug,category,author_name,excerpt,content,featured_image_url,published_at,is_breaking",
+    order: "published_at.desc",
+    limit: String(limit)
+  };
+  if (since) query.published_at = "gte." + since;
+  const params = new URLSearchParams(query);
+  const response = await fetch(config.supabaseUrl + "/rest/v1/news_articles?" + params.toString(), {
+    headers: { apikey: config.anonKey, Authorization: "Bearer " + config.anonKey, Accept: "application/json" }
+  });
+  if (!response.ok) throw new Error("Published newsroom articles could not be loaded.");
+  const rows = await response.json();
+  return Array.isArray(rows) ? rows : [];
+}
+
+function xmlEscape(value) {
+  return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+}
+
+async function withNewsInsightsStories(env, requestUrl, html) {
+  const config = await getPublicConfig(env, requestUrl);
+  if (!config) return html;
+  try {
+    const stories = await loadPublishedNewsStories(config, 50);
+    const cards = stories.map(story => {
+      const title = String(story.title || "").trim();
+      const slug = String(story.slug || "").trim();
+      if (!title || !slug) return "";
+      const image = safeNewsUrl(story.featured_image_url);
+      const excerpt = String(story.excerpt || "").trim();
+      const author = String(story.author_name || "HarvestHome Editorial Team").trim();
+      const date = story.published_at && !Number.isNaN(Date.parse(story.published_at))
+        ? new Date(story.published_at).toLocaleDateString("en", { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" }) : "";
+      const minutes = Math.max(1, Math.ceil(String(story.content || "").trim().split(" ").filter(Boolean).length / 200));
+      const href = "/news-story.html?slug=" + encodeURIComponent(slug);
+      return '<article class="card">' +
+        (image ? '<img src="' + escapeHtml(image) + '" alt="" loading="lazy">' : "") +
+        '<span class="tag">' + escapeHtml(story.category || "News") + '</span>' +
+        '<h3><a href="' + escapeHtml(href) + '">' + escapeHtml(title) + '</a></h3>' +
+        (excerpt ? '<p>' + escapeHtml(excerpt) + '</p>' : "") +
+        '<p class="story-meta">' + escapeHtml(author) + (date ? " · " + escapeHtml(date) : "") + " · " + minutes +
+        ' min read</p><a class="read" href="' + escapeHtml(href) + '">Read full story →</a></article>';
+    }).filter(Boolean).join("\n");
+    const replacement = '<div id="published-stories" class="grid" aria-live="polite">' +
+      (cards || '<div class="card"><h3>New stories are on the way</h3><p>Our newsroom is preparing its next approved articles. Please check back soon.</p></div>') +
+      '</div>';
+    const start = html.indexOf('<div id="published-stories" class="grid"');
+    const end = start >= 0 ? html.indexOf("</div>", start) : -1;
+    if (start < 0 || end < 0) return html;
+    return html.slice(0, start) + replacement + html.slice(end + 6);
+  } catch {
+    return html;
+  }
+}
+
+async function createNewsSitemapResponse(env, requestUrl) {
+  const config = await getPublicConfig(env, requestUrl);
+  if (!config) return new Response("News sitemap temporarily unavailable.", { status: 503 });
+  try {
+    const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+    const stories = await loadPublishedNewsStories(config, 1000, cutoff);
+    const entries = stories.map(story => {
+      const slug = String(story.slug || "").trim();
+      const title = String(story.title || "").trim();
+      const date = story.published_at && !Number.isNaN(Date.parse(story.published_at)) ? new Date(story.published_at).toISOString() : "";
+      if (!slug || !title || !date) return "";
+      const articleUrl = new URL("/news-story.html", requestUrl.origin);
+      articleUrl.searchParams.set("slug", slug);
+      return "  <url>\n    <loc>" + xmlEscape(articleUrl.toString()) + "</loc>\n    <news:news>\n" +
+        "      <news:publication><news:name>HarvestHome</news:name><news:language>en</news:language></news:publication>\n" +
+        "      <news:publication_date>" + xmlEscape(date) + "</news:publication_date>\n" +
+        "      <news:title>" + xmlEscape(title) + "</news:title>\n    </news:news>\n  </url>";
+    }).filter(Boolean);
+    const xml = '<?xml version="1.0" encoding="UTF-8"?>\n' +
+      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">\n' +
+      entries.join("\n") + (entries.length ? "\n" : "") + '</urlset>';
+    return new Response(xml, { status: 200, headers: { "content-type": "application/xml; charset=utf-8", "cache-control": "public, max-age=0, s-maxage=300" } });
+  } catch {
+    return new Response("News sitemap temporarily unavailable.", { status: 503 });
+  }
 }
 
 function publicStorageUrl(baseUrl, storagePath) {
@@ -300,6 +385,27 @@ export default {
     if (url.pathname === "/update-password") {
       const appUrl = new URL("/", request.url);
       return env.ASSETS.fetch(new Request(appUrl, request));
+    }
+
+
+    if (request.method === "GET" && url.pathname === "/news-sitemap.xml") {
+      return createNewsSitemapResponse(env, url);
+    }
+
+    if (request.method === "GET" && (url.pathname === "/news-insights" || url.pathname === "/news-insights.html")) {
+      const pageUrl = new URL("/news-insights.html", url);
+      const assetResponse = await env.ASSETS.fetch(new Request(pageUrl, { method: "GET", headers: { Accept: "text/html" } }));
+      if (!assetResponse.ok) return assetResponse;
+      let html = await assetResponse.text();
+      try { html = await withNewsInsightsStories(env, url, html); } catch {}
+      const headers = new Headers(assetResponse.headers);
+      headers.delete("content-length");
+      headers.delete("content-encoding");
+      headers.delete("etag");
+      headers.delete("last-modified");
+      headers.set("content-type", "text/html; charset=utf-8");
+      headers.set("cache-control", "public, max-age=0, s-maxage=120");
+      return new Response(html, { status: assetResponse.status, headers });
     }
 
     // Social crawlers do not run marketplace JavaScript. Serve the same app

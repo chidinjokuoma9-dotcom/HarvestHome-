@@ -708,3 +708,137 @@ html,body{width:100%;max-width:100%;min-width:0}
   .hero-card p,
   .hero-card .outline-btn{animation:none}
 }
+
+
+/* HarvestHome 2026 visual refinement.
+   CSS-only presentation layer: preserves existing markup, routes, forms,
+   marketplace logic, payments, authentication, chat, and advertising setup. */
+:root{
+  --hh-ink:#152b1d;
+  --hh-muted:#65756a;
+  --hh-green:#176b3b;
+  --hh-green-dark:#124f2d;
+  --hh-line:#e2eae2;
+  --hh-surface:#ffffff;
+  --hh-soft:#f2f7f1;
+  --hh-shadow:0 12px 34px rgba(24,54,34,.075);
+  --hh-shadow-hover:0 20px 44px rgba(24,54,34,.13);
+}
+:where(a,button,input,select,textarea,[tabindex]):focus-visible{
+  outline:3px solid #e5a93b;
+  outline-offset:3px;
+}
+.hero{
+  position:relative;
+  isolation:isolate;
+  overflow:hidden;
+  background:
+    radial-gradient(ellipse at 88% 12%,rgba(205,235,207,.78),transparent 38%),
+    radial-gradient(ellipse at 8% 92%,rgba(236,244,222,.72),transparent 34%),
+    linear-gradient(145deg,#f2f8ef 0%,#fbfcf8 62%,#f5f8ef 100%);
+}
+.hero-grid{gap:clamp(28px,5vw,64px)}
+.hero-copy>p{color:#58695e;line-height:1.72}
+.hero-search{
+  border-color:#d7e4d8;
+  border-radius:18px;
+  box-shadow:0 16px 38px rgba(28,67,40,.09);
+  transition:border-color .2s ease,box-shadow .2s ease;
+}
+.hero-search:focus-within{
+  border-color:#70a982;
+  box-shadow:0 0 0 4px rgba(23,107,59,.09),0 18px 40px rgba(28,67,40,.1);
+}
+.hero-card{
+  border:1px solid rgba(255,255,255,.12);
+  box-shadow:0 26px 60px rgba(18,79,45,.2);
+}
+.category-grid .category-card{
+  min-width:0;
+  border-color:var(--hh-line);
+  border-radius:20px;
+  box-shadow:0 5px 18px rgba(25,55,34,.035);
+  transition:transform .22s ease,border-color .22s ease,box-shadow .22s ease,background-color .22s ease;
+}
+.category-grid .category-card:hover{
+  transform:translateY(-4px);
+  border-color:#b4d0b8;
+  background:#fcfffc;
+  box-shadow:var(--hh-shadow-hover);
+}
+.listing-grid .listing-card{
+  min-width:0;
+  border-color:var(--hh-line);
+  border-radius:20px;
+  box-shadow:0 6px 22px rgba(25,55,34,.055);
+  transition:transform .22s ease,border-color .22s ease,box-shadow .22s ease;
+}
+.listing-grid .listing-card:hover{
+  transform:translateY(-4px);
+  border-color:#bfd5c2;
+  box-shadow:var(--hh-shadow-hover);
+}
+.listing-grid .listing-image{overflow:hidden}
+.listing-grid .listing-image img{
+  transition:transform .35s ease;
+}
+.listing-grid .listing-card:hover .listing-image img{transform:scale(1.035)}
+.listing-grid .listing-body h3{color:var(--hh-ink);line-height:1.35}
+.listing-grid .listing-bottom strong{color:var(--hh-green-dark)}
+.primary-btn,.outline-btn,.ghost-btn,.clear-btn{
+  transition:transform .18s ease,box-shadow .18s ease,background-color .18s ease,border-color .18s ease;
+}
+.primary-btn:hover,.outline-btn:hover,.ghost-btn:hover,.clear-btn:hover{
+  transform:translateY(-1px);
+}
+.primary-btn:focus-visible,.outline-btn:focus-visible,.ghost-btn:focus-visible{
+  outline-offset:3px;
+}
+.section-heading h2,.panel-heading h2,.country-strip h2{
+  color:var(--hh-ink);
+  text-wrap:balance;
+}
+.trust-section{
+  background:linear-gradient(135deg,#eff6ed 0%,#f7faf4 100%);
+}
+.trust-items>div{
+  border-color:#e0e9df;
+  box-shadow:0 5px 18px rgba(25,55,34,.035);
+}
+.country-grid button{
+  transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease,background-color .2s ease;
+}
+.country-grid button:hover{
+  background:#fff;
+  box-shadow:var(--hh-shadow);
+}
+@media(max-width:950px){
+  .hero{padding-top:58px;padding-bottom:52px}
+  .hero-grid{gap:30px}
+}
+@media(max-width:620px){
+  .hero{padding:40px 0 36px}
+  .hero h1{
+    font-size:clamp(36px,10vw,46px);
+    line-height:1.06;
+    letter-spacing:-1.8px;
+  }
+  .hero-copy>p{font-size:16px;line-height:1.65}
+  .hero-search{border-radius:16px}
+  .hero-card{padding:25px;border-radius:21px}
+  .section{padding:48px 0}
+  .section-heading h2,.panel-heading h2{font-size:clamp(25px,7vw,32px)}
+  .category-grid .category-card{padding:17px;border-radius:17px}
+  .listing-grid .listing-card{border-radius:17px}
+}
+@media(prefers-reduced-motion:reduce){
+  .category-grid .category-card,
+  .listing-grid .listing-card,
+  .listing-grid .listing-image img,
+  .primary-btn,.outline-btn,.ghost-btn,.clear-btn,
+  .country-grid button,.hero-search{transition:none!important}
+  .category-grid .category-card:hover,
+  .listing-grid .listing-card:hover,
+  .primary-btn:hover,.outline-btn:hover,.ghost-btn:hover,.clear-btn:hover,
+  .country-grid button:hover{transform:none}
+}

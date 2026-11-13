@@ -42,7 +42,7 @@ alter table public.seller_review_reports enable row level security;
 revoke all on table public.seller_reviews from anon, authenticated;
 grant select on table public.seller_reviews to anon, authenticated;
 revoke all on table public.seller_review_reports from anon, authenticated;
-grant select, insert on table public.seller_review_reports to authenticated;
+grant select on table public.seller_review_reports to authenticated;
 
 drop policy if exists seller_reviews_public_read on public.seller_reviews;
 create policy seller_reviews_public_read on public.seller_reviews
@@ -54,12 +54,6 @@ create policy seller_reviews_participant_read on public.seller_reviews
     or exists (select 1 from public.profiles p where p.id = (select auth.uid()) and p.role in ('Admin','Moderator'))
   );
 
-drop policy if exists seller_review_reports_insert_own on public.seller_review_reports;
-create policy seller_review_reports_insert_own on public.seller_review_reports
-  for insert to authenticated with check (
-    reporter_id = (select auth.uid())
-    and exists (select 1 from public.seller_reviews r where r.id = review_id and r.status = 'published')
-  );
 drop policy if exists seller_review_reports_read_staff on public.seller_review_reports;
 create policy seller_review_reports_read_staff on public.seller_review_reports
   for select to authenticated using (

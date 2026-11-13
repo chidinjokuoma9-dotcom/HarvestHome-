@@ -123,12 +123,13 @@ async function load(){
   function clearReply(){replyTo=null;document.getElementById("replying-to").textContent="";document.getElementById("cancel-reply").hidden=true;}
   async function loadArticleComments(){
     try{
-      const [{data:sessionData},{data,error}]=await Promise.all([client.auth.getSession(),client.rpc("get_news_article_comments",{p_slug:data.slug})]);
+      const [sessionResult,commentsResult]=await Promise.all([client.auth.getSession(),client.rpc("get_news_article_comments",{p_slug:data.slug})]);
+      const sessionData=sessionResult.data,commentsData=commentsResult.data,error=commentsResult.error;
       if(error)throw error;
       commentUser=sessionData?.session?.user||null;
       commentForm.hidden=!commentUser;
       document.getElementById("comment-signin").hidden=!!commentUser;
-      const rows=Array.isArray(data)?data:[];
+      const rows=Array.isArray(commentsData)?commentsData:[];
       document.getElementById("comments-count").textContent=rows.length+" approved";
       if(!rows.length){commentList.innerHTML='<p class="meta">No comments yet. Be the first to start a thoughtful discussion.</p>';return;}
       const roots=rows.filter(r=>!r.parent_id),children=new Map();

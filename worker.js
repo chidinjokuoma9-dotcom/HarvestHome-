@@ -425,9 +425,9 @@ async function createMarketplaceSitemapResponse(env, requestUrl) {
       if (rows.length < pageSize) break;
     }
 
-    const xml = '<?xml version="1.0" encoding="UTF-8"?>\\n' +
-      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\\n' +
-      urls.join("\\n") + (urls.length ? "\\n" : "") +
+    const xml = '<?xml version="1.0" encoding="UTF-8"?>\n' +
+      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
+      urls.join("\n") + (urls.length ? "\n" : "") +
       '</urlset>';
 
     return new Response(xml, {
@@ -458,7 +458,11 @@ export default {
     }
 
 
-    if (request.method === "GET" && url.pathname === "/marketplace-sitemap.xml") {\n      return createMarketplaceSitemapResponse(env, url);\n    }\n\n    if (request.method === "GET" && url.pathname === "/news-sitemap.xml") {
+    if (request.method === "GET" && url.pathname === "/marketplace-sitemap.xml") {
+      return createMarketplaceSitemapResponse(env, url);
+    }
+
+    if (request.method === "GET" && url.pathname === "/news-sitemap.xml") {
       return createNewsSitemapResponse(env, url);
     }
 

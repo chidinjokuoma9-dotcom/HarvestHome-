@@ -55,7 +55,7 @@ async function load(){
    let visitorId=localStorage.getItem(visitorKey),sessionId=sessionStorage.getItem(sessionKey);
    if(!visitorId){visitorId=crypto.randomUUID();localStorage.setItem(visitorKey,visitorId);}
    if(!sessionId){sessionId=crypto.randomUUID();sessionStorage.setItem(sessionKey,sessionId);}
-   await client.rpc("record_news_article_view",{p_slug:data.slug,p_visitor_id:visitorId,p_session_id:sessionId});
+   client.rpc("record_news_article_view",{p_slug:data.slug,p_visitor_id:visitorId,p_session_id:sessionId}).then(()=>{}).catch(viewError=>console.warn("News readership count unavailable:",viewError.message));
   }catch(viewError){console.warn("News readership count unavailable:",viewError.message);}
 
   document.title=data.title+" | HarvestHome News & Insights";

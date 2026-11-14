@@ -123,6 +123,12 @@ Deno.serve(async (req: Request) => {
           error: "Please first create your own HarvestHome account using this same email address and choose Seller during registration. You keep your password private. After registering, reopen this invitation link to finish your storefront."
         }, 409, origin);
       }
+      const { data: partnerProfile, error: partnerProfileError } = await admin.from("profiles")
+        .select("role").eq("id", partnerUser.id).maybeSingle();
+      if (partnerProfileError) return json({ error: "We could not verify your HarvestHome account type. Please try again." }, 500, origin);
+      if (partnerProfile?.role !== "Seller") {
+        return json({ error: "This invitation must be linked to a HarvestHome Seller account. Please contact support@harvesthome.ng to update your account type. Your password is never needed." }, 409, origin);
+      }
 
       const businessName = String(input.business_name || "").trim();
       const slug = String(input.slug || "").trim().toLowerCase();

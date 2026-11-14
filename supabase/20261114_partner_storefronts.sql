@@ -14,6 +14,9 @@ create table if not exists public.partner_storefronts (
   logo_url text,
   cover_url text,
   is_published boolean not null default false,
+  agreement_confirmed boolean not null default false,
+  agreement_confirmed_by uuid references auth.users(id) on delete set null,
+  agreement_confirmed_at timestamptz,
   created_by uuid references auth.users(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -65,7 +68,8 @@ create or replace function public.admin_upsert_partner_storefront(
   p_phone text default null,
   p_logo_url text default null,
   p_cover_url text default null,
-  p_is_published boolean default false
+  p_is_published boolean default false,
+  p_agreement_confirmed boolean default false
 )
 returns public.partner_storefronts
 language plpgsql
@@ -80,6 +84,10 @@ declare
 begin
   if not private.is_hh_partnership_admin() then
     raise exception 'Only authorised HarvestHome staff can manage partner storefronts.';
+  end if;
+
+  if not coalesce(p_agreement_confirmed, false) then
+    raise exception 'A storefront can only be created after partner checks are complete and a written partnership agreement has been confirmed.';
   end if;
 
   select * into v_app
@@ -112,7 +120,7 @@ begin
   insert into public.partner_storefronts (
     partnership_application_id, seller_id, slug, business_name, tagline,
     description, country, website, phone, logo_url, cover_url,
-    is_published, created_by, updated_at
+    is_published, agreement_confirmed, agreement_confirmed_by, agreement_confirmed_at, created_by, updated_at
   ) values (
     p_application_id, v_seller_id, v_slug, trim(p_business_name),
     left(trim(coalesce(p_tagline, '')),180),
@@ -122,7 +130,7 @@ begin
     nullif(trim(coalesce(p_phone, '')), ''),
     nullif(trim(coalesce(p_logo_url, '')), ''),
     nullif(trim(coalesce(p_cover_url, '')), ''),
-    coalesce(p_is_published, false), auth.uid(), now()
+    coalesce(p_is_published, false), true, auth.uid(), now(), auth.uid(), now()
   )
   on conflict (partnership_application_id) do update set
     seller_id = excluded.seller_id,
@@ -136,6 +144,9 @@ begin
     logo_url = excluded.logo_url,
     cover_url = excluded.cover_url,
     is_published = excluded.is_published,
+    agreement_confirmed = true,
+    agreement_confirmed_by = auth.uid(),
+    agreement_confirmed_at = now(),
     updated_at = now()
   returning * into v_store;
 
@@ -143,5 +154,5 @@ begin
 end;
 $$;
 
-revoke all on function public.admin_upsert_partner_storefront(uuid,text,text,text,text,text,text,text,text,text,text,boolean) from public;
-grant execute on function public.admin_upsert_partner_storefront(uuid,text,text,text,text,text,text,text,text,text,text,boolean) to authenticated;
+revoke all on function public.admin_upsert_partner_storefront(uuid,text,text,text,text,text,text,text,text,text,text,boolean,boolean) from public;
+grant execute on function public.admin_upsert_partner_storefront(uuid,text,text,text,text,text,text,text,text,text,text,boolean,boolean) to authenticated;

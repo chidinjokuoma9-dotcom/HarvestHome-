@@ -27,6 +27,9 @@
 .hh-guide{max-width:1000px;margin:28px auto;padding:0 20px 34px;color:#203329;font:16px/1.75 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 .hh-guide h2,.hh-guide h3{color:#176b3b;line-height:1.3}
 .hh-guide h2{font-size:clamp(1.45rem,3vw,2rem);margin:0 0 12px}
+#hh-guide-title{animation:hh-guide-title-pulse 3.4s ease-in-out infinite;transform-origin:left center;}
+@keyframes hh-guide-title-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.76;transform:scale(1.008)}}
+@media(prefers-reduced-motion:reduce){#hh-guide-title{animation:none;opacity:1;transform:none}}
 .hh-guide h3{font-size:1.12rem;margin:0 0 8px}
 .hh-guide p{margin:10px 0}
 .hh-guide-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:18px 0}

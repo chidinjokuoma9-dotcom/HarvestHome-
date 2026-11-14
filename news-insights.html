@@ -182,6 +182,12 @@
       .chip:hover,.featured:hover,.card:hover,.news-ad-card:hover,.button:hover{transform:none}
     }
 
+    /* Explore more insights: native, initially-collapsed disclosure. */
+    .insights-accordion>summary{cursor:pointer;list-style:revert;padding:4px 8px 4px 0;border-radius:4px}
+    .insights-accordion>summary::marker{color:#a45639;font-size:1.15em}
+    .insights-accordion>summary:focus-visible{outline:2px solid #c49b67;outline-offset:5px}
+    .insights-accordion[open]>summary{margin-bottom:22px}
+    .insights-accordion>.grid{padding-bottom:4px}
   </style>
 </head>
 <body>
@@ -262,8 +268,9 @@
     </section>
 
     <section aria-labelledby="insights-title">
-      <div class="section-head"><div><h2 id="insights-title">Explore more insights</h2><p>International reporting and original HarvestHome resources for readers, buyers, sellers and growing businesses.</p></div></div>
-      <div class="grid">
+      <details class="insights-accordion" id="more-insights">
+        <summary class="section-head"><div><h2 id="insights-title">Explore more insights</h2><p>International reporting and original HarvestHome resources for readers, buyers, sellers and growing businesses.</p></div></summary>
+        <div class="grid">
         <article class="card" id="world-news"><span class="card-icon">🌐</span><span class="tag">WORLD NEWS</span><h3>Understand developments around the world</h3><p>International developments, diplomacy, major events and cross-border issues explained with context, reliable sourcing and clear distinctions between confirmed facts and developing reports.</p><a class="read" href="#editorial-news-standards">Our international reporting standards →</a></article>
         <article class="card" id="africa"><span class="card-icon">🌍</span><span class="tag">AFRICA</span><h3>News and perspectives from across Africa</h3><p>Regional affairs, trade, infrastructure, communities, innovation and cooperation across African countries, with local context and links to original sources.</p><a class="read" href="#editorial-news-standards">How we cover Africa →</a></article>
         <article class="card" id="general-news"><span class="card-icon">📰</span><span class="tag">GENERAL NEWS</span><h3>News that matters to our communities</h3><p>Coverage of significant national and international developments across public affairs, the economy, education, health, infrastructure, technology and society, with clear dates and credible sources.</p><a class="read" href="#editorial-news-standards">Our news standards →</a></article>
@@ -280,7 +287,8 @@
         <article class="card" id="technology"><span class="card-icon">💻</span><span class="tag">TECHNOLOGY &amp; INNOVATION</span><h3>Technology and the changing global marketplace</h3><p>Explore how digital tools can help people and businesses communicate, find opportunities and work more efficiently across borders.</p><a class="read" href="/how-government-policies-affect-small-businesses.html#digital-business">Explore the topic →</a></article>
         <article class="card" id="harvesthome"><span class="card-icon">🧡</span><span class="tag">HARVESTHOME UPDATES</span><h3>About the HarvestHome community</h3><p>Learn about the marketplace, the categories it serves and the principles behind safer connections.</p><a class="read" href="/about.html">About HarvestHome →</a></article>
         <article class="card"><span class="card-icon">🌍</span><span class="tag">AFRICAN MARKETS</span><h3>Explore country-specific buying guides</h3><p>Browse practical information prepared for readers exploring property and produce opportunities in different markets.</p><a class="read" href="/country-guides.html">Explore country guides →</a></article>
-      </div>
+        </div>
+      </details>
     </section>
 
     <section class="standards" id="editorial-news-standards" aria-labelledby="standards-title">
@@ -312,6 +320,19 @@
   (() => {
     "use strict";
     document.getElementById("year").textContent = new Date().getFullYear();
+    // Keep existing topic chips working when their insight cards are collapsed.
+    document.addEventListener("click",event=>{
+      const link=event.target.closest('a[href^="#"]');
+      if(!link)return;
+      const id=decodeURIComponent(link.getAttribute("href").slice(1));
+      const target=document.getElementById(id);
+      const disclosure=target?.closest("details.insights-accordion");
+      if(!target||!disclosure||disclosure.open)return;
+      disclosure.open=true;
+      history.pushState(null,"","#"+encodeURIComponent(id));
+      requestAnimationFrame(()=>target.scrollIntoView({behavior:"smooth",block:"start"}));
+      event.preventDefault();
+    });
 
     const grid=document.getElementById("published-stories");
     const status=document.getElementById("stories-status");

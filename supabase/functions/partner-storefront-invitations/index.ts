@@ -238,10 +238,17 @@ Deno.serve(async (req: Request) => {
     if (action === "invite") {
       const applicationId = String(input.application_id || "");
       if (!validUuid(applicationId)) return json({ error: "Choose a valid partnership application." }, 400, origin);
+      if (input.agreement_confirmed !== true) return json({ error: "Confirm that the written partnership agreement has been signed before issuing an invitation." }, 400, origin);
       const { data: app, error } = await admin.from("partnership_applications")
-        .select("id,organisation_name,email,status,archived_at")
+        .select("id,organisation_name,email,status,archived_at,partnership_agreement_confirmed")
         .eq("id", applicationId).maybeSingle();
       if (error || !app || app.status !== "approved" || app.archived_at) return json({ error: "Only active applications marked Approved for discussion can receive an invitation." }, 400, origin);
+      const { error: agreementError } = await admin.from("partnership_applications").update({
+        partnership_agreement_confirmed: true,
+        partnership_agreement_confirmed_by: adminId,
+        partnership_agreement_confirmed_at: new Date().toISOString(),
+      }).eq("id", applicationId);
+      if (agreementError) return json({ error: "Could not record the written agreement confirmation. Please try again." }, 500, origin);
       const { data: existing } = await admin.from("partner_storefronts").select("id,is_published,removed_at")
         .eq("partnership_application_id", applicationId).maybeSingle();
       if (existing?.is_published) return json({ error: "This partner already has a published storefront." }, 409, origin);

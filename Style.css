@@ -1310,3 +1310,20 @@ html,body{width:100%;max-width:100%;min-width:0}
     font-size:15px;
   }
 }
+
+
+/* Continuous category ticker — visual-only; preserves category buttons and filters. */
+.category-marquee{width:100%;overflow:hidden;position:relative;padding:2px 0 8px}
+.category-marquee-track{display:flex;width:max-content;gap:14px;will-change:transform;animation:hh-category-roll 38s linear infinite}
+.category-marquee-group{display:flex;flex:0 0 auto;gap:14px}
+.category-marquee .category-card{flex:0 0 270px;min-width:0}
+.category-marquee:hover .category-marquee-track,
+.category-marquee:focus-within .category-marquee-track{animation-play-state:paused}
+@keyframes hh-category-roll{from{transform:translateX(0)}to{transform:translateX(calc(-50% - 7px))}}
+@media(max-width:620px){.category-marquee .category-card{flex-basis:min(78vw,290px)}}
+@media(prefers-reduced-motion:reduce){
+  .category-marquee{overflow-x:auto;scrollbar-width:thin}
+  .category-marquee-track{animation:none;will-change:auto}
+  .category-marquee-group[aria-hidden="true"]{display:none}
+  .category-marquee .category-card{flex-basis:min(78vw,290px)}
+}

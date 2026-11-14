@@ -308,6 +308,17 @@ Deno.serve(async (req: Request) => {
       return json({ message: "The storefront has been removed from public view. The partner's HarvestHome account and marketplace listings have not been deleted." }, 200, origin);
     }
 
+    if (action === "delete_storefront") {
+      const storeId = String(input.storefront_id || "");
+      if (!validUuid(storeId)) return json({ error: "Choose a valid storefront." }, 400, origin);
+      const { data: store, error: findError } = await admin.from("partner_storefronts")
+        .select("id,business_name,is_published").eq("id", storeId).maybeSingle();
+      if (findError || !store) return json({ error: "Storefront not found." }, 404, origin);
+      const { error } = await admin.from("partner_storefronts").delete().eq("id", storeId);
+      if (error) return json({ error: "Could not delete this storefront record. Existing marketplace listings and the partner account are not part of this deletion." }, 500, origin);
+      return json({ message: "The storefront record was deleted. The partner's HarvestHome account and marketplace listings were not deleted." }, 200, origin);
+    }
+
     if (action === "delete_invitation") {
       const invitationId = String(input.invitation_id || "");
       if (!validUuid(invitationId)) return json({ error: "Choose a valid invitation." }, 400, origin);

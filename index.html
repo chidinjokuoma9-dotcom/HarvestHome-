@@ -34,6 +34,13 @@
 .hh-guide a{color:#176b3b;font-weight:600}
 .hh-guide details{background:#fff;border:1px solid #e1e8e1;border-radius:12px;padding:14px 16px;margin:10px 0}
 .hh-guide summary{cursor:pointer;font-weight:700;color:#176b3b}
+#hh-faq details{padding:0;overflow:hidden}
+#hh-faq summary{display:flex;align-items:center;justify-content:space-between;gap:14px;list-style:none;padding:15px 16px}
+#hh-faq summary::-webkit-details-marker{display:none}
+#hh-faq summary::after{content:"+";flex:0 0 28px;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;background:#edf5ef;color:#176b3b;font-size:21px;line-height:1;font-weight:700}
+#hh-faq details[open] summary::after{content:"−"}
+#hh-faq details>p{padding:0 16px 14px;margin:0}
+#hh-faq summary:focus-visible{outline:3px solid #d49a28;outline-offset:-3px;border-radius:10px}
 .hh-guide .hh-guide-note{border-left:4px solid #d49a28;padding:12px 16px;background:#fffaf0;border-radius:8px}
 @media(max-width:600px){.hh-guide{padding-left:14px;padding-right:14px}.hh-guide-card{padding:15px}}
 </style>
@@ -114,7 +121,8 @@
     <p><a href="/country-guides.html">Explore all HarvestHome country guides →</a></p>
   </section>
 
-  <h2>Frequently asked questions</h2>
+  <section id="hh-faq" aria-labelledby="hh-faq-title">
+  <h2 id="hh-faq-title">Frequently asked questions</h2>
   <details>
     <summary>Does a listing guarantee that an item or property is still available?</summary>
     <p>No. Availability and terms can change. Contact the seller to confirm the current status before arranging a viewing, delivery or payment.</p>
@@ -131,6 +139,7 @@
     <summary>How can I report a concern or ask HarvestHome a question?</summary>
     <p>Email <a href="mailto:support@harvesthome.ng">support@harvesthome.ng</a> and include the relevant listing link or details. Do not include passwords, PINs or one-time verification codes.</p>
   </details>
+  </section>
 
   <p>For more detailed guidance, read our <a href="/buy-sell-safely-nigeria.html">buying and selling safety guide</a>, learn <a href="/about">about HarvestHome</a>, and review our <a href="/content-safety">Content &amp; Safety Policy</a>, <a href="/terms">Terms and Conditions</a> and <a href="/privacy">Privacy Policy</a>.</p>
 </section>

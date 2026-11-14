@@ -954,7 +954,7 @@ function card(l){
   const fallbackIcon=l.emoji||({Houses:"🏠",Land:"🌍",Equipment:"🚜","Farm Produce":"🌾"}[l.category]||"📦");
   const featuredListing=isFeatured(l.id);
   const featuredDescription=String(l.description||"").trim();
-  const showFeaturedReadMore=featuredListing&&featuredDescription.length>45;
+  const showFeaturedReadMore=featuredDescription.length>45;
   return `<article class="listing-card" data-view-listing="${esc(l.id)}">
     <div class="listing-image ${slug(l.category)}" style="padding:0;overflow:hidden;position:relative">
       ${img?`<button type="button" data-media-open="${esc(l.id)}" data-media-index="0" style="display:block;width:100%;padding:0;border:0;background:none;cursor:zoom-in"><img src="${esc(img)}" alt="${esc(l.title)}" loading="lazy" decoding="async" style="width:100%;height:220px;object-fit:cover;display:block"></button>`:`<div style="height:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:linear-gradient(135deg,#f5f7f2,#e9efe6);color:#49634f;text-align:center"><span style="font-size:54px">${fallbackIcon}</span><b style="font-size:14px">Photo not available</b><small style="opacity:.75">Seller has not uploaded a photo yet</small></div>`}

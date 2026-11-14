@@ -1,0 +1,144 @@
+-- Partner storefronts are an optional public profile for approved HarvestHome partners.
+-- Existing marketplace listings remain in public marketplace/search through the existing listings flow.
+create table if not exists public.partner_storefronts (
+  id uuid primary key default gen_random_uuid(),
+  partnership_application_id uuid not null unique references public.partnership_applications(id) on delete restrict,
+  seller_id uuid not null references auth.users(id) on delete restrict,
+  slug text not null unique,
+  business_name text not null check (char_length(trim(business_name)) between 2 and 160),
+  tagline text not null default '' check (char_length(tagline) <= 180),
+  description text not null default '' check (char_length(description) <= 4000),
+  country text not null default 'Nigeria' check (char_length(trim(country)) between 2 and 100),
+  website text,
+  phone text,
+  logo_url text,
+  cover_url text,
+  is_published boolean not null default false,
+  agreement_confirmed boolean not null default false,
+  agreement_confirmed_by uuid references auth.users(id) on delete set null,
+  agreement_confirmed_at timestamptz,
+  created_by uuid references auth.users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint partner_storefronts_slug_format check (slug ~ '^[a-z0-9]+(?:-[a-z0-9]+)*$'),
+  constraint partner_storefronts_website_length check (website is null or char_length(website) <= 300),
+  constraint partner_storefronts_phone_length check (phone is null or char_length(phone) <= 40)
+);
+
+create index if not exists partner_storefronts_published_idx
+  on public.partner_storefronts(is_published, business_name);
+create index if not exists partner_storefronts_seller_idx
+  on public.partner_storefronts(seller_id);
+
+alter table public.partner_storefronts enable row level security;
+
+drop policy if exists partner_storefronts_public_read on public.partner_storefronts;
+create policy partner_storefronts_public_read on public.partner_storefronts
+  for select to anon, authenticated
+  using (is_published or seller_id = auth.uid() or private.is_hh_partnership_admin());
+
+-- Storefront writes must go through the guarded RPC so staff cannot bypass
+-- the written-agreement confirmation by writing directly to the table.
+revoke all on public.partner_storefronts from anon, authenticated;
+grant select on public.partner_storefronts to anon, authenticated;
+
+create or replace function public.admin_upsert_partner_storefront(
+  p_application_id uuid,
+  p_seller_email text,
+  p_slug text,
+  p_business_name text,
+  p_tagline text default '',
+  p_description text default '',
+  p_country text default 'Nigeria',
+  p_website text default null,
+  p_phone text default null,
+  p_logo_url text default null,
+  p_cover_url text default null,
+  p_is_published boolean default false,
+  p_agreement_confirmed boolean default false
+)
+returns public.partner_storefronts
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_app public.partnership_applications%rowtype;
+  v_seller_id uuid;
+  v_store public.partner_storefronts%rowtype;
+  v_slug text;
+begin
+  if not private.is_hh_partnership_admin() then
+    raise exception 'Only authorised HarvestHome staff can manage partner storefronts.';
+  end if;
+
+  if not coalesce(p_agreement_confirmed, false) then
+    raise exception 'A storefront can only be created after partner checks are complete and a written partnership agreement has been confirmed.';
+  end if;
+
+  select * into v_app
+  from public.partnership_applications
+  where id = p_application_id and status = 'approved' and archived_at is null;
+
+  if not found then
+    raise exception 'The partnership application must be approved and active before a storefront can be created.';
+  end if;
+
+  select id into v_seller_id
+  from auth.users
+  where lower(email) = lower(trim(coalesce(p_seller_email, '')))
+  limit 1;
+
+  if v_seller_id is null then
+    raise exception 'No HarvestHome seller account was found for that email. Ask the partner to create an account first.';
+  end if;
+
+  v_slug := lower(trim(coalesce(p_slug, '')));
+  if v_slug !~ '^[a-z0-9]+(?:-[a-z0-9]+)*$' then
+    raise exception 'Use a simple web address with lowercase letters, numbers and hyphens only.';
+  end if;
+
+  if char_length(trim(coalesce(p_business_name, ''))) < 2
+     or char_length(trim(coalesce(p_business_name, ''))) > 160 then
+    raise exception 'Enter a business name between 2 and 160 characters.';
+  end if;
+
+  insert into public.partner_storefronts (
+    partnership_application_id, seller_id, slug, business_name, tagline,
+    description, country, website, phone, logo_url, cover_url,
+    is_published, agreement_confirmed, agreement_confirmed_by, agreement_confirmed_at, created_by, updated_at
+  ) values (
+    p_application_id, v_seller_id, v_slug, trim(p_business_name),
+    left(trim(coalesce(p_tagline, '')),180),
+    left(trim(coalesce(p_description, '')),4000),
+    left(trim(coalesce(p_country, 'Nigeria')),100),
+    nullif(trim(coalesce(p_website, '')), ''),
+    nullif(trim(coalesce(p_phone, '')), ''),
+    nullif(trim(coalesce(p_logo_url, '')), ''),
+    nullif(trim(coalesce(p_cover_url, '')), ''),
+    coalesce(p_is_published, false), true, auth.uid(), now(), auth.uid(), now()
+  )
+  on conflict (partnership_application_id) do update set
+    seller_id = excluded.seller_id,
+    slug = excluded.slug,
+    business_name = excluded.business_name,
+    tagline = excluded.tagline,
+    description = excluded.description,
+    country = excluded.country,
+    website = excluded.website,
+    phone = excluded.phone,
+    logo_url = excluded.logo_url,
+    cover_url = excluded.cover_url,
+    is_published = excluded.is_published,
+    agreement_confirmed = true,
+    agreement_confirmed_by = auth.uid(),
+    agreement_confirmed_at = now(),
+    updated_at = now()
+  returning * into v_store;
+
+  return v_store;
+end;
+$$;
+
+revoke all on function public.admin_upsert_partner_storefront(uuid,text,text,text,text,text,text,text,text,text,text,boolean,boolean) from public;
+grant execute on function public.admin_upsert_partner_storefront(uuid,text,text,text,text,text,text,text,text,text,text,boolean,boolean) to authenticated;

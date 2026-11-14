@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#176b3b"><title>Partner Storefront Manager | HarvestHome</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f4f8f4;color:#193629;font:15px/1.55 system-ui,-apple-system,Segoe UI,sans-serif}.wrap{max-width:1120px;margin:auto;padding:22px 15px 50px}.brand{color:#176b3b;text-decoration:none;font-weight:900}.panel{background:#fff;border:1px solid #e0e9e0;border-radius:16px;padding:20px;margin-top:16px;box-shadow:0 8px 22px #173b2408}h1,h2{color:#174e2e}label{display:block;font-weight:700;margin:12px 0 5px}input,textarea,select{width:100%;padding:11px 12px;border:1px solid #cbd9cc;border-radius:9px;font:inherit;background:#fff}textarea{resize:vertical}button,.btn{border:0;border-radius:10px;background:#176b3b;color:#fff;padding:11px 15px;font:inherit;font-weight:800;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}button:disabled{opacity:.55;cursor:wait}.secondary{background:#eef5ef;color:#176b3b;border:1px solid #cbdccf}.notice{padding:12px;border-radius:9px;background:#eef6ee;white-space:pre-wrap}.muted{color:#68766c}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.full{grid-column:1/-1}.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.store{border:1px solid #e1e9e1;border-radius:12px;padding:14px;margin:10px 0}.store h3{margin:0 0 4px}.pill{display:inline-block;background:#e8f5e9;color:#176b3b;border-radius:999px;padding:4px 8px;font-size:11px;font-weight:850}.preview{display:flex;gap:10px;align-items:center;margin-top:7px}.preview img{width:70px;height:52px;object-fit:cover;border-radius:8px;border:1px solid #dce6dc}.hint{font-size:12px;color:#6b786e}@media(max-width:650px){.grid{grid-template-columns:1fr}.full{grid-column:auto}.panel{padding:15px}}
+</style></head><body><main class="wrap"><a class="brand" href="/">🌿 HarvestHome</a><h1>Partner storefront manager</h1><p class="muted">Private staff tool. Only authorised HarvestHome Admins and Moderators can create or update storefronts. A storefront is published only when you choose to publish it.</p>
+<section class="panel" id="loginPanel"><h2>Staff sign in</h2><form id="loginForm"><label>Email</label><input id="email" type="email" autocomplete="username" required><label>Password</label><input id="password" type="password" autocomplete="current-password" required><button style="margin-top:14px" id="loginButton">Sign in</button></form><p id="loginMessage" class="notice" role="status"></p></section>
+<div id="dashboard" hidden><section class="panel"><div class="row" style="justify-content:space-between"><div><h2 style="margin:0">Create or update a storefront</h2><p class="muted" id="staffEmail"></p></div><button class="secondary" id="logout">Sign out</button></div><form id="storeForm">
+<label>Approved partnership application</label><select id="application" required><option value="">Loading approved applications…</option></select>
+<div class="grid"><div><label>Partner's HarvestHome seller account email</label><input id="sellerEmail" type="email" required placeholder="Must match their HarvestHome login"></div><div><label>Storefront web address (slug)</label><input id="slug" required pattern="[a-z0-9]+(-[a-z0-9]+)*" placeholder="greenfield-agro"></div>
+<div><label>Business name</label><input id="businessName" required maxlength="160"></div><div><label>Country / location</label><input id="country" maxlength="100" value="Nigeria" required></div>
+<div class="full"><label>Short tagline</label><input id="tagline" maxlength="180" placeholder="Quality farm equipment and agricultural supplies"></div>
+<div class="full"><label>Business description</label><textarea id="description" rows="5" maxlength="4000" placeholder="Describe the business, products, services and areas served." required></textarea></div>
+<div><label>Business website (optional)</label><input id="website" type="url" maxlength="300" placeholder="https://"></div><div><label>Business phone (optional)</label><input id="phone" type="tel" maxlength="40"></div>
+<div><label>Logo image (optional, max 5 MB)</label><input id="logoFile" type="file" accept="image/*"><div class="preview" id="logoPreview"></div></div><div><label>Cover image (optional, max 5 MB)</label><input id="coverFile" type="file" accept="image/*"><div class="preview" id="coverPreview"></div></div>
+<div class="full"><label style="display:flex;gap:9px;align-items:flex-start"><input id="agreementConfirmed" type="checkbox" style="width:auto;margin-top:5px" required><span>I confirm that partner checks are complete and a written partnership agreement has been confirmed. “Approved for discussion” alone is not final partnership approval.</span></label><label style="display:flex;gap:9px;align-items:center"><input id="publish" type="checkbox" style="width:auto"> Publish this storefront publicly</label><p class="hint">Only publish after checking the partner's business details, the linked seller account and the written agreement.</p></div></div>
+<div class="row" style="margin-top:16px"><button id="saveButton" type="submit">Save storefront</button><button class="secondary" type="button" id="resetButton">Clear form</button></div><p id="formMessage" class="notice" role="status"></p></form></section>
+<section class="panel"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Existing storefronts</h2><button class="secondary" id="refresh">Refresh</button></div><div id="storeList" class="muted">Loading…</div></section></div></main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="/Config.js?v=partnerstorefront1"></script>
+<script>
+(function(){
+ const $=id=>document.getElementById(id);let db=null,applications=[],stores=[],currentUser=null;
+ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ function msg(id,t){$(id).textContent=t||''}
+ function safeUrl(v){try{const u=new URL(v);return ['https:','http:'].includes(u.protocol)?u.href:''}catch{return ''}}
+ async function init(){
+  const c=window.HARVESTHOME_CONFIG;if(!window.supabase||!c?.SUPABASE_URL||!c?.SUPABASE_ANON_KEY){msg('loginMessage','The secure service is not configured.');return}
+  db=window.supabase.createClient(c.SUPABASE_URL,c.SUPABASE_ANON_KEY);
+  const {data:{session}}=await db.auth.getSession();if(session)await showDashboard(session.user);
+ }
+ async function showDashboard(u){
+  currentUser=u;const {data:p,error}=await db.from('profiles').select('role').eq('id',u.id).maybeSingle();
+  if(error||!['Admin','Moderator'].includes(p?.role)){await db.auth.signOut();msg('loginMessage','This account is not authorised to manage partner storefronts.');return}
+  $('loginPanel').hidden=true;$('dashboard').hidden=false;$('staffEmail').textContent='Signed in as '+u.email;
+  await Promise.all([loadApplications(),loadStores()]);
+ }
+ $('loginForm').addEventListener('submit',async e=>{e.preventDefault();$('loginButton').disabled=true;msg('loginMessage','Signing in…');try{const {data,error}=await db.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});if(error)throw error;await showDashboard(data.user)}catch(err){msg('loginMessage','Sign-in failed. Check your credentials and try again.')}finally{$('loginButton').disabled=false}});
+ async function loadApplications(){
+  const {data,error}=await db.from('partnership_applications').select('id,organisation_name,contact_name,email,country,website,phone,status,archived_at,created_at').eq('status','approved').is('archived_at',null).order('created_at',{ascending:false});
+  if(error){msg('formMessage','Could not load approved partnership applications.');return}
+  applications=data||[];const select=$('application'),old=select.value;
+  select.innerHTML='<option value="">Choose an approved partner application</option>'+applications.map(a=>'<option value="'+esc(a.id)+'">'+esc(a.organisation_name)+' — '+esc(a.email)+'</option>').join('');
+  if(old&&applications.some(a=>a.id===old))select.value=old;
+ }
+ async function loadStores(){
+  $('storeList').textContent='Loading storefronts…';
+  const {data,error}=await db.from('partner_storefronts').select('*').order('created_at',{ascending:false});
+  if(error){$('storeList').textContent='Could not load storefronts. Check the partner storefront database migration has been applied.';return}
+  stores=data||[];
+  $('storeList').innerHTML=stores.length?stores.map(s=>'<article class="store"><div class="row" style="justify-content:space-between"><div><h3>'+esc(s.business_name)+'</h3><span class="pill">'+(s.is_published?'Published':'Draft / hidden')+'</span></div><button class="secondary" type="button" data-edit="'+esc(s.id)+'">Edit</button></div><p class="muted">'+esc(s.country)+' · /partner-storefront.html?slug='+esc(s.slug)+'</p>'+(s.is_published?'<a href="/partner-storefront.html?slug='+encodeURIComponent(s.slug)+'" target="_blank" rel="noopener">Open public storefront ↗</a>':'')+'</article>').join(''):'<p class="muted">No storefronts have been created yet.</p>';
+ }
+ $('application').addEventListener('change',()=>{const a=applications.find(x=>x.id===$('application').value);if(!a)return;$('businessName').value=a.organisation_name||'';$('country').value=a.country||'Nigeria';$('sellerEmail').value=a.email||'';$('website').value=a.website||'';$('phone').value=a.phone||'';const base=(a.organisation_name||'partner').toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');$('slug').value=base});
+ async function upload(file,kind){
+  if(!file)return null;if(!file.type.startsWith('image/'))throw new Error('Choose an image file for '+kind+'.');if(file.size>5*1024*1024)throw new Error(kind+' must be 5 MB or smaller.');
+  const ext=(file.name.split('.').pop()||'jpg').replace(/[^a-z0-9]/gi,'').toLowerCase()||'jpg';
+  const path=currentUser.id+'/partner-storefront/'+Date.now()+'-'+kind+'.'+ext;
+  const {error}=await db.storage.from('listing-media').upload(path,file,{upsert:true,contentType:file.type,cacheControl:'31536000'});if(error)throw error;
+  return db.storage.from('listing-media').getPublicUrl(path).data.publicUrl;
+ }
+ $('logoFile').addEventListener('change',()=>preview('logoFile','logoPreview'));$('coverFile').addEventListener('change',()=>preview('coverFile','coverPreview'));
+ function preview(input,out){const f=$(input).files?.[0];$(out).innerHTML=f?'<img alt="Selected image preview" src="'+URL.createObjectURL(f)+'"><span>'+esc(f.name)+'</span>':''}
+ $('storeForm').addEventListener('submit',async e=>{
+  e.preventDefault();if(!applications.length){msg('formMessage','There are no approved partnership applications to publish.');return}
+  const app=applications.find(a=>a.id===$('application').value);if(!app){msg('formMessage','Choose an approved application.');return}
+  const slug=$('slug').value.trim().toLowerCase();if(!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)){msg('formMessage','Use lowercase letters, numbers and hyphens in the web address.');return}
+  $('saveButton').disabled=true;msg('formMessage','Saving storefront securely…');
+  try{
+   const existing=stores.find(s=>s.partnership_application_id===app.id);
+   const logo=await upload($('logoFile').files?.[0],'logo')||existing?.logo_url||null;
+   const cover=await upload($('coverFile').files?.[0],'cover')||existing?.cover_url||null;
+   const args={p_application_id:app.id,p_seller_email:$('sellerEmail').value.trim(),p_slug:slug,p_business_name:$('businessName').value.trim(),p_tagline:$('tagline').value.trim(),p_description:$('description').value.trim(),p_country:$('country').value.trim(),p_website:$('website').value.trim()||null,p_phone:$('phone').value.trim()||null,p_logo_url:logo,p_cover_url:cover,p_is_published:$('publish').checked,p_agreement_confirmed:$('agreementConfirmed').checked};
+   const {error}=await db.rpc('admin_upsert_partner_storefront',args);if(error)throw error;
+   msg('formMessage',$('publish').checked?'Storefront saved and published.':'Storefront saved as a draft.');await loadStores();resetForm(false);
+  }catch(err){console.error(err);msg('formMessage',err.message||'Could not save the storefront. Please check the account email and try again.')}
+  finally{$('saveButton').disabled=false}
+ });
+ function resetForm(clearMessage=true){$('storeForm').reset();$('logoPreview').innerHTML='';$('coverPreview').innerHTML='';if(clearMessage)msg('formMessage','')}
+ $('resetButton').addEventListener('click',()=>resetForm());
+ $('storeList').addEventListener('click',e=>{const b=e.target.closest('[data-edit]');if(!b)return;const s=stores.find(x=>x.id===b.dataset.edit);if(!s)return;const a=applications.find(x=>x.id===s.partnership_application_id);$('application').value=s.partnership_application_id;$('sellerEmail').value=a?.email||'';$('slug').value=s.slug;$('businessName').value=s.business_name;$('country').value=s.country||'';$('tagline').value=s.tagline||'';$('description').value=s.description||'';$('website').value=s.website||'';$('phone').value=s.phone||'';$('publish').checked=!!s.is_published;$('agreementConfirmed').checked=!!s.agreement_confirmed;$('logoPreview').innerHTML=s.logo_url?'<img src="'+esc(s.logo_url)+'" alt="Current logo"><span>Current logo</span>':'';$('coverPreview').innerHTML=s.cover_url?'<img src="'+esc(s.cover_url)+'" alt="Current cover"><span>Current cover</span>':'';window.scrollTo({top:0,behavior:'smooth'});msg('formMessage','Editing '+s.business_name+'. Save to update its profile.')});
+ $('refresh').addEventListener('click',()=>Promise.all([loadApplications(),loadStores()]));$('logout').addEventListener('click',async()=>{await db.auth.signOut();$('dashboard').hidden=true;$('loginPanel').hidden=false;msg('loginMessage','Signed out.')});
+ init();
+})();
+</script></body></html>

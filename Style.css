@@ -1222,3 +1222,91 @@ html,body{width:100%;max-width:100%;min-width:0}
   .listing-card>div[style*="overflow-x:auto"] img{transition:none}
   .listing-card:hover{transform:none}
 }
+
+/* Concise marketplace cards: presentation-only overrides.
+   Listing text remains available on the card; all listing actions and media controls stay intact.
+   No advertising, payment, authentication, or listing data code is changed. */
+.listing-card .listing-image{
+  height:210px!important;
+  min-height:210px;
+}
+.listing-card .listing-body{
+  gap:5px;
+  padding:14px;
+}
+.listing-card .listing-body h3{
+  min-height:0;
+  margin:2px 0 0;
+  font-size:16px;
+  line-height:1.3;
+  -webkit-line-clamp:2;
+}
+.listing-card .listing-body .location{
+  margin:2px 0;
+  font-size:12px;
+  line-height:1.35;
+}
+.listing-card .seller-trust-row{
+  gap:5px 8px;
+  margin:2px 0;
+  align-items:center;
+}
+.listing-card .seller-trust-row .seller-line{
+  margin:0;
+  font-size:11px;
+}
+.listing-card .seller-trust-row .hh-listing-presence,
+.listing-card .seller-trust-row .trust-badge{
+  font-size:10px;
+  padding:2px 7px;
+}
+.listing-card .listing-body .description{
+  margin:2px 0 4px;
+  font-size:12px;
+  line-height:1.4;
+  -webkit-line-clamp:1;
+}
+.listing-card .listing-bottom{
+  padding-top:5px;
+  font-size:11px;
+}
+.listing-card .listing-bottom strong{
+  font-size:17px;
+}
+.listing-card .listing-actions{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:7px;
+  margin-top:8px;
+}
+.listing-card .listing-actions button,
+.listing-card .listing-actions a{
+  min-width:0;
+  min-height:38px;
+  padding:8px 9px;
+  font-size:11px;
+  line-height:1.25;
+}
+.listing-card .listing-actions .media-links{
+  grid-column:1/-1;
+  margin-top:0;
+}
+.listing-card>div[style*="overflow-x:auto"]{
+  padding:7px 10px 0!important;
+}
+.listing-card>div[style*="overflow-x:auto"] img{
+  width:54px!important;
+  height:44px!important;
+}
+@media(max-width:600px){
+  .listing-card .listing-image{
+    height:175px!important;
+    min-height:175px;
+  }
+  .listing-card .listing-body{
+    padding:12px;
+  }
+  .listing-card .listing-body h3{
+    font-size:15px;
+  }
+}

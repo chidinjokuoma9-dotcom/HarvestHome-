@@ -867,3 +867,85 @@ html,body{width:100%;max-width:100%;min-width:0}
 .hh-review-reply-form{border-top:1px solid #edf1ed;margin-top:12px;padding-top:10px}
 .hh-report-review{background:transparent;color:#8b5555;text-decoration:underline;font-size:12px;padding:7px 0}
 @media(max-width:620px){.hh-reviews-modal{padding:22px 16px}.hh-review-top{flex-wrap:wrap}.hh-review-summary>strong{font-size:32px}}
+
+
+/* Account dashboard responsive fit — layout only.
+   Keep the signed-in dashboard content using the available page width on
+   desktop, and prevent sidebar/content grids from overflowing on smaller screens. */
+.dashboard-section > .container.dashboard-layout{
+  display:grid;
+  grid-template-columns:minmax(190px,230px) minmax(0,1fr);
+  align-items:start;
+  gap:clamp(18px,2vw,30px);
+  width:min(calc(100% - 48px),1600px);
+  max-width:1600px;
+  min-width:0;
+}
+.dashboard-section .dashboard-nav,
+.dashboard-section .dashboard-content{
+  min-width:0;
+  width:100%;
+}
+.dashboard-section .dashboard-content{
+  max-width:none;
+}
+.dashboard-section .dashboard-content > *{
+  min-width:0;
+  max-width:100%;
+}
+@media(max-width:950px){
+  .dashboard-section > .container.dashboard-layout{
+    grid-template-columns:minmax(0,1fr);
+    width:calc(100% - 32px);
+    gap:18px;
+  }
+  .dashboard-section .dashboard-nav{
+    flex-direction:row;
+    width:100%;
+    max-width:100%;
+    overflow-x:auto;
+    overflow-y:hidden;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:thin;
+  }
+  .dashboard-section .dashboard-nav button,
+  .dashboard-section .dashboard-nav a{
+    flex:0 0 auto;
+    white-space:nowrap;
+  }
+  .dashboard-section .dashboard-content{
+    width:100%;
+    max-width:100%;
+  }
+  .dashboard-section .stat-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+@media(max-width:620px){
+  .dashboard-section > .container.dashboard-layout{
+    width:calc(100% - 24px);
+    gap:14px;
+  }
+  .dashboard-section .dashboard-content,
+  .dashboard-section .dashboard-content > *{
+    width:100%;
+    min-width:0;
+  }
+  .dashboard-section .stat-grid{
+    grid-template-columns:minmax(0,1fr);
+  }
+  .dashboard-section .dashboard-nav{
+    gap:5px;
+    padding-bottom:6px;
+  }
+  .dashboard-section .dashboard-nav button,
+  .dashboard-section .dashboard-nav a{
+    min-height:42px;
+    padding:10px 12px;
+  }
+  .dashboard-section .table-wrap{
+    width:100%;
+    max-width:100%;
+    overflow-x:auto;
+  }
+}

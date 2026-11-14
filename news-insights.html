@@ -183,11 +183,26 @@
     }
 
     /* Explore more insights: native, initially-collapsed disclosure. */
-    .insights-accordion>summary{cursor:pointer;list-style:revert;padding:4px 8px 4px 0;border-radius:4px}
-    .insights-accordion>summary::marker{color:#a45639;font-size:1.15em}
+    .insights-accordion>summary{
+      cursor:pointer;list-style:none;padding:12px 14px 12px 0;border-radius:4px;
+      display:flex;align-items:center;justify-content:space-between;gap:18px
+    }
+    .insights-accordion>summary::-webkit-details-marker{display:none}
+    .insights-accordion>summary::after{
+      content:"View topics  ↓";flex:0 0 auto;display:inline-flex;align-items:center;
+      justify-content:center;padding:10px 15px;border:1px solid #c9a77c;border-radius:4px;
+      background:#fff8ed;color:#8e4e35;font-size:.82rem;font-weight:800;
+      letter-spacing:.02em;white-space:nowrap;transition:background .2s,color .2s
+    }
+    .insights-accordion>summary:hover::after{background:#f4e8d7;color:#703c2b}
+    .insights-accordion[open]>summary::after{content:"Hide topics  ↑"}
     .insights-accordion>summary:focus-visible{outline:2px solid #c49b67;outline-offset:5px}
     .insights-accordion[open]>summary{margin-bottom:22px}
     .insights-accordion>.grid{padding-bottom:4px}
+    @media(max-width:540px){
+      .insights-accordion>summary{align-items:flex-start;gap:12px}
+      .insights-accordion>summary::after{padding:8px 10px;font-size:.74rem}
+    }
   </style>
 </head>
 <body>

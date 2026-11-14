@@ -1310,3 +1310,62 @@ html,body{width:100%;max-width:100%;min-width:0}
     font-size:15px;
   }
 }
+
+
+/* HarvestHome Featured Listings — restrained, accessible motion */
+.listing-card.is-featured-listing{
+  position:relative;
+  border-color:#e7d39a;
+  box-shadow:0 8px 24px rgba(95,72,20,.09);
+  animation:hh-featured-enter .68s cubic-bezier(.2,.72,.25,1) both;
+}
+.listing-card.is-featured-listing:nth-child(2){animation-delay:.07s}
+.listing-card.is-featured-listing:nth-child(3){animation-delay:.14s}
+.listing-card.is-featured-listing:nth-child(4){animation-delay:.21s}
+.listing-card.is-featured-listing .listing-image img{
+  transition:transform .55s cubic-bezier(.2,.7,.25,1);
+}
+.featured-listing-badge{
+  z-index:2;
+  overflow:hidden;
+  color:#694b08;
+  border:1px solid rgba(196,151,48,.42);
+  box-shadow:0 3px 12px rgba(112,82,18,.16);
+}
+.featured-listing-badge::after{
+  content:"";
+  position:absolute;
+  top:-35%;
+  bottom:-35%;
+  left:-55%;
+  width:34%;
+  transform:skewX(-22deg);
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.88),transparent);
+  animation:hh-featured-shimmer 3.8s ease-in-out infinite;
+  pointer-events:none;
+}
+@keyframes hh-featured-enter{
+  from{opacity:0;transform:translate3d(0,14px,0)}
+  to{opacity:1;transform:translate3d(0,0,0)}
+}
+@keyframes hh-featured-shimmer{
+  0%,58%{left:-55%;opacity:0}
+  68%{opacity:1}
+  88%,100%{left:125%;opacity:0}
+}
+@media (hover:hover) and (prefers-reduced-motion:no-preference){
+  .listing-card.is-featured-listing:hover{
+    transform:translateY(-5px);
+    border-color:#d7b75f;
+    box-shadow:0 15px 34px rgba(95,72,20,.15);
+    transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease;
+  }
+  .listing-card.is-featured-listing:hover .listing-image img{
+    transform:scale(1.045);
+  }
+}
+@media (prefers-reduced-motion:reduce){
+  .listing-card.is-featured-listing{animation:none}
+  .featured-listing-badge::after{animation:none;display:none}
+  .listing-card.is-featured-listing .listing-image img{transition:none}
+}

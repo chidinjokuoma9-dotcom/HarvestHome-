@@ -1110,3 +1110,115 @@ html,body{width:100%;max-width:100%;min-width:0}
   .hh-news-all,.hh-news-card,.hh-news-card-image img{transition:none!important}
   .hh-news-card:hover,.hh-news-all:hover{transform:none}
 }
+
+
+/* Alibaba-inspired marketplace photo presentation.
+   Visual-only: keeps listing data, links, sponsored placements and ad containers unchanged. */
+.listing-card{
+  display:flex;
+  flex-direction:column;
+  min-width:0;
+  border-radius:16px;
+  border:1px solid #e4e9e4;
+  box-shadow:0 5px 18px rgba(24,48,32,.055);
+  transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease;
+}
+.listing-card:hover{
+  transform:translateY(-3px);
+  border-color:#cbd9cc;
+  box-shadow:0 12px 28px rgba(24,48,32,.11);
+}
+.listing-card .listing-image{
+  height:240px!important;
+  min-height:240px;
+  aspect-ratio:4/3;
+  background:#f1f4ef;
+  isolation:isolate;
+}
+.listing-card .listing-image>button:first-child{
+  width:100%!important;
+  height:100%!important;
+  overflow:hidden;
+}
+.listing-card .listing-image>button:first-child img{
+  width:100%!important;
+  height:100%!important;
+  object-fit:cover;
+  transition:transform .35s ease;
+}
+.listing-card:hover .listing-image>button:first-child img{
+  transform:scale(1.045);
+}
+.listing-card .listing-image .mode-pill{
+  top:auto;
+  bottom:12px;
+  left:12px;
+  padding:6px 10px;
+  font-size:11px;
+  box-shadow:0 2px 9px rgba(0,0,0,.12);
+}
+.listing-card .listing-image .heart{
+  z-index:2;
+  width:38px;
+  height:38px;
+  box-shadow:0 2px 10px rgba(0,0,0,.12);
+}
+.listing-card .listing-image [style*="Featured"]{
+  z-index:1;
+  top:12px!important;
+  left:12px!important;
+  padding:7px 11px!important;
+  color:#8a5718;
+  border:1px solid #f0d8a7;
+  background:#fffaf0!important;
+  box-shadow:0 2px 10px rgba(0,0,0,.1);
+}
+.listing-card>div[style*="overflow-x:auto"]{
+  scrollbar-width:thin;
+  scrollbar-color:#cbd8cc transparent;
+}
+.listing-card>div[style*="overflow-x:auto"] img{
+  width:66px!important;
+  height:54px!important;
+  border-radius:7px!important;
+  transition:opacity .18s ease,transform .18s ease;
+}
+.listing-card>div[style*="overflow-x:auto"] button:hover img{
+  opacity:.82;
+  transform:translateY(-1px);
+}
+.listing-card .listing-body{
+  display:flex;
+  flex:1;
+  flex-direction:column;
+  padding:16px;
+}
+.listing-card .listing-body h3{
+  display:-webkit-box;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:2;
+  overflow:hidden;
+  min-height:2.5em;
+}
+.listing-card .listing-body .description{
+  display:-webkit-box;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:3;
+  overflow:hidden;
+}
+.listing-card .listing-bottom{
+  margin-top:auto;
+}
+@media(max-width:900px){
+  .listing-card .listing-image{height:220px!important;min-height:220px}
+}
+@media(max-width:600px){
+  .listing-card{border-radius:13px}
+  .listing-card .listing-image{height:190px!important;min-height:190px}
+  .listing-card .listing-body{padding:13px}
+}
+@media(prefers-reduced-motion:reduce){
+  .listing-card,.listing-card .listing-image>button:first-child img,
+  .listing-card>div[style*="overflow-x:auto"] img{transition:none}
+  .listing-card:hover{transform:none}
+}

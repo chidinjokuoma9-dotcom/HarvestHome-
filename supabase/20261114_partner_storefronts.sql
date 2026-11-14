@@ -37,24 +37,10 @@ create policy partner_storefronts_public_read on public.partner_storefronts
   for select to anon, authenticated
   using (is_published or seller_id = auth.uid() or private.is_hh_partnership_admin());
 
-drop policy if exists partner_storefronts_staff_insert on public.partner_storefronts;
-create policy partner_storefronts_staff_insert on public.partner_storefronts
-  for insert to authenticated
-  with check (private.is_hh_partnership_admin());
-
-drop policy if exists partner_storefronts_staff_update on public.partner_storefronts;
-create policy partner_storefronts_staff_update on public.partner_storefronts
-  for update to authenticated
-  using (private.is_hh_partnership_admin())
-  with check (private.is_hh_partnership_admin());
-
-drop policy if exists partner_storefronts_staff_delete on public.partner_storefronts;
-create policy partner_storefronts_staff_delete on public.partner_storefronts
-  for delete to authenticated
-  using (private.is_hh_partnership_admin());
-
+-- Storefront writes must go through the guarded RPC so staff cannot bypass
+-- the written-agreement confirmation by writing directly to the table.
+revoke all on public.partner_storefronts from anon, authenticated;
 grant select on public.partner_storefronts to anon, authenticated;
-grant insert, update, delete on public.partner_storefronts to authenticated;
 
 create or replace function public.admin_upsert_partner_storefront(
   p_application_id uuid,

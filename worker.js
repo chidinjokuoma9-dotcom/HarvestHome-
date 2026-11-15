@@ -73,7 +73,7 @@ async function loadPublishedPartnerListings(config, sellerId) {
   return Array.isArray(rows) ? rows : [];
 }
 
-async function withPartnerStorefrontSeo(env, requestUrl, html, slug) {
+async function withPartnerStorefrontSeo(env, requestUrl, html, slug, userAgent = "") {
   const config = await getPublicConfig(env, requestUrl);
   if (!config) return html;
   let partner;
@@ -138,8 +138,13 @@ async function withPartnerStorefrontSeo(env, requestUrl, html, slug) {
     '<h2>Current marketplace listings (' + partnerListings.length + ')</h2>' +
     (listingCards || '<p>There are no active approved listings at the moment.</p>') +
     '<p><a href="/partners">Browse the HarvestHome Partner Network</a></p></section>';
-  html = html.replace(/<div id=["']page["']><div class=["']empty["'][^>]*>Loading partner storefront…<\/div><\/div>/i,
-    '<div id="page">' + fallback + '</div>');
+  // Keep the fully styled client-rendered storefront for real visitors.
+  // Search and social crawlers still receive the server-rendered business content.
+  const renderFallback = /googlebot|bingbot|duckduckbot|yandexbot|baiduspider|facebookexternalhit|twitterbot|linkedinbot|slackbot|whatsapp|telegrambot/i.test(String(userAgent));
+  if (renderFallback) {
+    html = html.replace(/<div id=["']page["']><div class=["']empty["'][^>]*>Loading partner storefront…<\/div><\/div>/i,
+      '<div id="page">' + fallback + '</div>');
+  }
 
   const structuredData = {
     "@context": "https://schema.org",
@@ -644,7 +649,7 @@ export default {
       let html = await assetResponse.text();
       let partnerSeoApplied = false;
       try {
-        const seoHtml = await withPartnerStorefrontSeo(env, url, html, partnerSlug);
+        const seoHtml = await withPartnerStorefrontSeo(env, url, html, partnerSlug, request.headers.get("user-agent") || "");
         partnerSeoApplied = seoHtml !== html;
         html = seoHtml;
       } catch {}

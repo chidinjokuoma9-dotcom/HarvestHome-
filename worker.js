@@ -45,7 +45,7 @@ async function loadPublishedPartnerStorefront(config, slug) {
     slug: "eq." + slug,
     is_published: "eq.true",
     removed_at: "is.null",
-    select: "slug,business_name,tagline,description,country,website,phone,logo_url,cover_url,updated_at",
+    select: "slug,seller_id,business_name,tagline,description,country,website,phone,logo_url,cover_url,updated_at",
     limit: "1"
   });
   const response = await fetch(config.supabaseUrl + "/rest/v1/partner_storefronts?" + params.toString(), {
@@ -54,6 +54,23 @@ async function loadPublishedPartnerStorefront(config, slug) {
   if (!response.ok) return null;
   const rows = await response.json();
   return Array.isArray(rows) ? (rows[0] || null) : null;
+}
+
+async function loadPublishedPartnerListings(config, sellerId) {
+  if (!sellerId) return [];
+  const params = new URLSearchParams({
+    seller_id: "eq." + sellerId,
+    status: "eq.approved",
+    select: "id,title,description,category,mode,price,currency,location,country,cover_url,created_at",
+    order: "created_at.desc",
+    limit: "12"
+  });
+  const response = await fetch(config.supabaseUrl + "/rest/v1/listings?" + params.toString(), {
+    headers: { apikey: config.anonKey, Authorization: "Bearer " + config.anonKey, Accept: "application/json" }
+  });
+  if (!response.ok) return [];
+  const rows = await response.json();
+  return Array.isArray(rows) ? rows : [];
 }
 
 async function withPartnerStorefrontSeo(env, requestUrl, html, slug) {
@@ -93,12 +110,33 @@ async function withPartnerStorefrontSeo(env, requestUrl, html, slug) {
   html = replaceMeta(html, "name", "twitter:title", title);
   html = replaceMeta(html, "name", "twitter:description", metaDescription);
   html = replaceMeta(html, "name", "twitter:image", image);
-  const fallback = '<section class="panel" style="margin-top:18px"><span class="badge">HarvestHome Partner Network</span>' +
+  let partnerListings = [];
+  try { partnerListings = await loadPublishedPartnerListings(config, partner.seller_id); } catch {}
+  const listingCards = partnerListings.map((listing) => {
+    const listingName = String(listing.title || "Marketplace listing").trim().slice(0, 180);
+    const listingDescription = String(listing.description || "").trim().replace(/\\s+/g, " ").slice(0, 260);
+    const category = String(listing.category || "Marketplace").trim().slice(0, 80);
+    const location = [listing.location, listing.country || country].filter(Boolean).map(x => String(x).trim()).join(", ");
+    const coverUrl = safeNewsUrl(listing.cover_url);
+    const listingUrl = new URL("/", config.publicUrl);
+    listingUrl.searchParams.set("shared", "listing");
+    listingUrl.searchParams.set("listing", String(listing.id));
+    return '<article class="panel" style="margin-top:12px;display:flex;gap:14px;align-items:flex-start">' +
+      (coverUrl ? '<img src="' + escapeHtml(coverUrl) + '" alt="' + escapeHtml(listingName) + '" loading="lazy" style="width:104px;height:88px;object-fit:cover;border-radius:10px">' : '') +
+      '<div><h3 style="margin:0 0 5px">' + escapeHtml(listingName) + '</h3>' +
+      '<p class="muted" style="margin:0 0 5px">' + escapeHtml(category) + (location ? ' · ' + escapeHtml(location) : '') + '</p>' +
+      (listingDescription ? '<p style="margin:0 0 7px">' + escapeHtml(listingDescription) + '</p>' : '') +
+      '<a href="' + escapeHtml(listingUrl.toString()) + '">View marketplace listing</a></div></article>';
+  }).join("");
+  const fallback = '<section class="panel" style="margin-top:18px"><span class="badge">Official HarvestHome Partner</span>' +
     '<h1>' + escapeHtml(name) + '</h1>' +
     (tagline ? '<p>' + escapeHtml(tagline) + '</p>' : '') +
     '<h2>About this business</h2><p>' + escapeHtml(about) + '</p>' +
-    (country ? '<p>Location: ' + escapeHtml(country) + '</p>' : '') +
+    (country ? '<p>Business location: ' + escapeHtml(country) + '</p>' : '') +
+    (partner.phone ? '<p>Business contact: ' + escapeHtml(String(partner.phone).slice(0, 40)) + '</p>' : '') +
     (website ? '<p><a href="' + escapeHtml(website) + '" rel="nofollow noopener">Visit business website</a></p>' : '') +
+    '<h2>Current marketplace listings (' + partnerListings.length + ')</h2>' +
+    (listingCards || '<p>There are no active approved listings at the moment.</p>') +
     '<p><a href="/partners">Browse the HarvestHome Partner Network</a></p></section>';
   html = html.replace(/<div id=["']page["']><div class=["']empty["'][^>]*>Loading partner storefront…<\/div><\/div>/i,
     '<div id="page">' + fallback + '</div>');

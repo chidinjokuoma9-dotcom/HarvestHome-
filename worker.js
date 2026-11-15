@@ -114,7 +114,7 @@ async function withPartnerStorefrontSeo(env, requestUrl, html, slug) {
   try { partnerListings = await loadPublishedPartnerListings(config, partner.seller_id); } catch {}
   const listingCards = partnerListings.map((listing) => {
     const listingName = String(listing.title || "Marketplace listing").trim().slice(0, 180);
-    const listingDescription = String(listing.description || "").trim().replace(/\\s+/g, " ").slice(0, 260);
+    const listingDescription = String(listing.description || "").trim().replace(/\s+/g, " ").slice(0, 260);
     const category = String(listing.category || "Marketplace").trim().slice(0, 80);
     const location = [listing.location, listing.country || country].filter(Boolean).map(x => String(x).trim()).join(", ");
     const coverUrl = safeNewsUrl(listing.cover_url);

@@ -758,7 +758,8 @@ async function loadAuth(){
     render();
     await flushHarvestMissedCalls();
     await syncNewsroomAccess();
-    await syncPartnerStorefrontAccess();
+    const partnerAccessChanged=await syncPartnerStorefrontAccess();
+    if(partnerAccessChanged&&state.view==='dashboard')render();
     await syncListings();
     await startMarketplacePresence();
     if(publicSharedLink)await ensureSharedListing();

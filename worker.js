@@ -117,7 +117,16 @@ async function withPartnerStorefrontSeo(env, requestUrl, html, slug) {
     ...(partner.phone ? { "telephone": String(partner.phone).slice(0, 40) } : {})
   };
   const jsonLd = JSON.stringify(structuredData).replace(/</g, "\\u003c");
-  html = html.replace(/<\/head>/i, '<link rel="canonical" href="' + escapeHtml(canonical) + '">\n<script type="application/ld+json">' + jsonLd + '</script>\n</head>');
+
+  // A published storefront must have exactly one positive robots directive and
+  // one canonical URL in the initial HTML response. Remove stale tags first so
+  // a duplicate noindex or old canonical cannot override the published page.
+  html = html.replace(/<meta\b(?=[^>]*\bname\s*=\s*["']robots["'])[^>]*>/gi, "");
+  html = html.replace(/<link\b(?=[^>]*\brel\s*=\s*["']canonical["'])[^>]*>/gi, "");
+  const seoHead = '<meta name="robots" content="index,follow">\n' +
+    '<link rel="canonical" href="' + escapeHtml(canonical) + '">\n' +
+    '<script type="application/ld+json">' + jsonLd + '</script>\n';
+  html = html.replace(/<\/head>/i, seoHead + '</head>');
   return html;
 }
 
@@ -595,14 +604,20 @@ export default {
       }));
       if (!assetResponse.ok) return assetResponse;
       let html = await assetResponse.text();
-      try { html = await withPartnerStorefrontSeo(env, url, html, partnerSlug); } catch {}
+      let partnerSeoApplied = false;
+      try {
+        const seoHtml = await withPartnerStorefrontSeo(env, url, html, partnerSlug);
+        partnerSeoApplied = seoHtml !== html;
+        html = seoHtml;
+      } catch {}
       const headers = new Headers(assetResponse.headers);
+      if (partnerSeoApplied) headers.set("X-Robots-Tag", "index, follow");
       headers.delete("content-length");
       headers.delete("content-encoding");
       headers.delete("etag");
       headers.delete("last-modified");
       headers.set("content-type", "text/html; charset=utf-8");
-      headers.set("cache-control", "public, max-age=0, s-maxage=120");
+      headers.set("cache-control", "public, max-age=0, s-maxage=30");
       return new Response(html, { status: assetResponse.status, headers });
     }
 

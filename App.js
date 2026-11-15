@@ -33,7 +33,7 @@ async function optimizeListingImage(file){
 
 const seed = [];
 
-const state={view:"marketplace",search:"",sort:"featured",priceMin:"",priceMax:"",country:localStorage.getItem(KEYS.country)||C.DEFAULT_COUNTRY,location:"All locations",category:"All categories",mode:"All",dashboardTab:"overview",authMode:"login",payments:[],paymentsSyncError:"",paymentsLastSyncedAt:null,paymentsLoading:false,paymentsLoadedCount:0,transactionFilterSeller:{status:"all",range:"all",search:"",service:"all"},transactionFilterAdmin:{status:"all",range:"all",search:"",service:"all"},paymentHistoryHiddenSeller:{featured:false,badges:false,other:false},sharedListing:null,sharedListingChecked:false,newsroomAccess:false};
+const state={view:"marketplace",search:"",sort:"featured",priceMin:"",priceMax:"",country:localStorage.getItem(KEYS.country)||C.DEFAULT_COUNTRY,location:"All locations",category:"All categories",mode:"All",dashboardTab:"overview",authMode:"login",payments:[],paymentsSyncError:"",paymentsLastSyncedAt:null,paymentsLoading:false,paymentsLoadedCount:0,transactionFilterSeller:{status:"all",range:"all",search:"",service:"all"},transactionFilterAdmin:{status:"all",range:"all",search:"",service:"all"},paymentHistoryHiddenSeller:{featured:false,badges:false,other:false},sharedListing:null,sharedListingChecked:false,newsroomAccess:false,partnerStorefrontAccess:false};
 let chatTimer=null;
 let marketplacePresenceChannel=null,marketplacePresenceUserId=null,marketplacePresenceRefresh=null;
 const marketplaceOnlineSellers=new Set();
@@ -720,10 +720,23 @@ async function syncNewsroomAccess(){
   }
   return wasActive!==!!state.newsroomAccess;
 }
+async function syncPartnerStorefrontAccess(){
+  const wasActive=!!state.partnerStorefrontAccess;
+  if(!authUser||!sb){state.partnerStorefrontAccess=false;return wasActive;}
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    if(!session?.access_token){state.partnerStorefrontAccess=false;return wasActive;}
+    const response=await fetch((C.SUPABASE_URL||'').replace(/\/$/,'')+'/functions/v1/partner-storefront-invitations',{method:'POST',headers:{'Content-Type':'application/json','apikey':C.SUPABASE_ANON_KEY,'Authorization':'Bearer '+session.access_token},body:JSON.stringify({action:'portal_status'})});
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(result.error||'Partner access check failed');
+    state.partnerStorefrontAccess=!!result.eligible;
+  }catch(error){console.warn('Partner storefront access check failed:',error?.message||error);state.partnerStorefrontAccess=false;}
+  return wasActive!==!!state.partnerStorefrontAccess;
+}
 setInterval(async()=>{
   if(!authUser)return;
-  const changed=await syncNewsroomAccess();
-  if(changed&&state.view==="dashboard")render();
+  const results=await Promise.all([syncNewsroomAccess(),syncPartnerStorefrontAccess()]);
+  if(results.some(Boolean)&&state.view==='dashboard')render();
 },30000);
 
 async function loadAuth(){
@@ -745,6 +758,8 @@ async function loadAuth(){
     render();
     await flushHarvestMissedCalls();
     await syncNewsroomAccess();
+    const partnerAccessChanged=await syncPartnerStorefrontAccess();
+    if(partnerAccessChanged&&state.view==='dashboard')render();
     await syncListings();
     await startMarketplacePresence();
     if(publicSharedLink)await ensureSharedListing();
@@ -1267,7 +1282,7 @@ function professionalStatus(){
     verified
   };
 }
-function dashboard(){let u=user(),pro=professionalStatus();if(!u){state.view="marketplace";return marketplace()}let favs=json(KEYS.favourites,{})[u.email]||[], mine=json(KEYS.sellerListings,[]).filter(x=>authUser&&String(x.seller_id)===String(authUser.id)), enq=json(KEYS.enquiries,[]).filter(x=>x.buyerEmail===u.email), notifications=authUser?notificationFeed(mine):[], unread=notifications.filter(n=>!n.is_read).length;return `${header()}<section class="dashboard-hero"><div class="container"><button class="back-btn" data-a="home">← Marketplace</button><span class="eyebrow">My account</span><h1>Welcome, ${esc(u.name.split(" ")[0])}.</h1><p>Manage your favourites, enquiries and seller listings across your selected market.</p>${pro.verified?`<div class="dashboard-callout"><b>🏆 Verified Professional Seller</b><p>Your Verified Professional Seller status is active permanently on HarvestHome.</p></div>`:""}${pro.active?`<div class="dashboard-callout"><b>⭐ Professional Seller active</b><p>Your Professional Seller access is active until ${pro.expiresAt.toLocaleDateString()}.</p></div>`:""}</div></section><section class="dashboard-section"><div class="container dashboard-layout"><aside class="dashboard-nav"><button class="${state.dashboardTab==="overview"?"active":""}" data-tab="overview">Overview</button><button class="${state.dashboardTab==="profile"?"active":""}" data-tab="profile">Profile</button><button class="${state.dashboardTab==="favourites"?"active":""}" data-tab="favourites">Favourites (${favs.length})</button><button class="${state.dashboardTab==="listings"?"active":""}" data-tab="listings">My listings (${mine.length})</button><button class="${state.dashboardTab==="listingPerformance"?"active":""}" data-tab="listingPerformance">📊 Listing performance</button><button class="${state.dashboardTab==="rewards"?"active":""}" data-tab="rewards">🏆 Rewards</button><button class="${state.dashboardTab==="notifications"?"active":""}" data-tab="notifications">🔔 Notifications${unread?` (${unread})`:``}</button><button class="${state.dashboardTab==="enquiries"?"active":""}" data-tab="enquiries">Enquiries (${enq.length})</button><button class="${state.dashboardTab==="chats"?"active":""}" data-tab="chats">💬 Chats${notifications.filter(n=>!n.is_read&&n.type==="chat_message").length?` (${notifications.filter(n=>!n.is_read&&n.type==="chat_message").length})`:``}</button>${(u.role==="Admin"||u.role==="Moderator")?`<button class="${state.dashboardTab==="moderation"?"active":""}" data-tab="moderation">Moderation</button><button class="${state.dashboardTab==="sellerReviews"?"active":""}" data-tab="sellerReviews">⭐ Seller reviews</button><button class="${state.dashboardTab==="revenue"?"active":""}" data-tab="revenue">💰 Revenue</button><button type="button" data-a="partnershipAdmin">🤝 Partnership Applications</button>`:""}${(u.role==="Admin"||state.newsroomAccess)?`<a class="dashboard-nav-link" href="/news-admin.html" style="display:block;padding:12px 14px;border-radius:10px;text-decoration:none;color:inherit;font-weight:600">📰 News Admin</a>`:""}<button class="${state.dashboardTab==="payments"?"active":""}" data-tab="payments">Payments</button><button data-a="logout">Logout</button></aside><div class="dashboard-content">${dashTab(u,favs,mine,enq)}</div></div></section>${footer()}`}
+function dashboard(){let u=user(),pro=professionalStatus();if(!u){state.view="marketplace";return marketplace()}let favs=json(KEYS.favourites,{})[u.email]||[], mine=json(KEYS.sellerListings,[]).filter(x=>authUser&&String(x.seller_id)===String(authUser.id)), enq=json(KEYS.enquiries,[]).filter(x=>x.buyerEmail===u.email), notifications=authUser?notificationFeed(mine):[], unread=notifications.filter(n=>!n.is_read).length;return `${header()}<section class="dashboard-hero"><div class="container"><button class="back-btn" data-a="home">← Marketplace</button><span class="eyebrow">My account</span><h1>Welcome, ${esc(u.name.split(" ")[0])}.</h1><p>Manage your favourites, enquiries and seller listings across your selected market.</p>${pro.verified?`<div class="dashboard-callout"><b>🏆 Verified Professional Seller</b><p>Your Verified Professional Seller status is active permanently on HarvestHome.</p></div>`:""}${pro.active?`<div class="dashboard-callout"><b>⭐ Professional Seller active</b><p>Your Professional Seller access is active until ${pro.expiresAt.toLocaleDateString()}.</p></div>`:""}</div></section><section class="dashboard-section"><div class="container dashboard-layout"><aside class="dashboard-nav"><button class="${state.dashboardTab==="overview"?"active":""}" data-tab="overview">Overview</button><button class="${state.dashboardTab==="profile"?"active":""}" data-tab="profile">Profile</button><button class="${state.dashboardTab==="favourites"?"active":""}" data-tab="favourites">Favourites (${favs.length})</button><button class="${state.dashboardTab==="listings"?"active":""}" data-tab="listings">My listings (${mine.length})</button><button class="${state.dashboardTab==="listingPerformance"?"active":""}" data-tab="listingPerformance">📊 Listing performance</button><button class="${state.dashboardTab==="rewards"?"active":""}" data-tab="rewards">🏆 Rewards</button><button class="${state.dashboardTab==="notifications"?"active":""}" data-tab="notifications">🔔 Notifications${unread?` (${unread})`:``}</button><button class="${state.dashboardTab==="enquiries"?"active":""}" data-tab="enquiries">Enquiries (${enq.length})</button><button class="${state.dashboardTab==="chats"?"active":""}" data-tab="chats">💬 Chats${notifications.filter(n=>!n.is_read&&n.type==="chat_message").length?` (${notifications.filter(n=>!n.is_read&&n.type==="chat_message").length})`:``}</button>${(u.role==="Admin"||u.role==="Moderator")?`<button class="${state.dashboardTab==="moderation"?"active":""}" data-tab="moderation">Moderation</button><button class="${state.dashboardTab==="sellerReviews"?"active":""}" data-tab="sellerReviews">⭐ Seller reviews</button><button class="${state.dashboardTab==="revenue"?"active":""}" data-tab="revenue">💰 Revenue</button><button type="button" data-a="partnershipAdmin">🤝 Partnership Applications</button>`:""}${(u.role==="Admin"||state.newsroomAccess)?`<a class="dashboard-nav-link" href="/news-admin.html" style="display:block;padding:12px 14px;border-radius:10px;text-decoration:none;color:inherit;font-weight:600">📰 News Admin</a>`:""}${state.partnerStorefrontAccess&&u.role==="Seller"?`<a class="dashboard-nav-link" href="/partner-dashboard.html" style="display:block;padding:12px 14px;border-radius:10px;text-decoration:none;color:inherit;font-weight:700">🏬 My Partner Storefront</a>`:""}<button class="${state.dashboardTab==="payments"?"active":""}" data-tab="payments">Payments</button><button data-a="logout">Logout</button></aside><div class="dashboard-content">${dashTab(u,favs,mine,enq)}</div></div></section>${footer()}`}
 function notificationFeed(mine=[]){
   if(!authUser)return [];
   const dismissed=json(KEYS.notificationDismissals,{})[authUser.id]||[];

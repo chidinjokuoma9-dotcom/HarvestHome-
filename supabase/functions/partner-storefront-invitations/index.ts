@@ -72,6 +72,68 @@ Deno.serve(async (req: Request) => {
     const action = String(input.action || "");
     const token = String(input.token || "");
 
+    // Private partner dashboard actions use the partner's own authenticated Seller session.
+    if (action === 'portal_status' || action === 'portal_save') {
+      const authHeader = req.headers.get('Authorization') || '';
+      const bearer = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+      if (!bearer) return json({ error: 'Please sign in to your HarvestHome Seller account.' }, 401, origin);
+      const { data: userData, error: userError } = await admin.auth.getUser(bearer);
+      const partnerUser = userData?.user;
+      if (userError || !partnerUser) return json({ error: 'Your session is invalid. Please sign in again.' }, 401, origin);
+      const { data: partnerProfile, error: profileError } = await admin.from('profiles').select('role').eq('id', partnerUser.id).maybeSingle();
+      if (profileError || partnerProfile?.role !== 'Seller') return json({ error: 'The partner storefront dashboard is available to invited Seller accounts only.' }, 403, origin);
+      const email = String(partnerUser.email || '').toLowerCase();
+      const { data: currentStore, error: storeError } = await admin.from('partner_storefronts').select('id,partnership_application_id,seller_id,slug,business_name,tagline,description,country,website,phone,logo_url,cover_url,is_published,partner_submission_status,partner_submitted_at,partner_correction_note,removed_at').eq('seller_id', partnerUser.id).maybeSingle();
+      if (storeError) return json({ error: 'Could not load your partner storefront. Please try again.' }, 500, origin);
+      if (currentStore?.removed_at) return json({ eligible: false, removed: true, message: 'Your partner storefront has been removed. Please contact HarvestHome support.' }, 200, origin);
+      if (action === 'portal_status') {
+        if (currentStore) return json({ eligible: true, storefront: currentStore }, 200, origin);
+        const { data: invitation, error: inviteError } = await admin.from('partner_storefront_invitations').select('id,partnership_application_id,expires_at,email').eq('email', email).is('used_at', null).is('revoked_at', null).gt('expires_at', new Date().toISOString()).order('created_at', { ascending: false }).limit(1).maybeSingle();
+        if (inviteError) return json({ error: 'Could not check your partner invitation.' }, 500, origin);
+        if (!invitation) return json({ eligible: false }, 200, origin);
+        const { data: application } = await admin.from('partnership_applications').select('id,organisation_name,email,country,website,phone,status,archived_at,partnership_agreement_confirmed').eq('id', invitation.partnership_application_id).maybeSingle();
+        if (!application || application.status !== 'approved' || application.archived_at || !application.partnership_agreement_confirmed || String(application.email).toLowerCase() !== email) return json({ eligible: false }, 200, origin);
+        return json({ eligible: true, invitation: { expires_at: invitation.expires_at }, application }, 200, origin);
+      }
+      if (!form) return json({ error: 'Please submit the storefront form.' }, 400, origin);
+      const businessName = String(input.business_name || '').trim();
+      const slug = String(input.slug || '').trim().toLowerCase();
+      const tagline = String(input.tagline || '').trim().slice(0, 180);
+      const description = String(input.description || '').trim().slice(0, 4000);
+      const country = String(input.country || 'Nigeria').trim().slice(0, 100);
+      const phone = String(input.phone || '').trim().slice(0, 40) || null;
+      let website: string | null;
+      try { website = validWebsite(String(input.website || '').trim()); } catch (e) { return json({ error: e instanceof Error ? e.message : 'Invalid website.' }, 400, origin); }
+      if (businessName.length < 2 || businessName.length > 160) return json({ error: 'Enter a business name between 2 and 160 characters.' }, 400, origin);
+      if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) return json({ error: 'Use lowercase letters, numbers and hyphens for your storefront address.' }, 400, origin);
+      if (description.length < 20) return json({ error: 'Please provide a business description of at least 20 characters.' }, 400, origin);
+      if (country.length < 2) return json({ error: 'Please enter your country or location.' }, 400, origin);
+      let logo: File | null, cover: File | null;
+      try { const lf=form.get('logo'), cf=form.get('cover'); logo=validImage(lf instanceof File?lf:null,'Logo'); cover=validImage(cf instanceof File?cf:null,'Cover image'); } catch(e) { return json({ error: e instanceof Error ? e.message : 'Invalid image.' }, 400, origin); }
+      let applicationId = currentStore?.partnership_application_id || '';
+      let invitation: any = null;
+      if (currentStore) {
+        if (currentStore.is_published || currentStore.partner_submission_status !== 'changes_requested') return json({ error: 'Your storefront can be edited when HarvestHome requests a correction. Contact the partner team if you need an update.' }, 409, origin);
+      } else {
+        const { data: foundInvite, error: foundInviteError } = await admin.from('partner_storefront_invitations').select('id,partnership_application_id,expires_at,email').eq('email', email).is('used_at', null).is('revoked_at', null).gt('expires_at', new Date().toISOString()).order('created_at', { ascending: false }).limit(1).maybeSingle();
+        if (foundInviteError || !foundInvite) return json({ error: 'No active partner invitation was found for this account. Please contact the HarvestHome Admin team.' }, 403, origin);
+        invitation = foundInvite; applicationId = invitation.partnership_application_id;
+        const { data: application } = await admin.from('partnership_applications').select('id,email,status,archived_at,partnership_agreement_confirmed').eq('id', applicationId).maybeSingle();
+        if (!application || application.status !== 'approved' || application.archived_at || !application.partnership_agreement_confirmed || String(application.email).toLowerCase() !== email) return json({ error: 'This partnership invitation is no longer active.' }, 403, origin);
+      }
+      const now = new Date(); const uploadedPaths: string[] = [];
+      try {
+        let logoUrl = currentStore?.logo_url || null, coverUrl = currentStore?.cover_url || null;
+        if (logo) { const path='partner-storefronts/'+applicationId+'/'+crypto.randomUUID()+'-logo.'+extension(logo.type); const { error }=await admin.storage.from('listing-media').upload(path,logo,{contentType:logo.type,cacheControl:'31536000',upsert:false}); if(error)throw new Error('Logo upload failed. Please try again.'); uploadedPaths.push(path); logoUrl=admin.storage.from('listing-media').getPublicUrl(path).data.publicUrl; }
+        if (cover) { const path='partner-storefronts/'+applicationId+'/'+crypto.randomUUID()+'-cover.'+extension(cover.type); const { error }=await admin.storage.from('listing-media').upload(path,cover,{contentType:cover.type,cacheControl:'31536000',upsert:false}); if(error)throw new Error('Cover image upload failed. Please try again.'); uploadedPaths.push(path); coverUrl=admin.storage.from('listing-media').getPublicUrl(path).data.publicUrl; }
+        const payload: any = { partnership_application_id:applicationId,seller_id:partnerUser.id,slug,business_name:businessName,tagline,description,country,website,phone,logo_url:logoUrl,cover_url:coverUrl,is_published:false,agreement_confirmed:false,agreement_confirmed_by:null,agreement_confirmed_at:null,partner_submission_status:'submitted',partner_submitted_at:now.toISOString(),partner_correction_note:null,updated_at:now.toISOString() };
+        const { error: saveError } = await admin.from('partner_storefronts').upsert(payload,{onConflict:'partnership_application_id'});
+        if (saveError) throw new Error(saveError.code==='23505'?'That storefront address is already in use. Please choose another.':'We could not save your storefront. Please try again.');
+        if (invitation) { const { error: consumeError } = await admin.from('partner_storefront_invitations').update({used_at:now.toISOString()}).eq('id',invitation.id).is('used_at',null); if(consumeError)throw new Error('Your storefront was saved, but invitation confirmation failed. Please contact HarvestHome support.'); }
+        return json({ message: 'Your storefront details have been submitted to HarvestHome for review. They are not public yet.' }, 200, origin);
+      } catch (e) { if(uploadedPaths.length)await admin.storage.from('listing-media').remove(uploadedPaths); throw e; }
+    }
+
     // Invitation preview and submission are bearer-token actions. The token is
     // random, stored only as a SHA-256 hash, scoped to one application and expires.
     if (action === "preview" || action === "submit") {
@@ -287,6 +349,16 @@ Deno.serve(async (req: Request) => {
       return json({ invitations: (data || []).map(x => ({ ...x, organisation_name: names.get(x.partnership_application_id) || "Partner application" })) }, 200, origin);
     }
 
+    if (action === 'request_changes') {
+      const storeId = String(input.storefront_id || '');
+      const note = String(input.note || '').trim().slice(0, 1000);
+      if (!validUuid(storeId) || note.length < 5) return json({ error: 'Choose a storefront and enter a clear correction request.' }, 400, origin);
+      const { data: store, error: storeError } = await admin.from('partner_storefronts').select('id,removed_at').eq('id', storeId).maybeSingle();
+      if (storeError || !store || store.removed_at) return json({ error: 'This storefront is unavailable or has been removed.' }, 404, origin);
+      const { error } = await admin.from('partner_storefronts').update({ is_published:false,partner_submission_status:'changes_requested',partner_correction_note:note,updated_at:new Date().toISOString() }).eq('id',storeId);
+      if (error) return json({ error: 'Could not send the correction request.' }, 500, origin);
+      return json({ message: 'Correction request sent. The partner will see it in their HarvestHome dashboard.' }, 200, origin);
+    }
     if (action === "publish") {
       const storeId = String(input.storefront_id || "");
       if (!validUuid(storeId) || input.agreement_confirmed !== true) return json({ error: "Confirm that partner checks and the written agreement are complete before publishing." }, 400, origin);

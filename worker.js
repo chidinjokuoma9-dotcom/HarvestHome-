@@ -597,7 +597,7 @@ export default {
     // Render published partner details and SEO metadata in the initial HTML
     // response so Google and social crawlers do not depend on client-side JS.
     const partnerSlug = url.searchParams.get("slug");
-    if (request.method === "GET" && url.pathname === "/partner-storefront.html" && partnerSlug) {
+    if (request.method === "GET" && (url.pathname === "/partner-storefront.html" || url.pathname === "/partner-storefront") && partnerSlug) {
       const assetResponse = await env.ASSETS.fetch(new Request(new URL("/partner-storefront.html", url).toString(), {
         method: "GET",
         headers: { Accept: "text/html" }
@@ -611,6 +611,7 @@ export default {
         html = seoHtml;
       } catch {}
       const headers = new Headers(assetResponse.headers);
+      headers.set("X-HH-Partner-SEO", partnerSeoApplied ? "applied" : "not-applied");
       if (partnerSeoApplied) headers.set("X-Robots-Tag", "index, follow");
       headers.delete("content-length");
       headers.delete("content-encoding");

@@ -67,7 +67,7 @@ async function withPartnerStorefrontSeo(env, requestUrl, html, slug) {
   const tagline = String(partner.tagline || "").trim().slice(0, 180);
   const about = String(partner.description || tagline || ("Explore " + name + ", a business with a public storefront on HarvestHome.")).trim().slice(0, 4000);
   const country = String(partner.country || "").trim().slice(0, 100);
-  const description = (tagline ? tagline + " — " : "") + about.replace(/\\s+/g, " ");
+  const description = (tagline ? tagline + " — " : "") + about.replace(/\s+/g, " ");
   const metaDescription = description.slice(0, 300);
   const website = safeNewsUrl(partner.website);
   const logo = safeNewsUrl(partner.logo_url);
@@ -93,7 +93,7 @@ async function withPartnerStorefrontSeo(env, requestUrl, html, slug) {
   html = replaceMeta(html, "name", "twitter:title", title);
   html = replaceMeta(html, "name", "twitter:description", metaDescription);
   html = replaceMeta(html, "name", "twitter:image", image);
-  html = html.replace(/<link\\s+rel=["']canonical["']\\s+href=["'][^"']*["']\\s*\\/?>/i,
+  html = html.replace(/<link\\s+rel=["']canonical["']\\s+href=["'][^"']*["']\\s*\/?>/i,
     '<link rel="canonical" href="' + escapeHtml(canonical) + '">');
 
   const fallback = '<section class="panel" style="margin-top:18px"><span class="badge">HarvestHome Partner Network</span>' +
@@ -103,7 +103,7 @@ async function withPartnerStorefrontSeo(env, requestUrl, html, slug) {
     (country ? '<p>Location: ' + escapeHtml(country) + '</p>' : '') +
     (website ? '<p><a href="' + escapeHtml(website) + '" rel="nofollow noopener">Visit business website</a></p>' : '') +
     '<p><a href="/partners">Browse the HarvestHome Partner Network</a></p></section>';
-  html = html.replace(/<div id=["']page["']><div class=["']empty["'][^>]*>Loading partner storefront…<\\/div><\\/div>/i,
+  html = html.replace(/<div id=["']page["']><div class=["']empty["'][^>]*>Loading partner storefront…<\/div><\/div>/i,
     '<div id="page">' + fallback + '</div>');
 
   const structuredData = {
@@ -120,7 +120,7 @@ async function withPartnerStorefrontSeo(env, requestUrl, html, slug) {
     ...(partner.phone ? { "telephone": String(partner.phone).slice(0, 40) } : {})
   };
   const jsonLd = JSON.stringify(structuredData).replace(/</g, "\\u003c");
-  html = html.replace(/<\\/head>/i, '<script type="application/ld+json">' + jsonLd + '</script>\\n</head>');
+  html = html.replace(/<\/head>/i, '<script type="application/ld+json">' + jsonLd + '</script>\\n</head>');
   return html;
 }
 

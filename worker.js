@@ -37,6 +37,93 @@ function replaceTitle(html, title) {
   return html.replace(/<\/head>/i, "  <title>" + safeTitle + "</title>\n</head>");
 }
 
+
+
+async function loadPublishedPartnerStorefront(config, slug) {
+  if (!slug || slug.length > 180 || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) return null;
+  const params = new URLSearchParams({
+    slug: "eq." + slug,
+    is_published: "eq.true",
+    removed_at: "is.null",
+    select: "slug,business_name,tagline,description,country,website,phone,logo_url,cover_url,updated_at",
+    limit: "1"
+  });
+  const response = await fetch(config.supabaseUrl + "/rest/v1/partner_storefronts?" + params.toString(), {
+    headers: { apikey: config.anonKey, Authorization: "Bearer " + config.anonKey, Accept: "application/json" }
+  });
+  if (!response.ok) return null;
+  const rows = await response.json();
+  return Array.isArray(rows) ? (rows[0] || null) : null;
+}
+
+async function withPartnerStorefrontSeo(env, requestUrl, html, slug) {
+  const config = await getPublicConfig(env, requestUrl);
+  if (!config) return html;
+  let partner;
+  try { partner = await loadPublishedPartnerStorefront(config, slug); } catch { return html; }
+  if (!partner) return html;
+
+  const name = String(partner.business_name || "HarvestHome Partner").trim().slice(0, 160);
+  const tagline = String(partner.tagline || "").trim().slice(0, 180);
+  const about = String(partner.description || tagline || ("Explore " + name + ", a business with a public storefront on HarvestHome.")).trim().slice(0, 4000);
+  const country = String(partner.country || "").trim().slice(0, 100);
+  const description = (tagline ? tagline + " — " : "") + about.replace(/\\s+/g, " ");
+  const metaDescription = description.slice(0, 300);
+  const website = safeNewsUrl(partner.website);
+  const logo = safeNewsUrl(partner.logo_url);
+  const cover = safeNewsUrl(partner.cover_url);
+  const image = cover || logo || "https://harvesthome.ng/favicon.svg";
+  const canonicalUrl = new URL("/partner-storefront.html", config.publicUrl);
+  canonicalUrl.searchParams.set("slug", String(partner.slug || slug));
+  const canonical = canonicalUrl.toString();
+  const title = name + " | HarvestHome Partner";
+
+  html = replaceTitle(html, title);
+  html = replaceMeta(html, "name", "description", metaDescription);
+  html = replaceMeta(html, "name", "robots", "index,follow");
+  html = replaceMeta(html, "property", "og:title", title);
+  html = replaceMeta(html, "property", "og:description", metaDescription);
+  html = replaceMeta(html, "property", "og:url", canonical);
+  html = replaceMeta(html, "property", "og:type", "profile");
+  html = replaceMeta(html, "property", "og:site_name", "HarvestHome");
+  html = replaceMeta(html, "property", "og:image", image);
+  html = replaceMeta(html, "property", "og:image:secure_url", image);
+  html = replaceMeta(html, "property", "og:image:alt", name + " — HarvestHome partner");
+  html = replaceMeta(html, "name", "twitter:card", "summary_large_image");
+  html = replaceMeta(html, "name", "twitter:title", title);
+  html = replaceMeta(html, "name", "twitter:description", metaDescription);
+  html = replaceMeta(html, "name", "twitter:image", image);
+  html = html.replace(/<link\\s+rel=["']canonical["']\\s+href=["'][^"']*["']\\s*\\/?>/i,
+    '<link rel="canonical" href="' + escapeHtml(canonical) + '">');
+
+  const fallback = '<section class="panel" style="margin-top:18px"><span class="badge">HarvestHome Partner Network</span>' +
+    '<h1>' + escapeHtml(name) + '</h1>' +
+    (tagline ? '<p>' + escapeHtml(tagline) + '</p>' : '') +
+    '<h2>About this business</h2><p>' + escapeHtml(about) + '</p>' +
+    (country ? '<p>Location: ' + escapeHtml(country) + '</p>' : '') +
+    (website ? '<p><a href="' + escapeHtml(website) + '" rel="nofollow noopener">Visit business website</a></p>' : '') +
+    '<p><a href="/partners">Browse the HarvestHome Partner Network</a></p></section>';
+  html = html.replace(/<div id=["']page["']><div class=["']empty["'][^>]*>Loading partner storefront…<\\/div><\\/div>/i,
+    '<div id="page">' + fallback + '</div>');
+
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": name,
+    "url": canonical,
+    "description": metaDescription,
+    "memberOf": { "@type": "Organization", "name": "HarvestHome Partner Network", "url": new URL("/partners", config.publicUrl).toString() },
+    ...(country ? { "areaServed": country } : {}),
+    ...(logo ? { "logo": logo } : {}),
+    ...(image ? { "image": image } : {}),
+    ...(website ? { "sameAs": [website] } : {}),
+    ...(partner.phone ? { "telephone": String(partner.phone).slice(0, 40) } : {})
+  };
+  const jsonLd = JSON.stringify(structuredData).replace(/</g, "\\u003c");
+  html = html.replace(/<\\/head>/i, '<script type="application/ld+json">' + jsonLd + '</script>\\n</head>');
+  return html;
+}
+
 async function loadPublishedNewsStory(config, slug) {
   const params = new URLSearchParams({
     slug: "eq." + slug,
@@ -245,6 +332,44 @@ async function createNewsSitemapResponse(env, requestUrl) {
         "      <news:publication_date>" + xmlEscape(date) + "</news:publication_date>\n" +
         "      <news:title>" + xmlEscape(title) + "</news:title>\n    </news:news>\n  </url>";
     }).filter(Boolean);
+
+    // Include every currently published partner storefront so new partners are
+    // discoverable automatically; removed, draft and unpublished profiles stay out.
+    try {
+      let partnerOffset = 0;
+      const partnerPageSize = 500;
+      while (partnerOffset < 50000) {
+        const partnerParams = new URLSearchParams({
+          is_published: "eq.true",
+          removed_at: "is.null",
+          select: "slug,updated_at",
+          order: "slug.asc",
+          limit: String(partnerPageSize),
+          offset: String(partnerOffset)
+        });
+        const partnerResponse = await fetch(config.supabaseUrl + "/rest/v1/partner_storefronts?" + partnerParams.toString(), {
+          headers: { apikey: config.anonKey, Authorization: "Bearer " + config.anonKey, Accept: "application/json" }
+        });
+        if (!partnerResponse.ok) break;
+        const partnerRows = await partnerResponse.json();
+        if (!Array.isArray(partnerRows) || partnerRows.length === 0) break;
+        for (const partner of partnerRows) {
+          const slug = String(partner?.slug || "").trim();
+          if (!slug || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) continue;
+          const partnerUrl = new URL("/partner-storefront.html", config.publicUrl);
+          partnerUrl.searchParams.set("slug", slug);
+          const lastmod = partner.updated_at && !Number.isNaN(Date.parse(partner.updated_at))
+            ? '<lastmod>' + new Date(partner.updated_at).toISOString().slice(0, 10) + '</lastmod>'
+            : "";
+          urls.push("  <url><loc>" + escapeHtml(partnerUrl.toString()) + "</loc>" + lastmod + "</url>");
+        }
+        partnerOffset += partnerRows.length;
+        if (partnerRows.length < partnerPageSize) break;
+      }
+    } catch {
+      // Keep the existing marketplace listing sitemap available if partner discovery is temporarily unavailable.
+    }
+
     const xml = '<?xml version="1.0" encoding="UTF-8"?>\n' +
       '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">\n' +
       entries.join("\n") + (entries.length ? "\n" : "") + '</urlset>';
@@ -460,6 +585,28 @@ export default {
 
     if (request.method === "GET" && url.pathname === "/marketplace-sitemap.xml") {
       return createMarketplaceSitemapResponse(env, url);
+    }
+
+
+    // Render published partner details and SEO metadata in the initial HTML
+    // response so Google and social crawlers do not depend on client-side JS.
+    const partnerSlug = url.searchParams.get("slug");
+    if (request.method === "GET" && url.pathname === "/partner-storefront.html" && partnerSlug) {
+      const assetResponse = await env.ASSETS.fetch(new Request(new URL("/partner-storefront.html", url).toString(), {
+        method: "GET",
+        headers: { Accept: "text/html" }
+      }));
+      if (!assetResponse.ok) return assetResponse;
+      let html = await assetResponse.text();
+      try { html = await withPartnerStorefrontSeo(env, url, html, partnerSlug); } catch {}
+      const headers = new Headers(assetResponse.headers);
+      headers.delete("content-length");
+      headers.delete("content-encoding");
+      headers.delete("etag");
+      headers.delete("last-modified");
+      headers.set("content-type", "text/html; charset=utf-8");
+      headers.set("cache-control", "public, max-age=0, s-maxage=120");
+      return new Response(html, { status: assetResponse.status, headers });
     }
 
     if (request.method === "GET" && url.pathname === "/news-sitemap.xml") {

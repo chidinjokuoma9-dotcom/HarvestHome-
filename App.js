@@ -1767,15 +1767,10 @@ async function getHarvestIceServers(){
 async function createHarvestPeerConnection(call){
   if(activeHarvestCall!==call)throw new Error("This call has already ended.");
   if(typeof RTCPeerConnection==="undefined")throw new Error("This browser does not support WebRTC calling.");
-  // Multiple public STUN endpoints improve address discovery without introducing
-  // a paid relay or changing any HarvestHome backend services.
+  // Prefer short-lived TURN credentials from the Worker when configured;
+  // otherwise use the public STUN fallback without exposing any relay secrets.
   const iceServers=await getHarvestIceServers();
-  const pc=new RTCPeerConnection({iceServers:[
-    {urls:"stun:stun.cloudflare.com:3478"},
-    {urls:"stun:stun.l.google.com:19302"},
-    {urls:"stun:stun1.l.google.com:19302"},
-    {urls:"stun:global.stun.twilio.com:3478"}
-  ]});
+  const pc=new RTCPeerConnection({iceServers});
   call.pc=pc;
   clearTimeout(call.connectTimeout);
   call.connectTimeout=setTimeout(()=>{

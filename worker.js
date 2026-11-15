@@ -616,9 +616,64 @@ async function createMarketplaceSitemapResponse(env, requestUrl) {
   }
 }
 
+async function createHarvestHomeIceServersResponse(request, env) {
+  const headers = {
+    "content-type": "application/json; charset=utf-8",
+    "cache-control": "no-store",
+    "vary": "Authorization"
+  };
+  const respond = (body, status) => new Response(JSON.stringify(body), { status, headers });
+  const keyId = String(env.CF_REALTIME_TURN_KEY_ID || "").trim();
+  const apiToken = String(env.CF_REALTIME_TURN_API_TOKEN || "").trim();
+  if (!keyId || !apiToken) return respond({ error: "TURN relay is not configured." }, 503);
+
+  const config = await getPublicConfig(env, new URL(request.url));
+  if (!config) return respond({ error: "Authentication configuration is unavailable." }, 503);
+  const authorization = request.headers.get("authorization") || "";
+  if (!/^Bearer\s+\S+$/i.test(authorization)) return respond({ error: "Authentication required." }, 401);
+
+  let authResponse;
+  try {
+    authResponse = await fetch(config.supabaseUrl + "/auth/v1/user", {
+      headers: { apikey: config.anonKey, Authorization: authorization }
+    });
+  } catch {
+    return respond({ error: "Could not verify the HarvestHome session." }, 502);
+  }
+  if (!authResponse.ok) return respond({ error: "Authentication required." }, 401);
+
+  let turnResponse;
+  try {
+    turnResponse = await fetch("https://rtc.live.cloudflare.com/v1/turn/keys/" + encodeURIComponent(keyId) + "/credentials/generate-ice-servers", {
+      method: "POST",
+      headers: { Authorization: "Bearer " + apiToken, "Content-Type": "application/json" },
+      body: JSON.stringify({ ttl: 3600 })
+    });
+  } catch {
+    return respond({ error: "TURN relay is temporarily unavailable." }, 502);
+  }
+  if (!turnResponse.ok) return respond({ error: "TURN credentials could not be generated." }, 502);
+
+  const payload = await turnResponse.json();
+  const iceServers = (Array.isArray(payload.iceServers) ? payload.iceServers : []).map(server => {
+    const urls = Array.isArray(server.urls)
+      ? server.urls.filter(value => !/:53(?:\?|$)/.test(String(value)))
+      : server.urls;
+    return { ...server, urls };
+  }).filter(server => server.urls && (!Array.isArray(server.urls) || server.urls.length));
+  if (!iceServers.length) return respond({ error: "TURN relay returned no usable ICE servers." }, 502);
+  return respond({ iceServers }, 200);
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+
+    // Authenticated users receive short-lived TURN credentials only. The long-lived
+    // Cloudflare TURN key and API token remain in Worker secrets, never in the browser.
+    if (request.method === "GET" && url.pathname === "/api/rtc/ice-servers") {
+      return createHarvestHomeIceServersResponse(request, env);
+    }
 
     // Never expose database migration drafts or internal Supabase project files as static assets.
     if (url.pathname.startsWith("/supabase/")) {

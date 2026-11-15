@@ -1588,7 +1588,7 @@ async function contact(id){const u=user();if(!u){auth("login");toast("Log in to 
       await sb.rpc('record_buyer_referral',{p_seller_id:l.seller_id,p_buyer_id:authUser.id,p_listing_id:l.id});
     }catch(referralError){
       console.warn('Buyer referral could not be recorded:',referralError.message);
-    }}await syncListingPerformance();await openChat(c.id,l)}catch(e){toast(e.message||"Could not start the chat.",true)}}
+    }}syncListingPerformance();await openChat(c.id,l)}catch(e){toast(e.message||"Could not start the chat.",true)}}
 function harvestCallId(){try{return crypto.randomUUID()}catch{return "hh-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,12)}}
 function stopHarvestCallTone(){
   if(harvestCallToneTimer){clearInterval(harvestCallToneTimer);harvestCallToneTimer=null}

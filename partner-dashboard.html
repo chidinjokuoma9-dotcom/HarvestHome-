@@ -13,7 +13,7 @@
 (function(){
  const $=id=>document.getElementById(id),cfg=window.HARVESTHOME_CONFIG||{};let db=null,session=null,store=null,application=null;
  const endpoint=(cfg.SUPABASE_URL||'').replace(/\/$/,'')+'/functions/v1/partner-storefront-invitations';
- function show(id){['loading','notEligible','statusPanel','formPanel'].forEach(x=>$(x).hidden=x!==id)}
+ function show(id){$('loading').hidden=id!=='loading';$('notEligible').hidden=id!=='notEligible';$('statusPanel').hidden=id!=='statusPanel'}
  function msg(id,text,error=false){$(id).textContent=text;$(id).classList.toggle('error',error)}
  async function call(body,formData=false){const headers={'apikey':cfg.SUPABASE_ANON_KEY,'Authorization':'Bearer '+session.access_token};if(!formData)headers['Content-Type']='application/json';const r=await fetch(endpoint,{method:'POST',headers,body:formData?body:JSON.stringify(body)});const d=await r.json().catch(()=>({error:'The secure service returned an unreadable response.'}));if(!r.ok)throw new Error(d.error||'The request could not be completed.');return d}
  function fill(data){

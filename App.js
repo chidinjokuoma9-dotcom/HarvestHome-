@@ -1770,6 +1770,7 @@ async function createHarvestPeerConnection(call){
   // Prefer short-lived TURN credentials from the Worker when configured;
   // otherwise use the public STUN fallback without exposing any relay secrets.
   const iceServers=await getHarvestIceServers();
+  if(activeHarvestCall!==call)throw new Error("This call has already ended.");
   const pc=new RTCPeerConnection({iceServers});
   call.pc=pc;
   clearTimeout(call.connectTimeout);

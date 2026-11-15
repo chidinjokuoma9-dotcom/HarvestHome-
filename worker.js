@@ -23,7 +23,7 @@ function escapeHtml(value) {
 }
 
 function replaceMeta(html, attribute, key, value) {
-  const pattern = new RegExp("<meta\s+" + attribute + "=[\\\"']" + key + "[\\\"']\s+content=[\\\"'][^\\\"']*[\\\"']\s*/?>", "i");
+  const pattern = new RegExp("<meta\\s+" + attribute + "=[\\\"']" + key + "[\\\"']\\s+content=[\\\"'][^\\\"']*[\\\"']\\s*/?>", "i");
   const tag = '<meta ' + attribute + '="' + escapeHtml(key) + '" content="' + escapeHtml(value) + '">';
   if (pattern.test(html)) return html.replace(pattern, tag);
   return html.replace(/<\/head>/i, "  " + tag + "\n</head>");
@@ -93,9 +93,6 @@ async function withPartnerStorefrontSeo(env, requestUrl, html, slug) {
   html = replaceMeta(html, "name", "twitter:title", title);
   html = replaceMeta(html, "name", "twitter:description", metaDescription);
   html = replaceMeta(html, "name", "twitter:image", image);
-  html = html.replace(/<link\\s+rel=["']canonical["']\\s+href=["'][^"']*["']\\s*\/?>/i,
-    '<link rel="canonical" href="' + escapeHtml(canonical) + '">');
-
   const fallback = '<section class="panel" style="margin-top:18px"><span class="badge">HarvestHome Partner Network</span>' +
     '<h1>' + escapeHtml(name) + '</h1>' +
     (tagline ? '<p>' + escapeHtml(tagline) + '</p>' : '') +
@@ -120,7 +117,7 @@ async function withPartnerStorefrontSeo(env, requestUrl, html, slug) {
     ...(partner.phone ? { "telephone": String(partner.phone).slice(0, 40) } : {})
   };
   const jsonLd = JSON.stringify(structuredData).replace(/</g, "\\u003c");
-  html = html.replace(/<\/head>/i, '<script type="application/ld+json">' + jsonLd + '</script>\\n</head>');
+  html = html.replace(/<\/head>/i, '<link rel="canonical" href="' + escapeHtml(canonical) + '">\n<script type="application/ld+json">' + jsonLd + '</script>\n</head>');
   return html;
 }
 
@@ -333,43 +330,6 @@ async function createNewsSitemapResponse(env, requestUrl) {
         "      <news:title>" + xmlEscape(title) + "</news:title>\n    </news:news>\n  </url>";
     }).filter(Boolean);
 
-    // Include every currently published partner storefront so new partners are
-    // discoverable automatically; removed, draft and unpublished profiles stay out.
-    try {
-      let partnerOffset = 0;
-      const partnerPageSize = 500;
-      while (partnerOffset < 50000) {
-        const partnerParams = new URLSearchParams({
-          is_published: "eq.true",
-          removed_at: "is.null",
-          select: "slug,updated_at",
-          order: "slug.asc",
-          limit: String(partnerPageSize),
-          offset: String(partnerOffset)
-        });
-        const partnerResponse = await fetch(config.supabaseUrl + "/rest/v1/partner_storefronts?" + partnerParams.toString(), {
-          headers: { apikey: config.anonKey, Authorization: "Bearer " + config.anonKey, Accept: "application/json" }
-        });
-        if (!partnerResponse.ok) break;
-        const partnerRows = await partnerResponse.json();
-        if (!Array.isArray(partnerRows) || partnerRows.length === 0) break;
-        for (const partner of partnerRows) {
-          const slug = String(partner?.slug || "").trim();
-          if (!slug || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) continue;
-          const partnerUrl = new URL("/partner-storefront.html", config.publicUrl);
-          partnerUrl.searchParams.set("slug", slug);
-          const lastmod = partner.updated_at && !Number.isNaN(Date.parse(partner.updated_at))
-            ? '<lastmod>' + new Date(partner.updated_at).toISOString().slice(0, 10) + '</lastmod>'
-            : "";
-          urls.push("  <url><loc>" + escapeHtml(partnerUrl.toString()) + "</loc>" + lastmod + "</url>");
-        }
-        partnerOffset += partnerRows.length;
-        if (partnerRows.length < partnerPageSize) break;
-      }
-    } catch {
-      // Keep the existing marketplace listing sitemap available if partner discovery is temporarily unavailable.
-    }
-
     const xml = '<?xml version="1.0" encoding="UTF-8"?>\n' +
       '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">\n' +
       entries.join("\n") + (entries.length ? "\n" : "") + '</urlset>';
@@ -548,6 +508,43 @@ async function createMarketplaceSitemapResponse(env, requestUrl) {
 
       offset += rows.length;
       if (rows.length < pageSize) break;
+    }
+
+    // Include every currently published partner storefront so new partners are
+    // discoverable automatically; removed, draft and unpublished profiles stay out.
+    try {
+      let partnerOffset = 0;
+      const partnerPageSize = 500;
+      while (partnerOffset < 50000) {
+        const partnerParams = new URLSearchParams({
+          is_published: "eq.true",
+          removed_at: "is.null",
+          select: "slug,updated_at",
+          order: "slug.asc",
+          limit: String(partnerPageSize),
+          offset: String(partnerOffset)
+        });
+        const partnerResponse = await fetch(config.supabaseUrl + "/rest/v1/partner_storefronts?" + partnerParams.toString(), {
+          headers: { apikey: config.anonKey, Authorization: "Bearer " + config.anonKey, Accept: "application/json" }
+        });
+        if (!partnerResponse.ok) break;
+        const partnerRows = await partnerResponse.json();
+        if (!Array.isArray(partnerRows) || partnerRows.length === 0) break;
+        for (const partner of partnerRows) {
+          const slug = String(partner?.slug || "").trim();
+          if (!slug || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) continue;
+          const partnerUrl = new URL("/partner-storefront.html", config.publicUrl);
+          partnerUrl.searchParams.set("slug", slug);
+          const lastmod = partner.updated_at && !Number.isNaN(Date.parse(partner.updated_at))
+            ? '<lastmod>' + new Date(partner.updated_at).toISOString().slice(0, 10) + '</lastmod>'
+            : "";
+          urls.push("  <url><loc>" + escapeHtml(partnerUrl.toString()) + "</loc>" + lastmod + "</url>");
+        }
+        partnerOffset += partnerRows.length;
+        if (partnerRows.length < partnerPageSize) break;
+      }
+    } catch {
+      // Keep the existing marketplace listing sitemap available if partner discovery is temporarily unavailable.
     }
 
     const xml = '<?xml version="1.0" encoding="UTF-8"?>\n' +

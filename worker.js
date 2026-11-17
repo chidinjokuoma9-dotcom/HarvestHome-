@@ -397,9 +397,9 @@ async function createAllNewsArticlesSitemapResponse(env, requestUrl) {
       return "  <url><loc>" + xmlEscape(articleUrl.toString()) + "</loc></url>";
     }).filter(Boolean);
 
-    const xml = '<?xml version="1.0" encoding="UTF-8"?>\\n' +
-      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\\n' +
-      entries.join("\\n") + (entries.length ? "\\n" : "") + '</urlset>';
+    const xml = '<?xml version="1.0" encoding="UTF-8"?>\n' +
+      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
+      entries.join("\n") + (entries.length ? "\n" : "") + '</urlset>';
     return new Response(xml, { status: 200, headers: { "content-type": "application/xml; charset=utf-8", "cache-control": "public, max-age=0, s-maxage=300" } });
   } catch {
     return new Response("News articles sitemap temporarily unavailable.", { status: 503 });

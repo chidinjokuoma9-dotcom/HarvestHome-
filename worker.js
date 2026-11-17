@@ -363,6 +363,49 @@ async function withNewsInsightsStories(env, requestUrl, html) {
   }
 }
 
+async function createAllNewsArticlesSitemapResponse(env, requestUrl) {
+  const config = await getPublicConfig(env, requestUrl);
+  if (!config) return new Response("News articles sitemap temporarily unavailable.", { status: 503 });
+  try {
+    const stories = [];
+    const pageSize = 1000;
+    // Page through every published article so older stories remain discoverable.
+    // The 50,000-URL cap follows the standard sitemap protocol.
+    for (let offset = 0; offset < 50000; offset += pageSize) {
+      const params = new URLSearchParams({
+        status: "eq.published",
+        select: "slug,published_at",
+        order: "published_at.desc",
+        limit: String(pageSize),
+        offset: String(offset)
+      });
+      const response = await fetch(config.supabaseUrl + "/rest/v1/news_articles?" + params.toString(), {
+        headers: { apikey: config.anonKey, Authorization: "Bearer " + config.anonKey, Accept: "application/json" }
+      });
+      if (!response.ok) throw new Error("Published newsroom article URLs could not be loaded.");
+      const rows = await response.json();
+      if (!Array.isArray(rows) || rows.length === 0) break;
+      stories.push(...rows);
+      if (rows.length < pageSize) break;
+    }
+
+    const entries = stories.map(story => {
+      const slug = String(story.slug || "").trim();
+      if (!slug) return "";
+      const articleUrl = new URL("/news-story.html", requestUrl.origin);
+      articleUrl.searchParams.set("slug", slug);
+      return "  <url><loc>" + xmlEscape(articleUrl.toString()) + "</loc></url>";
+    }).filter(Boolean);
+
+    const xml = '<?xml version="1.0" encoding="UTF-8"?>\n' +
+      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
+      entries.join("\n") + (entries.length ? "\n" : "") + '</urlset>';
+    return new Response(xml, { status: 200, headers: { "content-type": "application/xml; charset=utf-8", "cache-control": "public, max-age=0, s-maxage=300" } });
+  } catch {
+    return new Response("News articles sitemap temporarily unavailable.", { status: 503 });
+  }
+}
+
 async function createNewsSitemapResponse(env, requestUrl) {
   const config = await getPublicConfig(env, requestUrl);
   if (!config) return new Response("News sitemap temporarily unavailable.", { status: 503 });
@@ -718,6 +761,10 @@ export default {
       headers.set("content-type", "text/html; charset=utf-8");
       headers.set("cache-control", "public, max-age=0, s-maxage=30");
       return new Response(html, { status: assetResponse.status, headers });
+    }
+
+    if (request.method === "GET" && url.pathname === "/news-articles-sitemap.xml") {
+      return createAllNewsArticlesSitemapResponse(env, url);
     }
 
     if (request.method === "GET" && url.pathname === "/news-sitemap.xml") {

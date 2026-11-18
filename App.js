@@ -67,13 +67,14 @@ function saveListingDraft(form){
     if(el.type==="checkbox"||el.type==="radio")values[el.name]={checked:!!el.checked,value:el.value};
     else values[el.name]=el.value;
   });
-  try{localStorage.setItem(HH_LISTING_DRAFT_KEY,JSON.stringify(values))}catch(error){console.warn("Listing draft could not be saved:",error?.message||error)}
+  try{localStorage.setItem(HH_LISTING_DRAFT_KEY,JSON.stringify({userId:authUser?.id||null,values}))}catch(error){console.warn("Listing draft could not be saved:",error?.message||error)}
 }
 function restoreListingDraft(form){
   if(!form)return;
   try{
-    const values=JSON.parse(localStorage.getItem(HH_LISTING_DRAFT_KEY)||"null");
-    if(!values||typeof values!=="object")return;
+    const draft=JSON.parse(localStorage.getItem(HH_LISTING_DRAFT_KEY)||"null");
+    if(!draft||draft.userId!==authUser?.id||!draft.values||typeof draft.values!=="object")return;
+    const values=draft.values;
     [...form.elements].forEach(el=>{
       if(!el.name||el.type==="file"||el.type==="password"||!(el.name in values))return;
       const saved=values[el.name];
@@ -831,8 +832,9 @@ async function loadAuth(){
     if(authUser&&!publicSharedLink){
       try{
         const pendingChat=JSON.parse(localStorage.getItem(HH_ACTIVE_CHAT_KEY)||"null");
-        if(pendingChat?.id)await openChat(pendingChat.id,{title:pendingChat.title||"HarvestHome listing"});
+        if(pendingChat?.id&&pendingChat.userId===authUser.id)await openChat(pendingChat.id,{title:pendingChat.title||"HarvestHome listing"});
         else if(localStorage.getItem("hh_listing_modal_open")==="1")listingModal();
+        else if(pendingChat?.id)localStorage.removeItem(HH_ACTIVE_CHAT_KEY);
       }catch(error){console.warn("Previous workspace could not be restored:",error?.message||error)}
     }
   }catch(error){
@@ -842,8 +844,9 @@ async function loadAuth(){
     if(authUser){
       try{
         const pendingChat=JSON.parse(localStorage.getItem(HH_ACTIVE_CHAT_KEY)||"null");
-        if(pendingChat?.id)await openChat(pendingChat.id,{title:pendingChat.title||"HarvestHome listing"});
+        if(pendingChat?.id&&pendingChat.userId===authUser.id)await openChat(pendingChat.id,{title:pendingChat.title||"HarvestHome listing"});
         else if(localStorage.getItem("hh_listing_modal_open")==="1")listingModal();
+        else if(pendingChat?.id)localStorage.removeItem(HH_ACTIVE_CHAT_KEY);
       }catch(restoreError){console.warn("Previous workspace could not be restored:",restoreError?.message||restoreError)}
     }
   }
@@ -2007,7 +2010,7 @@ async function openHarvestCallChannelForChat(conversationId){
 async function openChat(conversationId,listing){
   const id=String(conversationId||"").trim();
   if(!id)return;
-  try{localStorage.setItem(HH_ACTIVE_CHAT_KEY,JSON.stringify({id,title:String(listing?.title||"HarvestHome listing")}))}catch{}
+  try{localStorage.setItem(HH_ACTIVE_CHAT_KEY,JSON.stringify({id,userId:authUser?.id||null,title:String(listing?.title||"HarvestHome listing")}))}catch{}
   if(activeChatConversationId===id&&$("#modalRoot .chat-modal"))return;
   if(chatOpeningConversationId===id&&chatOpeningPromise)return chatOpeningPromise;
   const token=++chatOpenSequence;

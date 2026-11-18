@@ -54,6 +54,18 @@
 #hh-faq summary:focus-visible{outline:3px solid #d49a28;outline-offset:-3px;border-radius:10px}
 .hh-guide .hh-guide-note{border-left:4px solid #d49a28;padding:12px 16px;background:#fffaf0;border-radius:8px}
 @media(max-width:600px){.hh-guide{padding-left:14px;padding-right:14px}.hh-guide-card{padding:15px}}
+
+.hh-guide details.hh-major{margin:14px 0;border:1px solid #dce7df;border-radius:14px;background:#fff;box-shadow:0 5px 18px rgba(22,65,39,.045);overflow:hidden}
+.hh-guide details.hh-major>summary{display:flex;align-items:center;justify-content:space-between;gap:16px;list-style:none;padding:17px 19px;color:#176b3b;font-size:clamp(1.05rem,2.4vw,1.28rem);font-weight:800;cursor:pointer}
+.hh-guide details.hh-major>summary::-webkit-details-marker{display:none}
+.hh-guide details.hh-major>summary::after{content:"+";flex:0 0 30px;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;background:#edf5ef;color:#176b3b;font-size:23px;line-height:1;font-weight:700}
+.hh-guide details.hh-major[open]>summary::after{content:"−"}
+.hh-guide details.hh-major>summary:focus-visible{outline:3px solid #d49a28;outline-offset:-3px}
+.hh-guide .hh-major-content{padding:2px 19px 18px;border-top:1px solid #edf1ed}
+.hh-guide .hh-major-content>h3{margin:18px 0 7px}
+.hh-guide .hh-major-content .hh-guide-grid{margin:14px 0}
+@media(max-width:600px){.hh-guide details.hh-major>summary{padding:15px}.hh-guide .hh-major-content{padding:2px 15px 15px}}
+
 </style>
 <script type="application/ld+json">
 {
@@ -79,91 +91,70 @@
   </div>
 </section>
 
-<section class="hh-guide" aria-labelledby="hh-guide-title">
-  <h2 id="hh-guide-title">Discover houses, land, products and farm produce on HarvestHome</h2>
-  <p>HarvestHome is an online marketplace designed to help people discover offers and connect with sellers. You can explore listings for houses and other property, land, products, and farm produce, then contact the person who posted an offer to ask questions and confirm the details. Listings, prices and availability can change, so check the current information before making a decision.</p>
-
-  <div class="hh-guide-grid">
-    <section class="hh-guide-card" aria-labelledby="hh-property-title">
-      <h3 id="hh-property-title">Houses and property</h3>
-      <p>Compare the information provided about a property's location, price, condition and sale or lease terms. Before paying or signing anything, arrange a suitable viewing and independently check the owner's identity, authority to transact, title documents and any relevant local requirements.</p>
-    </section>
-    <section class="hh-guide-card" aria-labelledby="hh-land-title">
-      <h3 id="hh-land-title">Land</h3>
-      <p>Ask about the precise location, boundaries, access and intended use of a land listing. Do not rely on photographs or messages alone. Have title and survey details checked by qualified local professionals and appropriate authorities before committing funds.</p>
-    </section>
-    <section class="hh-guide-card" aria-labelledby="hh-products-title">
-      <h3 id="hh-products-title">Products</h3>
-      <p>Read the product description and ask about specifications, condition, quantity, price, availability, collection and delivery. For higher-value purchases, agree in writing how the item will be inspected and handed over.</p>
-    </section>
-    <section class="hh-guide-card" aria-labelledby="hh-produce-title">
-      <h3 id="hh-produce-title">Farm produce</h3>
-      <p>Buyers and sellers should confirm produce type, grade or quality, quantity, packaging, timing, transport and total costs. For bulk orders, agree how the quantity and quality will be checked at handover.</p>
-    </section>
-  </div>
-
-  <h2>How to use the marketplace</h2>
-  <div class="hh-guide-grid">
-    <section class="hh-guide-card">
-      <h3>1. Explore and compare</h3>
-      <p>Use the marketplace categories and available filters to find relevant offers. Read the full description, check the location and compare important terms rather than relying on a headline or photo alone.</p>
-    </section>
-    <section class="hh-guide-card">
-      <h3>2. Ask the seller</h3>
-      <p>Contact the listing owner to confirm availability, ask questions and clarify price, viewing, collection or delivery arrangements. Keep records of important messages and agreed terms.</p>
-    </section>
-    <section class="hh-guide-card">
-      <h3>3. Verify before paying</h3>
-      <p>Make independent checks appropriate to the transaction. Be cautious of pressure to pay urgently, unexplained extra fees, or requests to send money to an unrelated person. Keep receipts and payment records.</p>
-    </section>
-    <section class="hh-guide-card">
-      <h3>4. Publish an accurate listing</h3>
-      <p>Sellers should post genuine photos and truthful descriptions, provide a clear price and location, and offer only property or goods they are authorised to sell or lease. Respond honestly to buyer questions and update or remove unavailable offers.</p>
-    </section>
-  </div>
-
-  <h2>Browsing HarvestHome from outside Nigeria</h2>
-  <p>People in Nigeria and abroad can visit HarvestHome to explore listings connected to Nigeria. Accessing a listing from another country does not mean the seller offers international delivery or that every payment method supports cross-border transactions. Before committing, confirm the seller can serve your location, the accepted currency and payment method, delivery or collection, documentation, total cost and any applicable legal or customs requirements.</p>
-
-  <div class="hh-guide-note">
-    <strong>Safety reminder:</strong> HarvestHome helps people discover listings and contact other users; it does not guarantee a listing's ownership, authenticity, quality, legality or transaction outcome. A profile, badge or moderation decision is not a substitute for independent checks.
-  </div>
-
-  <h2>Practical guides for Nigerian buyers and sellers</h2>
-  <p>Use these detailed checklists to prepare for property viewings, land enquiries and farm produce transactions. They explain what to ask, what to record and when to involve qualified professionals.</p>
-  <div class="hh-guide-grid">
-    <section class="hh-guide-card"><h3>Buying land in Nigeria</h3><p>Learn how to investigate a seller's authority, title history, survey information, site boundaries and transaction terms before paying.</p><p><a href="/nigeria-land-buying-due-diligence-guide.html">Read the land due-diligence checklist →</a></p></section>
-    <section class="hh-guide-card"><h3>Viewing a house</h3><p>Check building condition, water, electricity, drainage, neighbourhood, occupancy, fees and written handover terms.</p><p><a href="/nigeria-house-buying-viewing-checklist.html">Read the house-viewing checklist →</a></p></section>
-    <section class="hh-guide-card"><h3>Trading farm produce</h3><p>Agree commodity specifications, quality, sampling, weighing, storage, packaging, transport and payment records.</p><p><a href="/nigeria-farm-produce-buying-selling-guide.html">Read the farm produce trading guide →</a></p></section>
-  </div>
-
-  <section class="hh-guide-card" aria-labelledby="hh-international-guides-title" style="margin:18px 0">
-    <h2 id="hh-international-guides-title">Explore our country-specific guides</h2>
-    <p>HarvestHome serves a wider community than Nigeria alone. Find practical information for buyers and sellers in Ghana, Kenya, South Africa, the United Kingdom, the United States, Canada and the United Arab Emirates, alongside our Nigerian guides.</p>
-    <p><a href="/country-guides.html">Explore all HarvestHome country guides →</a></p>
-  </section>
-
-  <section id="hh-faq" aria-labelledby="hh-faq-title">
-  <h2 id="hh-faq-title">Frequently asked questions</h2>
-  <details>
-    <summary>Does a listing guarantee that an item or property is still available?</summary>
-    <p>No. Availability and terms can change. Contact the seller to confirm the current status before arranging a viewing, delivery or payment.</p>
+<section class="hh-guide" aria-label="HarvestHome marketplace information and buyer and seller guides">
+  <details class="hh-major">
+    <summary>Discover houses, land, products and farm produce on HarvestHome</summary>
+    <div class="hh-major-content">
+      <p>HarvestHome is an online marketplace designed to help people discover offers and connect with sellers. You can explore listings for houses and other property, land, products, and farm produce, then contact the person who posted an offer to ask questions and confirm the details. Listings, prices and availability can change, so check the current information before making a decision.</p>
+      <div class="hh-guide-grid">
+        <section class="hh-guide-card"><h3>Houses and property</h3><p>Compare the information provided about a property's location, price, condition and sale or lease terms. Before paying or signing anything, arrange a suitable viewing and independently check the owner's identity, authority to transact, title documents and any relevant local requirements.</p></section>
+        <section class="hh-guide-card"><h3>Land</h3><p>Ask about the precise location, boundaries, access and intended use of a land listing. Do not rely on photographs or messages alone. Have title and survey details checked by qualified local professionals and appropriate authorities before committing funds.</p></section>
+        <section class="hh-guide-card"><h3>Products</h3><p>Read the product description and ask about specifications, condition, quantity, price, availability, collection and delivery. For higher-value purchases, agree in writing how the item will be inspected and handed over.</p></section>
+        <section class="hh-guide-card"><h3>Farm produce</h3><p>Buyers and sellers should confirm produce type, grade or quality, quantity, packaging, timing, transport and total costs. For bulk orders, agree how the quantity and quality will be checked at handover.</p></section>
+      </div>
+    </div>
   </details>
-  <details>
-    <summary>Can I safely pay based only on photos or messages?</summary>
-    <p>No. Photos and messages are not enough to establish ownership, condition or legitimacy. Verify the seller and relevant details independently, and use written terms appropriate to the transaction.</p>
-  </details>
-  <details>
-    <summary>Does browsing from abroad mean international delivery is available?</summary>
-    <p>No. International visitors can explore listings, but delivery, payment, currency and regulatory arrangements depend on the specific seller and transaction. Confirm them directly before paying.</p>
-  </details>
-  <details>
-    <summary>How can I report a concern or ask HarvestHome a question?</summary>
-    <p>Email <a href="mailto:support@harvesthome.ng">support@harvesthome.ng</a> and include the relevant listing link or details. Do not include passwords, PINs or one-time verification codes.</p>
-  </details>
-  </section>
 
-  <p>For more detailed guidance, read our <a href="/buy-sell-safely-nigeria.html">buying and selling safety guide</a>, learn <a href="/about">about HarvestHome</a>, and review our <a href="/content-safety">Content &amp; Safety Policy</a>, <a href="/terms">Terms and Conditions</a> and <a href="/privacy">Privacy Policy</a>.</p>
+  <details class="hh-major">
+    <summary>How to use the marketplace</summary>
+    <div class="hh-major-content">
+      <div class="hh-guide-grid">
+        <section class="hh-guide-card"><h3>1. Explore and compare</h3><p>Use the marketplace categories and available filters to find relevant offers. Read the full description, check the location and compare important terms rather than relying on a headline or photo alone.</p></section>
+        <section class="hh-guide-card"><h3>2. Ask the seller</h3><p>Contact the listing owner to confirm availability, ask questions and clarify price, viewing, collection or delivery arrangements. Keep records of important messages and agreed terms.</p></section>
+        <section class="hh-guide-card"><h3>3. Verify before paying</h3><p>Make independent checks appropriate to the transaction. Be cautious of pressure to pay urgently, unexplained extra fees, or requests to send money to an unrelated person. Keep receipts and payment records.</p></section>
+        <section class="hh-guide-card"><h3>4. Publish an accurate listing</h3><p>Sellers should post genuine photos and truthful descriptions, provide a clear price and location, and offer only property or goods they are authorised to sell or lease. Respond honestly to buyer questions and update or remove unavailable offers.</p></section>
+      </div>
+    </div>
+  </details>
+
+  <details class="hh-major">
+    <summary>Browsing HarvestHome from outside Nigeria</summary>
+    <div class="hh-major-content">
+      <p>People in Nigeria and abroad can visit HarvestHome to explore listings connected to Nigeria. Accessing a listing from another country does not mean the seller offers international delivery or that every payment method supports cross-border transactions. Before committing, confirm the seller can serve your location, the accepted currency and payment method, delivery or collection, documentation, total cost and any applicable legal or customs requirements.</p>
+      <div class="hh-guide-note"><strong>Safety reminder:</strong> HarvestHome helps people discover listings and contact other users; it does not guarantee a listing's ownership, authenticity, quality, legality or transaction outcome. A profile, badge or moderation decision is not a substitute for independent checks.</div>
+    </div>
+  </details>
+
+  <details class="hh-major">
+    <summary>Practical guides for Nigerian buyers and sellers</summary>
+    <div class="hh-major-content">
+      <p>Use these detailed checklists to prepare for property viewings, land enquiries and farm produce transactions. They explain what to ask, what to record and when to involve qualified professionals.</p>
+      <div class="hh-guide-grid">
+        <section class="hh-guide-card"><h3>Buying land in Nigeria</h3><p>Learn how to investigate a seller's authority, title history, survey information, site boundaries and transaction terms before paying.</p><p><a href="https://harvesthome.ng/nigeria-land-buying-due-diligence-guide.html">Read the land due-diligence checklist →</a></p></section>
+        <section class="hh-guide-card"><h3>Viewing a house</h3><p>Check building condition, water, electricity, drainage, neighbourhood, occupancy, fees and written handover terms.</p><p><a href="https://harvesthome.ng/nigeria-house-buying-viewing-checklist.html">Read the house-viewing checklist →</a></p></section>
+        <section class="hh-guide-card"><h3>Trading farm produce</h3><p>Agree commodity specifications, quality, sampling, weighing, storage, packaging, transport and payment records.</p><p><a href="https://harvesthome.ng/nigeria-farm-produce-buying-selling-guide.html">Read the farm produce trading guide →</a></p></section>
+      </div>
+    </div>
+  </details>
+
+  <details class="hh-major">
+    <summary>Explore our country-specific guides</summary>
+    <div class="hh-major-content">
+      <p>HarvestHome serves a wider community than Nigeria alone. Find practical information for buyers and sellers in Ghana, Kenya, South Africa, the United Kingdom, the United States, Canada and the United Arab Emirates, alongside our Nigerian guides.</p>
+      <p><a href="https://harvesthome.ng/country-guides.html">Explore all HarvestHome country guides →</a></p>
+    </div>
+  </details>
+
+  <details class="hh-major" id="hh-faq">
+    <summary>Frequently asked questions</summary>
+    <div class="hh-major-content">
+      <details><summary>Does a listing guarantee that an item or property is still available?</summary><p>No. Availability and terms can change. Contact the seller to confirm the current status before arranging a viewing, delivery or payment.</p></details>
+      <details><summary>Can I safely pay based only on photos or messages?</summary><p>No. Photos and messages are not enough to establish ownership, condition or legitimacy. Verify the seller and relevant details independently, and use written terms appropriate to the transaction.</p></details>
+      <details><summary>Does browsing from abroad mean international delivery is available?</summary><p>No. International visitors can explore listings, but delivery, payment, currency and regulatory arrangements depend on the specific seller and transaction. Confirm them directly before paying.</p></details>
+      <details><summary>How can I report a concern or ask HarvestHome a question?</summary><p>Email <a href="mailto:support@harvesthome.ng">support@harvesthome.ng</a> and include the relevant listing link or details. Do not include passwords, PINs or one-time verification codes.</p></details>
+      <p>For more detailed guidance, read our <a href="https://harvesthome.ng/buy-sell-safely-nigeria.html">buying and selling safety guide</a>, learn <a href="https://harvesthome.ng/about">about HarvestHome</a>, and review our <a href="https://harvesthome.ng/content-safety">Content &amp; Safety Policy</a>, <a href="https://harvesthome.ng/terms">Terms and Conditions</a> and <a href="https://harvesthome.ng/privacy">Privacy Policy</a>.</p>
+    </div>
+  </details>
 </section>
 
 <footer style="max-width:1000px;margin:24px auto 0;padding:22px 20px;text-align:center;font:14px/1.7 system-ui,sans-serif;color:#fff;background:#102a56;border-radius:14px"><nav aria-label="HarvestHome footer navigation" style="display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:12px 22px"><a href="/discover-nigerian-property-products" style="color:#fff;font-weight:700">Discover Nigerian property, products and farm produce</a><a href="/about" style="display:inline-block;color:#FFD700;font-size:16px;font-weight:900;text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:4px">🌿 About &amp; Rewards</a><a href="/news-insights" style="display:inline-block;color:#FFD700;font-size:16px;font-weight:900;text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:4px">📰 News &amp; Insights</a><a href="/buy-sell-safely-nigeria.html" style="color:#fff;font-weight:700">Safety guide</a></nav></footer>

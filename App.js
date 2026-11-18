@@ -832,7 +832,7 @@ async function loadAuth(){
     if(authUser&&!publicSharedLink){
       try{
         const pendingChat=JSON.parse(localStorage.getItem(HH_ACTIVE_CHAT_KEY)||"null");
-        if(pendingChat?.id&&pendingChat.userId===authUser.id)await openChat(pendingChat.id,{title:pendingChat.title||"HarvestHome listing"});
+        if(pendingChat?.id&&pendingChat.userId===authUser.id)await openChat(pendingChat.id,{id:pendingChat.listingId||null,title:pendingChat.title||"HarvestHome listing"});
         else if(localStorage.getItem("hh_listing_modal_open")==="1")listingModal();
         else if(pendingChat?.id)localStorage.removeItem(HH_ACTIVE_CHAT_KEY);
       }catch(error){console.warn("Previous workspace could not be restored:",error?.message||error)}
@@ -844,7 +844,7 @@ async function loadAuth(){
     if(authUser){
       try{
         const pendingChat=JSON.parse(localStorage.getItem(HH_ACTIVE_CHAT_KEY)||"null");
-        if(pendingChat?.id&&pendingChat.userId===authUser.id)await openChat(pendingChat.id,{title:pendingChat.title||"HarvestHome listing"});
+        if(pendingChat?.id&&pendingChat.userId===authUser.id)await openChat(pendingChat.id,{id:pendingChat.listingId||null,title:pendingChat.title||"HarvestHome listing"});
         else if(localStorage.getItem("hh_listing_modal_open")==="1")listingModal();
         else if(pendingChat?.id)localStorage.removeItem(HH_ACTIVE_CHAT_KEY);
       }catch(restoreError){console.warn("Previous workspace could not be restored:",restoreError?.message||restoreError)}
@@ -2010,7 +2010,7 @@ async function openHarvestCallChannelForChat(conversationId){
 async function openChat(conversationId,listing){
   const id=String(conversationId||"").trim();
   if(!id)return;
-  try{localStorage.setItem(HH_ACTIVE_CHAT_KEY,JSON.stringify({id,userId:authUser?.id||null,title:String(listing?.title||"HarvestHome listing")}))}catch{}
+  try{localStorage.setItem(HH_ACTIVE_CHAT_KEY,JSON.stringify({id,userId:authUser?.id||null,listingId:listing?.id||null,title:String(listing?.title||"HarvestHome listing")}))}catch{}
   if(activeChatConversationId===id&&$("#modalRoot .chat-modal"))return;
   if(chatOpeningConversationId===id&&chatOpeningPromise)return chatOpeningPromise;
   const token=++chatOpenSequence;

@@ -2351,7 +2351,7 @@ try{
   if(row.status!=="pending")throw new Error("This listing is no longer pending and cannot be retried.");
  }else{
   const contactPhone=String(d.contact_phone||"").trim().replace(/[^0-9+]/g,"");
-  if(d.show_contact_phone&&(!/^\\+?[0-9]{7,15}$/.test(contactPhone)))throw new Error("Enter a valid phone number with country code, or leave public calling turned off.");
+  if(d.show_contact_phone&&(!/^\+?[0-9]{7,15}$/.test(contactPhone)))throw new Error("Enter a valid phone number with country code, or leave public calling turned off.");
   const payload={seller_id:authUser.id,country:d.country,location:d.location,category:d.category,title:d.title,description:d.description,price:Number(d.price),currency:d.currency,mode:d.mode,contact_phone:d.show_contact_phone?contactPhone:null,status:"pending",publication_plan:"free",publish_expires_at:null};
   const inserted=await sb.from("listings").insert(payload).select().single();
   if(inserted.error)throw inserted.error;

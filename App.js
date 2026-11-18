@@ -542,7 +542,7 @@ async function loadHomepageNews(){
  if(!sb){status.textContent="News is temporarily unavailable. Visit News & Insights for published stories.";return}
  hhHomepageNewsPromise=(async()=>{
   try{
-   const {data,error}=await sb.from("news_articles").select("title,slug,category,excerpt,featured_image_url,published_at,created_at").eq("status","published").order("published_at",{ascending:false}).limit(4);
+   const {data,error}=await sb.from("news_articles").select("title,slug,category,excerpt,featured_image_url,published_at,created_at").eq("status","published").order("published_at",{ascending:false}).limit(8);
    if(error)throw error;
    hhHomepageNewsCache=Array.isArray(data)?data:[];
    renderHomepageNews(hhHomepageNewsCache);

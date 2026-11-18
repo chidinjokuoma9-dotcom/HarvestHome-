@@ -2143,6 +2143,7 @@ async function sendChatMessage(e,conversationId,listing){
       await createNotification(conversation.seller_id,'chat_message','New buyer message',`A buyer sent you a new message about "${listing?.title||"your listing"}".`,listing?.id||conversation.listing_id||null);
     }
     e.target.reset();
+    try{sessionStorage.removeItem("hh_chat_draft_"+String(conversationId))}catch{}
     await renderChatModal(conversationId,listing,true);
   }catch(err){toast(err.message||"Message could not be sent.",true)}
 }

@@ -739,6 +739,18 @@ export default {
     // response so Google and social crawlers do not depend on client-side JS.
     const partnerSlug = url.searchParams.get("slug");
     if (request.method === "GET" && (url.pathname === "/partner-storefront.html" || url.pathname === "/partner-storefront") && partnerSlug) {
+      // Reject malformed storefront slugs instead of serving the generic noindex page.
+      // This prevents broken/script-fragment URLs from being treated as valid storefront pages.
+      if (partnerSlug.length > 180 || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(partnerSlug)) {
+        return new Response("Partner storefront not found.", {
+          status: 404,
+          headers: {
+            "content-type": "text/plain; charset=utf-8",
+            "cache-control": "public, max-age=300",
+            "X-Robots-Tag": "noindex, nofollow"
+          }
+        });
+      }
       const assetResponse = await env.ASSETS.fetch(new Request(new URL("/partner-storefront.html", url).toString(), {
         method: "GET",
         headers: { Accept: "text/html" }

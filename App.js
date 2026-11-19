@@ -790,7 +790,8 @@ async function syncPartnerStorefrontAccess(){
 setInterval(async()=>{
   if(!authUser)return;
   const results=await Promise.all([syncNewsroomAccess(),syncPartnerStorefrontAccess()]);
-  if(results.some(Boolean)&&state.view==='dashboard')render();
+  // Do not redraw the dashboard while the seller is filling in a listing; render() replaces #modalRoot and would dismiss the open form.
+  if(results.some(Boolean)&&state.view==='dashboard'&&!document.getElementById('listingForm'))render();
 },30000);
 
 async function loadAuth(){

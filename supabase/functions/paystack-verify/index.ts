@@ -78,7 +78,7 @@ serve(async(req)=>{
       const service=String(transaction.metadata?.service||'');
       const metadataUserId=String(transaction.metadata?.user_id||'');
       const metadataListingId=transaction.metadata?.listing_id?String(transaction.metadata.listing_id):null;
-      const fixedPrices:Record<string,number>={featured:115000,featured_7:115000,featured_14:215000,featured_30:415000,verification:500000,pro:1000000,verified_pro:25000000};
+      const fixedPrices:Record<string,number>={featured:115000,featured_7:115000,featured_14:215000,featured_30:415000,lifetime_listing:815000,verification:500000,pro:1000000,verified_pro:25000000};
       if(metadataUserId!==String(user.id))throw new Error('This payment is not linked to your HarvestHome account');
       if(!fixedPrices[service]||fixedPrices[service]!==transactionAmount)throw new Error('This Paystack transaction does not match a valid HarvestHome service');
       if(!metadataListingId)throw new Error('This payment is missing its HarvestHome listing reference');

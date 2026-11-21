@@ -217,3 +217,139 @@ $$;
 
 revoke execute on function public.review_lifetime_listing(uuid,text,text) from public, anon;
 grant execute on function public.review_lifetime_listing(uuid,text,text) to authenticated;
+
+-- Protect publication-plan fields from direct seller updates. Trusted paid-activation
+-- RPCs set this transaction-local flag only after checking a successful payment.
+create or replace function public.prevent_listing_protected_change()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_paid_activation boolean :=
+    coalesce(current_setting('app.harvesthome_paid_activation', true), '') = '1';
+begin
+  if not public.is_staff() then
+    if new.seller_id is distinct from old.seller_id
+       or new.views is distinct from old.views
+       or (
+         new.status is distinct from old.status
+         and not (
+           old.seller_id = auth.uid()
+           and new.status = 'deleted'
+           and old.status is distinct from 'deleted'
+         )
+         and not v_paid_activation
+       )
+       or (
+         (
+           new.publication_plan is distinct from old.publication_plan
+           or new.publish_expires_at is distinct from old.publish_expires_at
+           or new.lifetime_review_due_at is distinct from old.lifetime_review_due_at
+         )
+         and not v_paid_activation
+       ) then
+      raise exception 'Protected listing fields can only be changed by HarvestHome or an authorised payment action';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+-- Existing Featured activation already sets this same trusted transaction flag.
+-- Permit that validated activation to record its payment timestamp as well.
+create or replace function public.prevent_payment_protected_change()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is not null
+     and not public.is_staff()
+     and coalesce(current_setting('app.harvesthome_paid_activation', true), '') <> '1' then
+    raise exception 'Payment records can only be changed by the payment service';
+  end if;
+  return new;
+end;
+$$;
+
+create or replace function public.activate_paid_lifetime_listing(p_reference text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_payment public.payments%rowtype;
+  v_listing public.listings%rowtype;
+  v_review_due timestamptz;
+  v_already_activated boolean;
+begin
+  if auth.uid() is null then
+    raise exception 'Sign in required';
+  end if;
+
+  select * into v_payment
+  from public.payments
+  where reference = p_reference
+    and user_id = auth.uid()
+    and status = 'success'
+  for update;
+
+  if v_payment.id is null then
+    raise exception 'Successful Lifetime Listing payment not found';
+  end if;
+  if v_payment.service <> 'lifetime_listing'
+     or v_payment.amount <> 815000
+     or upper(coalesce(v_payment.currency,'NGN')) <> 'NGN' then
+    raise exception 'Invalid Lifetime Listing payment';
+  end if;
+  if v_payment.listing_id is null then
+    raise exception 'Lifetime Listing payment is missing its listing reference';
+  end if;
+
+  select * into v_listing
+  from public.listings
+  where id = v_payment.listing_id
+  for update;
+
+  if v_listing.id is null
+     or v_listing.seller_id <> auth.uid()
+     or v_listing.status = 'deleted' then
+    raise exception 'This listing is not available for Lifetime activation';
+  end if;
+  if v_listing.status <> 'approved' then
+    raise exception 'Only an approved listing can be upgraded to Lifetime Listing';
+  end if;
+
+  v_already_activated := v_payment.activated_at is not null;
+  v_review_due := coalesce(v_listing.lifetime_review_due_at, now() + interval '1 year');
+
+  perform set_config('app.harvesthome_paid_activation','1',true);
+
+  update public.listings
+  set publication_plan = 'lifetime',
+      publish_expires_at = null,
+      lifetime_review_due_at = v_review_due,
+      updated_at = now()
+  where id = v_listing.id;
+
+  update public.payments
+  set activated_at = coalesce(activated_at, now())
+  where id = v_payment.id;
+
+  return jsonb_build_object(
+    'activated', true,
+    'already_activated', v_already_activated,
+    'publication_plan', 'lifetime',
+    'review_due_at', v_review_due,
+    'listing_id', v_listing.id,
+    'reference', p_reference
+  );
+end;
+$$;
+
+revoke execute on function public.activate_paid_lifetime_listing(text) from public, anon;
+grant execute on function public.activate_paid_lifetime_listing(text) to authenticated;

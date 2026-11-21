@@ -229,7 +229,9 @@ as $$
 declare
   v_paid_activation boolean :=
     coalesce(current_setting('app.harvesthome_paid_activation', true), '') = '1';
-  v_free_renewal boolean :=
+  v_free_renewal boolean;
+begin
+  v_free_renewal :=
     old.seller_id = auth.uid()
     and old.status = 'approved'
     and new.status = 'approved'
@@ -239,7 +241,7 @@ declare
     and new.publish_expires_at > now()
     and new.publish_expires_at <= now() + interval '48 hours'
     and new.lifetime_review_due_at is not distinct from old.lifetime_review_due_at;
-begin
+
   if not public.is_staff() then
     if new.seller_id is distinct from old.seller_id
        or new.views is distinct from old.views

@@ -2316,7 +2316,49 @@ function showSignupEmailConfirmation(email){
   $("[data-signup-login]")?.addEventListener("click",()=>{close();auth("login")});
   // This confirmation dialog intentionally has no timer. It stays visible until the user closes it or chooses to go to login.
 }
-async function authSubmit(e){e.preventDefault();let d=Object.fromEntries(new FormData(e.target));if(state.authMode==="signup"&&!["Buyer","Seller"].includes(d.role)){toast("Please choose whether you are signing up as a Buyer or Seller / Agent.",true);return}if(state.authMode==="signup"&&!d.terms){toast("Please accept the HarvestHome Terms & Conditions.",true);return}if(!sb){toast("Add your Supabase URL and anon key in Config.js first.",true);return}try{if(state.authMode==="signup"){const {data,error}=await sb.auth.signUp({email:d.email,password:d.password,options:{data:{full_name:d.name,role:d.role}}});if(error)throw error;if(data.session){close();await loadAuth();state.view="dashboard";render();toast("Account created and signed in.");}else{showSignupEmailConfirmation(d.email);}}else{const {data,error}=await sb.auth.signInWithPassword({email:d.email,password:d.password});if(error)throw error;authUser=data.user;await loadProfile();close();state.view="marketplace";render();toast("Welcome back.")}}catch(err){toast(err.message||"Authentication failed.",true)}}
+const signupRequestCooldowns=new Map();
+async function authSubmit(e){
+  e.preventDefault();
+  const form=e.target;
+  if(authSubmitInProgress){return}
+  const d=Object.fromEntries(new FormData(form));
+  const isSignup=state.authMode==="signup";
+  if(isSignup&&!["Buyer","Seller"].includes(d.role)){toast("Please choose whether you are signing up as a Buyer or Seller / Agent.",true);return}
+  if(isSignup&&!d.terms){toast("Please accept the HarvestHome Terms & Conditions.",true);return}
+  if(!sb){toast("Add your Supabase URL and anon key in Config.js first.",true);return}
+  const normalizedEmail=String(d.email||"").trim().toLowerCase();
+  const now=Date.now();
+  if(isSignup){
+    const retryAt=signupRequestCooldowns.get(normalizedEmail)||0;
+    if(retryAt>now){
+      const seconds=Math.ceil((retryAt-now)/1000);
+      toast(`A signup request was just submitted for this email. Please wait ${seconds} seconds before trying again.`,true);
+      return;
+    }
+  }
+  authSubmitInProgress=true;
+  const submitButton=e.submitter||form.querySelector('button[type="submit"],button:not([type])');
+  const originalButtonText=submitButton?.textContent||"";
+  if(submitButton){submitButton.disabled=true;submitButton.setAttribute("aria-busy","true");submitButton.textContent=isSignup?"Creating account…":"Logging in…"}
+  try{
+    if(isSignup){
+      const {data,error}=await sb.auth.signUp({email:d.email,password:d.password,options:{data:{full_name:d.name,role:d.role}}});
+      if(error)throw error;
+      signupRequestCooldowns.set(normalizedEmail,Date.now()+60000);
+      if(data.session){close();await loadAuth();state.view="dashboard";render();toast("Account created and signed in.");}
+      else{showSignupEmailConfirmation(d.email);}
+    }else{
+      const {data,error}=await sb.auth.signInWithPassword({email:d.email,password:d.password});
+      if(error)throw error;
+      authUser=data.user;await loadProfile();close();state.view="marketplace";render();toast("Welcome back.")
+    }
+  }catch(err){
+    toast(err.message||"Authentication failed.",true);
+  }finally{
+    authSubmitInProgress=false;
+    if(submitButton&&submitButton.isConnected){submitButton.disabled=false;submitButton.removeAttribute("aria-busy");submitButton.textContent=originalButtonText;}
+  }
+}
 function listingModal(){if(!user()){auth("login");toast("Log in to create a listing.",true);return}
 try{localStorage.setItem("hh_listing_modal_open","1")}catch{}
 $("#modalRoot").innerHTML=`<div class="modal-backdrop"><div class="modal wide"><button class="modal-close" data-close>×</button><span class="eyebrow">Seller workspace</span><h2>Create international listing</h2><form id="listingForm" class="form-grid"><div class="span-2 dashboard-callout"><b>Free 48-hour publication</b><p>Every new listing can be published free immediately for 48 hours and shows a countdown in My Listings. No approval is required for the free plan, but moderators can access and remove unsuitable listings. To keep extra visibility, use Featured: 7 days ₦1,150, 14 days ₦2,150 or 1 month ₦4,150.</p></div><label>Title<input name="title" required></label><label>Country<select name="country" id="listingCountry">${options(C.SUPPORTED_COUNTRIES.map(x=>x.name),state.country)}</select></label><label>Category<select name="category">${options(C.CATEGORIES.slice(1),"Houses")}</select></label><label>Location<input name="location" placeholder="City / state / area" required></label><label>Currency<select name="currency" id="listingCurrency">${options(C.SUPPORTED_COUNTRIES.map(x=>x.currency),countryInfo().currency)}</select></label><label>Price<input name="price" type="number" min="0" required></label><label>Type<select name="mode"><option>Sale</option><option>Lease</option></select></label><label>Phone number (optional)<input name="contact_phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="25" placeholder="+234 801 234 5678"><small class="demo-note">Add the number buyers should use to reach you.</small></label><label class="terms-check" style="align-self:center"><input name="show_contact_phone" type="checkbox"> Display my phone number publicly and allow buyers to call me.</label><label class="span-2">Description<textarea name="description" rows="4" required></textarea></label><label class="span-2">Photos (up to ${V5.maxImages})<input name="images" type="file" accept="image/*" multiple></label><label class="span-2">Video (1 file, max ${V5.maxVideoMB} MB)<input name="video" type="file" accept="video/*"></label><div class="span-2" id="mediaUploadStatus" style="display:none"></div><button class="primary-btn span-2" id="publishListingBtn" type="submit">Publish listing</button></form><small class="demo-note">Your free listing is published immediately for 48 hours. No moderator approval is required for free publication, but moderators can still review and remove listings that violate HarvestHome rules. Paid Featured promotions require moderator approval. Free listings do not earn HarvestHome reward points. Photos and video upload one at a time with a live 0–100% progress indicator, so you can confirm each file reaches 100% before the next one starts.</small></div></div>`;

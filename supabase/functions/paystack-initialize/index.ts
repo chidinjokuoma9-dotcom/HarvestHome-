@@ -44,12 +44,8 @@ serve(async(req)=>{
       if(service==='lifetime_listing'&&String(listing.publication_plan||'').toLowerCase()==='lifetime')throw new Error('This listing already has Lifetime Listing status');
       if(service==='lifetime_listing'){
         const {data:existingPayments,error:existingPaymentError}=await userClient.from('payments')
-          .select('id,status,created_at')
-          .eq('listing_id',listingId)
-          .eq('service','lifetime_listing')
-          .in('status',['initialized','pending','processing','success'])
-          .order('created_at',{ascending:false})
-          .limit(5);
+          .select('id,status,created_at').eq('listing_id',listingId).eq('service','lifetime_listing')
+          .in('status',['initialized','pending','processing','success']).order('created_at',{ascending:false}).limit(5);
         if(existingPaymentError)throw existingPaymentError;
         const recentOrSuccessful=(existingPayments||[]).find(p=>String(p.status).toLowerCase()==='success'||Date.now()-new Date(p.created_at).getTime()<30*60*1000);
         if(recentOrSuccessful)throw new Error(String(recentOrSuccessful.status).toLowerCase()==='success'?'A successful Lifetime Listing payment is already recorded for this listing. Refresh My Listings.':'A Lifetime Listing payment is already being processed for this listing. Please wait before trying again.');

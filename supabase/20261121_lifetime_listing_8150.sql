@@ -229,6 +229,16 @@ as $$
 declare
   v_paid_activation boolean :=
     coalesce(current_setting('app.harvesthome_paid_activation', true), '') = '1';
+  v_free_renewal boolean :=
+    old.seller_id = auth.uid()
+    and old.status = 'approved'
+    and new.status = 'approved'
+    and lower(coalesce(old.publication_plan,'')) = 'free'
+    and lower(coalesce(new.publication_plan,'')) = 'free'
+    and (old.publish_expires_at is null or old.publish_expires_at <= now())
+    and new.publish_expires_at > now()
+    and new.publish_expires_at <= now() + interval '48 hours'
+    and new.lifetime_review_due_at is not distinct from old.lifetime_review_due_at;
 begin
   if not public.is_staff() then
     if new.seller_id is distinct from old.seller_id
@@ -243,14 +253,18 @@ begin
          and not v_paid_activation
        )
        or (
-         (
-           new.publication_plan is distinct from old.publication_plan
-           or new.publish_expires_at is distinct from old.publish_expires_at
-           or new.lifetime_review_due_at is distinct from old.lifetime_review_due_at
-         )
+         new.publication_plan is distinct from old.publication_plan
          and not v_paid_activation
+       )
+       or (
+         new.lifetime_review_due_at is distinct from old.lifetime_review_due_at
+         and not v_paid_activation
+       )
+       or (
+         new.publish_expires_at is distinct from old.publish_expires_at
+         and not (v_paid_activation or v_free_renewal)
        ) then
-      raise exception 'Protected listing fields can only be changed by HarvestHome or an authorised payment action';
+      raise exception 'Protected listing fields can only be changed by HarvestHome or an authorised publication action';
     end if;
   end if;
   return new;

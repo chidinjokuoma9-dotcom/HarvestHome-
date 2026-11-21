@@ -166,11 +166,14 @@ serve(async(req)=>{
 
       const listingTitle=transaction.metadata?.listing_title||null;
       const listingText=listingTitle?` for "${listingTitle}"`:'';
-      const message=`Payment successful${listingText}. Amount: ${transactionAmount/100} ${transaction.currency||payment.currency||'NGN'}. Reference: ${transaction.reference}.`;
+      const isLifetimeListing=payment.service==='lifetime_listing';
+      const message=isLifetimeListing
+        ?(activationError?`Your Lifetime Listing payment was successful${listingText}, but activation needs attention. Please contact support@harvesthome.ng with reference ${transaction.reference}.`:`Your listing${listingText} is now a Lifetime Listing. This was a one-time payment with no recurring renewal. Annual policy review applies. Reference: ${transaction.reference}.`)
+        :`Payment successful${listingText}. Amount: ${transactionAmount/100} ${transaction.currency||payment.currency||'NGN'}. Reference: ${transaction.reference}.`;
       const {error:notificationError}=await serviceClient.from('notifications').insert({
         user_id:payment.seller_id||payment.user_id,
         type:'payment_success',
-        title:'Payment successful',
+        title:isLifetimeListing&&!activationError?'Lifetime Listing activated':'Payment successful',
         message,
         listing_id:payment.listing_id||null
       });

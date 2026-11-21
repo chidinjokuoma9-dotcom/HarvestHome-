@@ -51,7 +51,7 @@ serve(async(req)=>{
 
     let {data:payment,error:paymentError}=await serviceClient
       .from('payments')
-      .select('id,user_id,listing_id,seller_id,service,amount,currency,reference,status,created_at')
+      .select('id,user_id,listing_id,seller_id,service,amount,currency,reference,status,created_at,activated_at')
       .eq('reference',canonicalRef)
       .eq('user_id',user.id)
       .maybeSingle();
@@ -63,7 +63,7 @@ serve(async(req)=>{
     if(!payment){
       const {data:candidates,error:candidateError}=await serviceClient
         .from('payments')
-        .select('id,user_id,listing_id,seller_id,service,amount,currency,reference,status,created_at')
+        .select('id,user_id,listing_id,seller_id,service,amount,currency,reference,status,created_at,activated_at')
         .eq('user_id',user.id)
         .in('status',['initialized','success'])
         .eq('amount',transactionAmount)
@@ -78,7 +78,7 @@ serve(async(req)=>{
       const service=String(transaction.metadata?.service||'');
       const metadataUserId=String(transaction.metadata?.user_id||'');
       const metadataListingId=transaction.metadata?.listing_id?String(transaction.metadata.listing_id):null;
-      const fixedPrices:Record<string,number>={featured:200000,verification:500000,pro:1000000};
+      const fixedPrices:Record<string,number>={featured:115000,featured_7:115000,featured_14:215000,featured_30:415000,lifetime_listing:815000,verification:500000,pro:1000000,verified_pro:25000000};
       if(metadataUserId!==String(user.id))throw new Error('This payment is not linked to your HarvestHome account');
       if(!fixedPrices[service]||fixedPrices[service]!==transactionAmount)throw new Error('This Paystack transaction does not match a valid HarvestHome service');
       if(!metadataListingId)throw new Error('This payment is missing its HarvestHome listing reference');
@@ -95,7 +95,7 @@ serve(async(req)=>{
         amount:transactionAmount,
         currency:transactionCurrency,
         status:'initialized'
-      }).select('id,user_id,listing_id,seller_id,service,amount,currency,reference,status,created_at').single();
+      }).select('id,user_id,listing_id,seller_id,service,amount,currency,reference,status,created_at,activated_at').single();
       if(insertError)throw insertError;
       payment=created;
     }
@@ -136,6 +136,28 @@ serve(async(req)=>{
           const a=await userClient.rpc('submit_paid_seller_verification',{p_reference:canonicalRef});
           if(a.error)throw a.error;
           activation=a.data;
+        }else if(payment.service==='lifetime_listing'){
+          const {data:listing,error:listingError}=await serviceClient.from('listings')
+            .select('id,seller_id,status,publication_plan,lifetime_review_due_at')
+            .eq('id',payment.listing_id).eq('seller_id',user.id).maybeSingle();
+          if(listingError)throw listingError;
+          if(!listing||listing.status==='deleted')throw new Error('The listing is no longer available for Lifetime activation');
+          if(listing.status!=='approved')throw new Error('Only an approved listing can be upgraded to Lifetime Listing');
+          let reviewDue=listing.lifetime_review_due_at||null;
+          if(String(listing.publication_plan||'').toLowerCase()!=='lifetime'){
+            reviewDue=new Date(Date.now()+365*24*60*60*1000).toISOString();
+            const {data:updatedListing,error:updateListingError}=await serviceClient.from('listings')
+              .update({publication_plan:'lifetime',publish_expires_at:null,lifetime_review_due_at:reviewDue,updated_at:new Date().toISOString()})
+              .eq('id',listing.id).eq('seller_id',user.id).eq('status','approved')
+              .select('id,publication_plan,lifetime_review_due_at').maybeSingle();
+            if(updateListingError)throw updateListingError;
+            if(!updatedListing)throw new Error('The Lifetime Listing could not be activated. Please contact HarvestHome support with your payment reference.');
+          }
+          if(!payment.activated_at){
+            const {error:activationRecordError}=await serviceClient.from('payments').update({activated_at:new Date().toISOString()}).eq('id',payment.id).is('activated_at',null);
+            if(activationRecordError)throw activationRecordError;
+          }
+          activation={activated:true,already_activated:!!payment.activated_at,publication_plan:'lifetime',review_due_at:reviewDue};
         }
       }catch(e){
         activationError=e instanceof Error?e.message:String(e);

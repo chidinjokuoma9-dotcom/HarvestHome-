@@ -7,7 +7,7 @@ const cors={
   "Content-Type":"application/json"
 };
 
-const PRICES:Record<string,number>={featured:200000,featured_7:200000,featured_14:400000,featured_30:800000,verification:500000,pro:1000000,verified_pro:25000000};
+const PRICES:Record<string,number>={featured:115000,featured_7:115000,featured_14:215000,featured_30:415000,lifetime_listing:815000,verification:500000,pro:1000000,verified_pro:25000000};
 
 serve(async(req)=>{
   if(req.method==='OPTIONS')return new Response('ok',{headers:cors});
@@ -28,11 +28,11 @@ serve(async(req)=>{
 
     const listingId=body.listing_id?String(body.listing_id):null;
     let listing:any=null;
-    if(service.startsWith('featured')){
+    if(service.startsWith('featured')||service==='lifetime_listing'){
       if(!listingId)throw new Error('Select the exact listing this Featured payment is for');
       const {data,error:listingError}=await userClient
         .from('listings')
-        .select('id,title,seller_id,status,currency')
+        .select('id,title,seller_id,status,currency,publication_plan')
         .eq('id',listingId)
         .maybeSingle();
       if(listingError)throw listingError;
@@ -40,6 +40,16 @@ serve(async(req)=>{
       listing=data;
       if(listing.seller_id!==user.id)throw new Error('You can only pay for your own listing');
       if(listing.status==='deleted')throw new Error('This listing is no longer available');
+      if(service==='lifetime_listing'&&listing.status!=='approved')throw new Error('Only an approved listing can be upgraded to Lifetime Listing');
+      if(service==='lifetime_listing'&&String(listing.publication_plan||'').toLowerCase()==='lifetime')throw new Error('This listing already has Lifetime Listing status');
+      if(service==='lifetime_listing'){
+        const {data:existingPayments,error:existingPaymentError}=await userClient.from('payments')
+          .select('id,status,created_at').eq('listing_id',listingId).eq('service','lifetime_listing')
+          .in('status',['initialized','pending','processing','success']).order('created_at',{ascending:false}).limit(5);
+        if(existingPaymentError)throw existingPaymentError;
+        const recentOrSuccessful=(existingPayments||[]).find(p=>String(p.status).toLowerCase()==='success'||Date.now()-new Date(p.created_at).getTime()<30*60*1000);
+        if(recentOrSuccessful)throw new Error(String(recentOrSuccessful.status).toLowerCase()==='success'?'A successful Lifetime Listing payment is already recorded for this listing. Refresh My Listings.':'A Lifetime Listing payment is already being processed for this listing. Please wait before trying again.');
+      }
     }
 
     const secret=Deno.env.get('PAYSTACK_SECRET_KEY');

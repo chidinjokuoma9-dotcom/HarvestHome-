@@ -78,7 +78,7 @@ serve(async(req)=>{
       const service=String(transaction.metadata?.service||'');
       const metadataUserId=String(transaction.metadata?.user_id||'');
       const metadataListingId=transaction.metadata?.listing_id?String(transaction.metadata.listing_id):null;
-      const fixedPrices:Record<string,number>={featured:200000,verification:500000,pro:1000000};
+      const fixedPrices:Record<string,number>={featured:115000,featured_7:115000,featured_14:215000,featured_30:415000,verification:500000,pro:1000000,verified_pro:25000000};
       if(metadataUserId!==String(user.id))throw new Error('This payment is not linked to your HarvestHome account');
       if(!fixedPrices[service]||fixedPrices[service]!==transactionAmount)throw new Error('This Paystack transaction does not match a valid HarvestHome service');
       if(!metadataListingId)throw new Error('This payment is missing its HarvestHome listing reference');
@@ -116,40 +116,95 @@ serve(async(req)=>{
     let activation:any=null;
     let activationError:string|null=null;
     if(status==='success'){
-      // Complete the paid-service activation on the server as part of verification.
-      // This prevents a successful Paystack payment from being left as an unactivated record
-      // when the browser callback is interrupted, closed, or opened in another tab.
       try{
-        if(String(payment.service||'').startsWith('featured')){
-          const a=await userClient.rpc('activate_paid_featured_payment',{p_reference:canonicalRef});
+        const service=String(payment.service||'');
+        if(service.startsWith('featured')){
+          const days=service==='featured_14'?14:service==='featured_30'?30:7;
+          if(!payment.listing_id)throw new Error('Featured payment is missing its listing reference');
+          const {data:listing,error:listingError}=await serviceClient
+            .from('listings').select('id,seller_id,status')
+            .eq('id',payment.listing_id).eq('seller_id',user.id).maybeSingle();
+          if(listingError)throw listingError;
+          if(!listing||listing.status==='deleted')throw new Error('Listing is not available for this Featured payment');
+          const plan='featured_'+days;
+          const {error:listingUpdateError}=await serviceClient.from('listings').update({
+            publication_plan:plan,publish_expires_at:null,status:'approved',updated_at:new Date().toISOString()
+          }).eq('id',listing.id).eq('seller_id',user.id);
+          if(listingUpdateError)throw listingUpdateError;
+
+          const endAt=new Date(Date.now()+days*24*60*60*1000).toISOString();
+          const {error:featuredError}=await serviceClient.from('featured_listings').upsert({
+            listing_id:listing.id,
+            starts_at:new Date().toISOString(),
+            ends_at:endAt,
+            created_by:user.id,
+            source_payment_id:payment.id,
+            activation_pending:false
+          },{onConflict:'listing_id'});
+          if(featuredError)throw featuredError;
+
+          const {error:paymentUpdateError}=await serviceClient.from('payments').update({activated_at:new Date().toISOString()}).eq('id',payment.id);
+          if(paymentUpdateError)throw paymentUpdateError;
+          activation={activated:true,pending_approval:false,reference:canonicalRef,service,days,ends_at:endAt};
+        }else if(service==='pro'){
+          const end=new Date(Date.now()+30*24*60*60*1000).toISOString();
+          const {data:existing,error:existingError}=await serviceClient.from('professional_seller_subscriptions')
+            .select('id,ends_at,status').eq('payment_id',payment.id).maybeSingle();
+          if(existingError)throw existingError;
+          if(existing) activation={active:true,permanent:false,ends_at:existing.ends_at,already_activated:true};
+          else{
+            const {error:insertError}=await serviceClient.from('professional_seller_subscriptions').insert({
+              user_id:user.id,payment_id:payment.id,starts_at:new Date().toISOString(),ends_at:end,status:'active',updated_at:new Date().toISOString()
+            });
+            if(insertError)throw insertError;
+            const {error:paymentUpdateError}=await serviceClient.from('payments').update({activated_at:new Date().toISOString()}).eq('id',payment.id);
+            if(paymentUpdateError)throw paymentUpdateError;
+            activation={active:true,permanent:false,ends_at:end,already_activated:false};
+          }
+        }else if(service==='verified_pro'){
+          const end='9999-12-31T23:59:59Z';
+          const {data:existing,error:existingError}=await serviceClient.from('professional_seller_subscriptions')
+            .select('id,ends_at,status').eq('payment_id',payment.id).maybeSingle();
+          if(existingError)throw existingError;
+          if(!existing){
+            const {error:insertError}=await serviceClient.from('professional_seller_subscriptions').insert({
+              user_id:user.id,payment_id:payment.id,starts_at:new Date().toISOString(),ends_at:end,status:'active',updated_at:new Date().toISOString()
+            });
+            if(insertError)throw insertError;
+          }
+          // The profiles trigger protects the verified field. Use a
+          // transaction-local flag so this trusted payment activation can
+          // update only the verified field without weakening normal RLS.
+          await serviceClient.rpc('activate_paid_verified_professional_seller',{p_reference:canonicalRef});
+          const {error:paymentUpdateError}=await serviceClient.from('payments').update({activated_at:new Date().toISOString()}).eq('id',payment.id);
+          if(paymentUpdateError)throw paymentUpdateError;
+          activation={active:true,permanent:true,already_activated:!!existing,ends_at:end};
+        }else if(service==='verification'){
+          // Run verification activation entirely server-side. The activation
+          // function sets its transaction-local trusted flag before updating
+          // the protected profile. Do not rely on the browser JWT for this.
+          const a=await serviceClient.rpc('submit_paid_seller_verification',{p_reference:canonicalRef});
           if(a.error)throw a.error;
           activation=a.data;
-        }else if(payment.service==='pro'){
-          const a=await userClient.rpc('activate_paid_professional_seller',{p_reference:canonicalRef});
-          if(a.error)throw a.error;
-          activation=a.data;
-        }else if(payment.service==='verified_pro'){
-          const a=await userClient.rpc('activate_paid_verified_professional_seller',{p_reference:canonicalRef});
-          if(a.error)throw a.error;
-          activation=a.data;
-        }else if(payment.service==='verification'){
-          const a=await userClient.rpc('submit_paid_seller_verification',{p_reference:canonicalRef});
+        }
+        else if(service==='lifetime_listing'){
+          const a=await userClient.rpc('activate_paid_lifetime_listing',{p_reference:canonicalRef});
           if(a.error)throw a.error;
           activation=a.data;
         }
       }catch(e){
         activationError=e instanceof Error?e.message:String(e);
-        console.warn('Paid service activation retry failed:',activationError);
+        console.warn('Paid service activation failed:',activationError);
       }
 
       const listingTitle=transaction.metadata?.listing_title||null;
-      const listingText=listingTitle?` for "${listingTitle}"`:'';
-      const message=`Payment successful${listingText}. Amount: ${transactionAmount/100} ${transaction.currency||payment.currency||'NGN'}. Reference: ${transaction.reference}.`;
+      const listingText=listingTitle?' for "'+listingTitle+'"':'';
+      const isLifetimeListing=payment.service==='lifetime_listing';
+      const message=isLifetimeListing
+        ?(activationError?'Your Lifetime Listing payment was successful'+listingText+', but activation needs attention. Please contact support@harvesthome.ng with reference '+transaction.reference+'.':'Your listing'+listingText+' is now a Lifetime Listing. This was a one-time payment with no recurring renewal. Annual policy review applies. Reference: '+transaction.reference+'.')
+        :'Payment successful'+listingText+'. Amount: '+(transactionAmount/100)+' '+(transaction.currency||payment.currency||'NGN')+'. Reference: '+transaction.reference+'.';
       const {error:notificationError}=await serviceClient.from('notifications').insert({
-        user_id:payment.seller_id||payment.user_id,
-        type:'payment_success',
-        title:'Payment successful',
-        message,
+        user_id:payment.seller_id||payment.user_id,type:'payment_success',title:isLifetimeListing&&!activationError?'Lifetime Listing activated':'Payment successful',message,
         listing_id:payment.listing_id||null
       });
       if(notificationError)console.warn('Payment notification failed',notificationError.message);

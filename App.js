@@ -2316,6 +2316,7 @@ function showSignupEmailConfirmation(email){
   $("[data-signup-login]")?.addEventListener("click",()=>{close();auth("login")});
   // This confirmation dialog intentionally has no timer. It stays visible until the user closes it or chooses to go to login.
 }
+let authSubmitInProgress=false;
 const signupRequestCooldowns=new Map();
 async function authSubmit(e){
   e.preventDefault();

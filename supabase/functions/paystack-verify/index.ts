@@ -209,6 +209,38 @@ serve(async(req)=>{
           if(a.error)throw a.error;
           activation=a.data;
         }
+        else if(service==='partner_store_annual'){
+          if(!payment.partner_store_id)throw new Error('Partner Store payment is missing its store reference');
+          const {data:store,error:storeError}=await serviceClient.from('partner_storefronts')
+            .select('id,seller_id,business_name,is_published,agreement_confirmed,partner_submission_status,removed_at')
+            .eq('id',payment.partner_store_id).eq('seller_id',user.id).maybeSingle();
+          if(storeError)throw storeError;
+          if(!store||!store.is_published||!store.agreement_confirmed||store.partner_submission_status!=='published'||store.removed_at)
+            throw new Error('The Partner Store is no longer eligible for subscription activation');
+          const {data:existing,error:existingError}=await serviceClient.from('partner_store_subscriptions')
+            .select('id,starts_at,ends_at,status').eq('payment_id',payment.id).maybeSingle();
+          if(existingError)throw existingError;
+          if(existing){
+            activation={active:existing.status==='active'&&new Date(existing.ends_at).getTime()>Date.now(),already_activated:true,ends_at:existing.ends_at};
+          }else{
+            const {data:latest,error:latestError}=await serviceClient.from('partner_store_subscriptions')
+              .select('ends_at').eq('storefront_id',store.id).order('ends_at',{ascending:false}).limit(1).maybeSingle();
+            if(latestError)throw latestError;
+            const now=new Date();
+            const priorEnd=latest?.ends_at?new Date(latest.ends_at):now;
+            const startsAt=priorEnd.getTime()>now.getTime()?priorEnd:now;
+            const endsAt=new Date(startsAt);
+            endsAt.setUTCFullYear(endsAt.getUTCFullYear()+1);
+            const {error:subError}=await serviceClient.from('partner_store_subscriptions').insert({
+              storefront_id:store.id,seller_id:user.id,payment_id:payment.id,
+              starts_at:startsAt.toISOString(),ends_at:endsAt.toISOString(),status:'active'
+            });
+            if(subError)throw subError;
+            const {error:paymentUpdateError}=await serviceClient.from('payments').update({activated_at:new Date().toISOString()}).eq('id',payment.id);
+            if(paymentUpdateError)throw paymentUpdateError;
+            activation={active:true,already_activated:false,starts_at:startsAt.toISOString(),ends_at:endsAt.toISOString()};
+          }
+        }
       }catch(e){
         activationError=e instanceof Error?e.message:String(e);
         console.warn('Paid service activation failed:',activationError);

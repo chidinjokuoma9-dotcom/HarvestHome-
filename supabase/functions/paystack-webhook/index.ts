@@ -123,7 +123,7 @@ Deno.serve(async (req) => {
     const { data: payment, error: paymentError } = await supabase
       .from("payments")
       .select(
-        "id,user_id,listing_id,seller_id,service,amount,currency,reference,status"
+        "id,user_id,listing_id,seller_id,partner_store_id,service,amount,currency,reference,status"
       )
       .eq("reference", reference)
       .maybeSingle();
@@ -207,6 +207,52 @@ Deno.serve(async (req) => {
 
     if (updateError) throw updateError;
 
+    if (payment.service === "partner_store_annual") {
+      if (amount !== 1500000 || String(currency).toUpperCase() !== "NGN" || !payment.partner_store_id) {
+        throw new Error("Partner Store subscription payment details are invalid");
+      }
+      const { data: store, error: storeError } = await supabase
+        .from("partner_storefronts")
+        .select("id,seller_id,business_name,is_published,agreement_confirmed,partner_submission_status,removed_at")
+        .eq("id", payment.partner_store_id)
+        .eq("seller_id", payment.user_id)
+        .maybeSingle();
+      if (storeError) throw storeError;
+      if (!store || !store.is_published || !store.agreement_confirmed || store.partner_submission_status !== "published" || store.removed_at) {
+        throw new Error("Partner Store is not eligible for subscription activation");
+      }
+      const { data: existing, error: existingError } = await supabase
+        .from("partner_store_subscriptions")
+        .select("id,ends_at,status")
+        .eq("payment_id", payment.id)
+        .maybeSingle();
+      if (existingError) throw existingError;
+      if (!existing) {
+        const { data: latest, error: latestError } = await supabase
+          .from("partner_store_subscriptions")
+          .select("ends_at")
+          .eq("storefront_id", store.id)
+          .order("ends_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (latestError) throw latestError;
+        const now = new Date();
+        const priorEnd = latest?.ends_at ? new Date(latest.ends_at) : now;
+        const startsAt = priorEnd.getTime() > now.getTime() ? priorEnd : now;
+        const endsAt = new Date(startsAt);
+        endsAt.setUTCFullYear(endsAt.getUTCFullYear() + 1);
+        const { error: subError } = await supabase.from("partner_store_subscriptions").insert({
+          storefront_id: store.id,
+          seller_id: payment.user_id,
+          payment_id: payment.id,
+          starts_at: startsAt.toISOString(),
+          ends_at: endsAt.toISOString(),
+          status: "active",
+        });
+        if (subError) throw subError;
+      }
+    }
+
     const listingTitle =
       transaction.metadata?.listing_title || null;
 
@@ -214,8 +260,9 @@ Deno.serve(async (req) => {
       ? ` for "${listingTitle}"`
       : "";
 
-    const message =
-      `Payment successful${listingText}. ` +
+    const message = payment.service === "partner_store_annual"
+      ? "Your Partner Store annual subscription payment has been verified. The ₦15,000 plan covers listings displayed on your Partner Store only; ordinary marketplace listings and paid services are unchanged. Reference: " + reference + "."
+      : `Payment successful${listingText}. ` +
       `Amount: ${amount / 100} ${currency}. ` +
       `Reference: ${reference}.`;
 
@@ -228,7 +275,7 @@ Deno.serve(async (req) => {
         .insert({
           user_id: notificationUser,
           type: "payment_success",
-          title: "Payment successful",
+          title: payment.service === "partner_store_annual" ? "Partner Store subscription activated" : "Payment successful",
           message,
           listing_id: payment.listing_id || null,
         });

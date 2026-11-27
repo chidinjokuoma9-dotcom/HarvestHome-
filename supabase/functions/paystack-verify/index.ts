@@ -51,7 +51,7 @@ serve(async(req)=>{
 
     let {data:payment,error:paymentError}=await serviceClient
       .from('payments')
-      .select('id,user_id,listing_id,seller_id,service,amount,currency,reference,status,created_at')
+      .select('id,user_id,listing_id,seller_id,partner_store_id,service,amount,currency,reference,status,created_at')
       .eq('reference',canonicalRef)
       .eq('user_id',user.id)
       .maybeSingle();
@@ -78,9 +78,25 @@ serve(async(req)=>{
       const service=String(transaction.metadata?.service||'');
       const metadataUserId=String(transaction.metadata?.user_id||'');
       const metadataListingId=transaction.metadata?.listing_id?String(transaction.metadata.listing_id):null;
-      const fixedPrices:Record<string,number>={featured:115000,featured_7:115000,featured_14:215000,featured_30:415000,lifetime_listing:815000,verification:500000,pro:1000000,verified_pro:25000000};
+      const metadataStoreId=transaction.metadata?.partner_store_id?String(transaction.metadata.partner_store_id):null;
+      const fixedPrices:Record<string,number>={featured:115000,featured_7:115000,featured_14:215000,featured_30:415000,lifetime_listing:815000,verification:500000,pro:1000000,verified_pro:25000000,partner_store_annual:1500000};
       if(metadataUserId!==String(user.id))throw new Error('This payment is not linked to your HarvestHome account');
       if(!fixedPrices[service]||fixedPrices[service]!==transactionAmount)throw new Error('This Paystack transaction does not match a valid HarvestHome service');
+      if(service==='partner_store_annual'){
+        if(!metadataStoreId)throw new Error('This payment is missing its Partner Store reference');
+        const {data:store,error:storeError}=await serviceClient.from('partner_storefronts')
+          .select('id,seller_id,is_published,agreement_confirmed,partner_submission_status,removed_at')
+          .eq('id',metadataStoreId).eq('seller_id',user.id).maybeSingle();
+        if(storeError)throw storeError;
+        if(!store||!store.is_published||!store.agreement_confirmed||store.partner_submission_status!=='published'||store.removed_at)
+          throw new Error('The Partner Store linked to this payment is not eligible');
+        const {data:created,error:insertError}=await serviceClient.from('payments').insert({
+          user_id:user.id,seller_id:user.id,partner_store_id:store.id,reference:canonicalRef,
+          service,amount:transactionAmount,currency:transactionCurrency,status:'initialized'
+        }).select('id,user_id,listing_id,seller_id,partner_store_id,service,amount,currency,reference,status,created_at').single();
+        if(insertError)throw insertError;
+        payment=created;
+      }else{
       if(!metadataListingId)throw new Error('This payment is missing its HarvestHome listing reference');
       const {data:listing,error:listingError}=await serviceClient.from('listings')
         .select('id,seller_id,status,title').eq('id',metadataListingId).eq('seller_id',user.id).maybeSingle();
@@ -95,9 +111,10 @@ serve(async(req)=>{
         amount:transactionAmount,
         currency:transactionCurrency,
         status:'initialized'
-      }).select('id,user_id,listing_id,seller_id,service,amount,currency,reference,status,created_at').single();
+      }).select('id,user_id,listing_id,seller_id,partner_store_id,service,amount,currency,reference,status,created_at').single();
       if(insertError)throw insertError;
       payment=created;
+      }
     }
 
     const expectedAmount=Number(payment.amount||0);
@@ -200,11 +217,14 @@ serve(async(req)=>{
       const listingTitle=transaction.metadata?.listing_title||null;
       const listingText=listingTitle?' for "'+listingTitle+'"':'';
       const isLifetimeListing=payment.service==='lifetime_listing';
-      const message=isLifetimeListing
+      const isPartnerStore=payment.service==='partner_store_annual';
+      const message=isPartnerStore
+        ?(activationError?'Your ₦15,000 Partner Store payment was successful, but activation needs attention. Please contact support@harvesthome.ng with reference '+transaction.reference+'.':'Your Partner Store annual subscription is active for 12 months. This covers listings displayed on your Partner Store only; your ordinary marketplace listing privileges and paid services are unchanged. Reference: '+transaction.reference+'.')
+        :isLifetimeListing
         ?(activationError?'Your Lifetime Listing payment was successful'+listingText+', but activation needs attention. Please contact support@harvesthome.ng with reference '+transaction.reference+'.':'Your listing'+listingText+' is now a Lifetime Listing. This was a one-time payment with no recurring renewal. Annual policy review applies. Reference: '+transaction.reference+'.')
         :'Payment successful'+listingText+'. Amount: '+(transactionAmount/100)+' '+(transaction.currency||payment.currency||'NGN')+'. Reference: '+transaction.reference+'.';
       const {error:notificationError}=await serviceClient.from('notifications').insert({
-        user_id:payment.seller_id||payment.user_id,type:'payment_success',title:isLifetimeListing&&!activationError?'Lifetime Listing activated':'Payment successful',message,
+        user_id:payment.seller_id||payment.user_id,type:'payment_success',title:isPartnerStore&&!activationError?'Partner Store subscription activated':isLifetimeListing&&!activationError?'Lifetime Listing activated':'Payment successful',message,
         listing_id:payment.listing_id||null
       });
       if(notificationError)console.warn('Payment notification failed',notificationError.message);
@@ -217,6 +237,7 @@ serve(async(req)=>{
       amount:transactionAmount,
       currency:transaction.currency||payment.currency,
       service:payment.service,
+      partner_store_id:payment.partner_store_id||null,
       listing_id:payment.listing_id||null,
       activation,
       activation_error:activationError

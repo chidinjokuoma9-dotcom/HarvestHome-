@@ -42,15 +42,14 @@
     .select('ends_at').eq('storefront_id',p.id).eq('status','active').gt('ends_at',checkedAt)
     .order('ends_at',{ascending:false}).limit(1).maybeSingle();
    if(subscriptionError)throw subscriptionError;
-   let rows=[];
+   let listings=[];
+   const mediaBy={};
    if(subscription){
-    const {data:listingRows,error:listingError}=await db.from('listings').select('id,title,description,price,currency,category,mode,country,location,cover_url,video_url,publication_plan,publish_expires_at,created_at').eq('seller_id',p.seller_id).eq('status','approved').order('created_at',{ascending:false}).limit(60);
+    const {data:listingRows,error:listingError}=await db.rpc('get_active_partner_store_listings',{p_slug:slug});
     if(listingError)throw listingError;
-    rows=listingRows||[];
+    listings=listingRows||[];
+    listings.forEach(x=>{if(x.media_path)mediaBy[x.id]=db.storage.from('listing-media').getPublicUrl(x.media_path).data.publicUrl});
    }
-   const now=Date.now(),listings=(rows||[]).filter(l=>String(l.publication_plan||'').toLowerCase()!=='free'||!l.publish_expires_at||new Date(l.publish_expires_at).getTime()>now);
-   let mediaBy={};
-   if(listings.length){const m=await db.from('listing_media').select('listing_id,media_type,storage_path').in('listing_id',listings.map(x=>x.id));if(!m.error)(m.data||[]).forEach(x=>{if(x.media_type==='image'&&!mediaBy[x.listing_id])mediaBy[x.listing_id]=db.storage.from('listing-media').getPublicUrl(x.storage_path).data.publicUrl})}
    const cover=safeUrl(p.cover_url),logo=safeUrl(p.logo_url),website=safeUrl(p.website);
    document.title=p.business_name+' | Official HarvestHome Partner';document.querySelector('meta[name="robots"]').setAttribute('content','index,follow');
    const desc=(p.description||'').slice(0,155)||'Explore this approved HarvestHome partner business and its current marketplace listings.';

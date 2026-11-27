@@ -825,6 +825,9 @@ export default {
     }
 
     // News/social crawlers need server-rendered Open Graph metadata; they do not run page JavaScript.
+    if (request.method === "GET" && url.pathname === "/news-story.html" && !url.searchParams.get("slug")) {
+      return Response.redirect(new URL("/news-insights", url), 302);
+    }
     const pathStoryMatch = url.pathname.match(/^\/news-story\/([a-z0-9]+(?:-[a-z0-9]+)*)\/?$/i);
     const newsSlug = url.searchParams.get("slug") || (pathStoryMatch ? decodeURIComponent(pathStoryMatch[1]) : "");
     if (request.method === "GET" && newsSlug && (url.pathname === "/news-story.html" || pathStoryMatch)) {

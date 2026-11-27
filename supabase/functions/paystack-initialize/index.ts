@@ -86,7 +86,7 @@ serve(async(req)=>{
           user_id:user.id,
           partner_store_id:partnerStore?.id||null,
           listing_id:listing?.id||null,
-          seller_id:listing?.seller_id||null,
+          seller_id:listing?.seller_id||partnerStore?.seller_id||null,
           listing_title:listing?.title||null
         }
       })

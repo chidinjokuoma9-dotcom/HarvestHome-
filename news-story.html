@@ -163,7 +163,7 @@ async function load(){
   if(!related.error&&related.data&&related.data.length){relatedEl.innerHTML=related.data.map(a=>'<article class="related-card"><span class="tag">'+esc(a.category||"News")+'</span><h3><a href="/news-story/'+encodeURIComponent(a.slug)+'">'+esc(a.title)+'</a></h3><p>'+esc(a.excerpt||"Read this related story.")+'</p></article>').join("");}
   else{relatedEl.innerHTML='<p class="meta">More stories in this topic will appear here as the newsroom publishes them.</p>';}
 
- }catch(error){root.innerHTML='<div class="notice"><h1>Story unavailable</h1><p>'+esc(error.message||"We could not load this story.")+'</p><a class="back" href="/news-insights.html">Return to News &amp; Insights</a></div>';}
+ }catch(error){if(!root.querySelector("h1"))root.innerHTML='<div class="notice"><h1>Story unavailable</h1><p>'+esc(error.message||"We could not load this story.")+'</p><a class="back" href="/news-insights.html">Return to News &amp; Insights</a></div>';}
 }
 load();
 })();

@@ -825,7 +825,7 @@ export default {
     }
 
     // News/social crawlers need server-rendered Open Graph metadata; they do not run page JavaScript.
-    const pathStoryMatch = url.pathname.match(/^\\/news-story\\/([a-z0-9]+(?:-[a-z0-9]+)*)\\/?$/i);
+    const pathStoryMatch = url.pathname.match(/^\/news-story\/([a-z0-9]+(?:-[a-z0-9]+)*)\/?$/i);
     const newsSlug = url.searchParams.get("slug") || (pathStoryMatch ? decodeURIComponent(pathStoryMatch[1]) : "");
     if (request.method === "GET" && newsSlug && (url.pathname === "/news-story.html" || pathStoryMatch)) {
       const assetResponse = await env.ASSETS.fetch(new Request(new URL("/news-story.html", url).toString(), {

@@ -63,7 +63,7 @@ serve(async(req)=>{
     if(!payment){
       const {data:candidates,error:candidateError}=await serviceClient
         .from('payments')
-        .select('id,user_id,listing_id,seller_id,service,amount,currency,reference,status,created_at')
+        .select('id,user_id,listing_id,seller_id,partner_store_id,service,amount,currency,reference,status,created_at')
         .eq('user_id',user.id)
         .in('status',['initialized','success'])
         .eq('amount',transactionAmount)

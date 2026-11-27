@@ -7,7 +7,7 @@ const cors={
   "Content-Type":"application/json"
 };
 
-const PRICES:Record<string,number>={featured:115000,featured_7:115000,featured_14:215000,featured_30:415000,lifetime_listing:815000,verification:500000,pro:1000000,verified_pro:25000000};
+const PRICES:Record<string,number>={featured:115000,featured_7:115000,featured_14:215000,featured_30:415000,lifetime_listing:815000,verification:500000,pro:1000000,verified_pro:25000000,partner_store_annual:1500000};
 
 serve(async(req)=>{
   if(req.method==='OPTIONS')return new Response('ok',{headers:cors});
@@ -27,6 +27,24 @@ serve(async(req)=>{
     if(!amount)throw new Error('Invalid HarvestHome service');
 
     const listingId=body.listing_id?String(body.listing_id):null;
+    const partnerStoreId=body.partner_store_id?String(body.partner_store_id):null;
+    let partnerStore:any=null;
+    if(service==='partner_store_annual'){
+      if(!partnerStoreId)throw new Error('Your Partner Store could not be identified.');
+      const {data,error:storeError}=await userClient.from('partner_storefronts')
+        .select('id,seller_id,business_name,is_published,agreement_confirmed,partner_submission_status,removed_at')
+        .eq('id',partnerStoreId).eq('seller_id',user.id).maybeSingle();
+      if(storeError)throw storeError;
+      if(!data||!data.is_published||!data.agreement_confirmed||data.partner_submission_status!=='published'||data.removed_at)
+        throw new Error('Only an active, approved Partner Store can purchase this subscription.');
+      partnerStore=data;
+      const {data:pending,error:pendingError}=await userClient.from('payments')
+        .select('id,status,created_at').eq('partner_store_id',partnerStoreId).eq('service','partner_store_annual')
+        .in('status',['initialized','pending','processing']).order('created_at',{ascending:false}).limit(5);
+      if(pendingError)throw pendingError;
+      if((pending||[]).some(p=>Date.now()-new Date(p.created_at).getTime()<30*60*1000))
+        throw new Error('A Partner Store payment is already being processed. Please wait before trying again.');
+    }
     let listing:any=null;
     if(service.startsWith('featured')||service==='lifetime_listing'){
       if(!listingId)throw new Error('Select the exact listing this Featured payment is for');
@@ -66,8 +84,9 @@ serve(async(req)=>{
         metadata:{
           service,
           user_id:user.id,
+          partner_store_id:partnerStore?.id||null,
           listing_id:listing?.id||null,
-          seller_id:listing?.seller_id||null,
+          seller_id:listing?.seller_id||partnerStore?.seller_id||null,
           listing_title:listing?.title||null
         }
       })
@@ -82,7 +101,8 @@ serve(async(req)=>{
     const {error:paymentError}=await serviceClient.from('payments').insert({
       user_id:user.id,
       listing_id:listing?.id||null,
-      seller_id:listing?.seller_id||null,
+      seller_id:listing?.seller_id||partnerStore?.seller_id||null,
+      partner_store_id:partnerStore?.id||null,
       reference:j.data.reference,
       service,
       amount,

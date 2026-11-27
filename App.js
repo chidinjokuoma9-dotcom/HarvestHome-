@@ -647,7 +647,7 @@ function renderHomepageNews(stories){
   const image=String(a.featured_image_url||"").startsWith("https://")?'<div class="hh-news-card-image"><img src="'+esc(a.featured_image_url)+'" alt="" loading="lazy"></div>':"";
   const date=a.published_at||a.created_at;
   const dateLabel=date&&!Number.isNaN(new Date(date).getTime())?new Date(date).toLocaleDateString(undefined,{year:"numeric",month:"short",day:"numeric"}):"";
-  return '<article class="hh-news-card">'+image+'<div class="hh-news-card-body"><span class="hh-news-category">'+esc(a.category||"News")+'</span><h3>'+esc(a.title)+'</h3><p>'+esc(a.excerpt||"Read this story from the HarvestHome newsroom.")+'</p><div class="hh-news-card-meta"><small>'+esc(dateLabel)+'</small><a href="/news-story.html?slug='+encodeURIComponent(a.slug||"")+'">Read story <span aria-hidden="true">→</span></a></div></div></article>';
+  return '<article class="hh-news-card">'+image+'<div class="hh-news-card-body"><span class="hh-news-category">'+esc(a.category||"News")+'</span><h3><a href="/news-story/'+encodeURIComponent(a.slug||"")+'">'+esc(a.title)+'</a></h3><p>'+esc(a.excerpt||"Read this story from the HarvestHome newsroom.")+'</p><div class="hh-news-card-meta"><small>'+esc(dateLabel)+'</small><a href="/news-story/'+encodeURIComponent(a.slug||"")+'">Read story <span aria-hidden="true">→</span></a></div></div></article>';
  }).join("");
 }
 function money(n,cur){try{return new Intl.NumberFormat("en",{style:"currency",currency:cur,maximumFractionDigits:0}).format(Number(n))}catch{return `${cur} ${n}`}}

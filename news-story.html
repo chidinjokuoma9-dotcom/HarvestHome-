@@ -42,8 +42,11 @@ const dateText=v=>{if(!v)return "";const d=new Date(v);return Number.isNaN(d.get
 const safeUrl=v=>{try{const u=new URL(v);return ["https:","http:"].includes(u.protocol)?u.href:"";}catch{return "";}};
 async function load(){
  try{
-  const slug=new URLSearchParams(location.search).get("slug");
-  if(!slug)throw new Error("This story link is incomplete.");
+  const pathMatch=location.pathname.match(/^\/news-story\/([^/]+)\/?$/);
+  let pathSlug="";
+  try{pathSlug=pathMatch?decodeURIComponent(pathMatch[1]):"";}catch{}
+  const slug=new URLSearchParams(location.search).get("slug")||pathSlug;
+  if(!slug)throw new Error("This story link is incomplete. Open a published headline from News & Insights.");
   if(!window.supabase||!window.HARVESTHOME_CONFIG)throw new Error("The newsroom is temporarily unavailable.");
   const client=window.supabase.createClient(HARVESTHOME_CONFIG.SUPABASE_URL,HARVESTHOME_CONFIG.SUPABASE_ANON_KEY);
   const {data,error}=await client.from("news_articles").select("title,slug,category,author_name,excerpt,content,featured_image_url,image_caption,source_name,source_url,published_at").eq("slug",slug).eq("status","published").maybeSingle();
@@ -60,7 +63,7 @@ async function load(){
 
   document.title=data.title+" | HarvestHome News & Insights";
   document.querySelector('meta[name="description"]').setAttribute("content",String(data.excerpt||"HarvestHome News & Insights").slice(0,300));
-  document.querySelector('link[rel="canonical"]').setAttribute("href",location.origin+location.pathname+"?slug="+encodeURIComponent(data.slug));
+  document.querySelector('link[rel="canonical"]').setAttribute("href",location.origin+"/news-story/"+encodeURIComponent(data.slug));
   const source=safeUrl(data.source_url);
   const image=safeUrl(data.featured_image_url);
   const paragraphs=String(data.content||"").split(/\n\s*\n/).map(p=>p.trim()).filter(Boolean).map(p=>"<p>"+esc(p).replace(/\n/g,"<br>")+"</p>").join("");
@@ -157,10 +160,10 @@ async function load(){
   await loadArticleComments();
   const related=await client.from("news_articles").select("title,slug,excerpt,category").eq("status","published").eq("category",data.category).neq("slug",data.slug).order("published_at",{ascending:false}).limit(4);
   const relatedEl=document.getElementById("related-stories");
-  if(!related.error&&related.data&&related.data.length){relatedEl.innerHTML=related.data.map(a=>'<article class="related-card"><span class="tag">'+esc(a.category||"News")+'</span><h3><a href="/news-story.html?slug='+encodeURIComponent(a.slug)+'">'+esc(a.title)+'</a></h3><p>'+esc(a.excerpt||"Read this related story.")+'</p></article>').join("");}
+  if(!related.error&&related.data&&related.data.length){relatedEl.innerHTML=related.data.map(a=>'<article class="related-card"><span class="tag">'+esc(a.category||"News")+'</span><h3><a href="/news-story/'+encodeURIComponent(a.slug)+'">'+esc(a.title)+'</a></h3><p>'+esc(a.excerpt||"Read this related story.")+'</p></article>').join("");}
   else{relatedEl.innerHTML='<p class="meta">More stories in this topic will appear here as the newsroom publishes them.</p>';}
 
- }catch(error){root.innerHTML='<div class="notice"><h1>Story unavailable</h1><p>'+esc(error.message||"We could not load this story.")+'</p><a class="back" href="/news-insights.html">Return to News &amp; Insights</a></div>';}
+ }catch(error){if(!root.querySelector("h1"))root.innerHTML='<div class="notice"><h1>Story unavailable</h1><p>'+esc(error.message||"We could not load this story.")+'</p><a class="back" href="/news-insights.html">Return to News &amp; Insights</a></div>';}
 }
 load();
 })();

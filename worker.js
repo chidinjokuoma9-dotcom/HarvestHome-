@@ -272,8 +272,7 @@ async function withNewsStoryPreview(env, requestUrl, html, slug) {
   } catch {}
   if (!image) image = "https://harvesthome.ng/favicon.svg";
 
-  const canonicalUrl = new URL("/news-story.html", config.publicUrl);
-  canonicalUrl.searchParams.set("slug", String(story.slug || slug));
+  const canonicalUrl = new URL("/news-story/" + encodeURIComponent(String(story.slug || slug)), config.publicUrl);
   const canonical = canonicalUrl.toString();
   const rendered = renderNewsStoryHtml(story, canonical);
 
@@ -342,7 +341,7 @@ async function withNewsInsightsStories(env, requestUrl, html) {
       const date = story.published_at && !Number.isNaN(Date.parse(story.published_at))
         ? new Date(story.published_at).toLocaleDateString("en", { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" }) : "";
       const minutes = Math.max(1, Math.ceil(String(story.content || "").trim().split(" ").filter(Boolean).length / 200));
-      const href = "/news-story.html?slug=" + encodeURIComponent(slug);
+      const href = "/news-story/" + encodeURIComponent(slug);
       return '<article class="card">' +
         (image ? '<img src="' + escapeHtml(image) + '" alt="" loading="lazy">' : "") +
         '<span class="tag">' + escapeHtml(story.category || "News") + '</span>' +
@@ -392,8 +391,7 @@ async function createAllNewsArticlesSitemapResponse(env, requestUrl) {
     const entries = stories.map(story => {
       const slug = String(story.slug || "").trim();
       if (!slug) return "";
-      const articleUrl = new URL("/news-story.html", requestUrl.origin);
-      articleUrl.searchParams.set("slug", slug);
+      const articleUrl = new URL("/news-story/" + encodeURIComponent(slug), requestUrl.origin);
       return "  <url><loc>" + xmlEscape(articleUrl.toString()) + "</loc></url>";
     }).filter(Boolean);
 
@@ -417,8 +415,7 @@ async function createNewsSitemapResponse(env, requestUrl) {
       const title = String(story.title || "").trim();
       const date = story.published_at && !Number.isNaN(Date.parse(story.published_at)) ? new Date(story.published_at).toISOString() : "";
       if (!slug || !title || !date) return "";
-      const articleUrl = new URL("/news-story.html", requestUrl.origin);
-      articleUrl.searchParams.set("slug", slug);
+      const articleUrl = new URL("/news-story/" + encodeURIComponent(slug), requestUrl.origin);
       return "  <url>\n    <loc>" + xmlEscape(articleUrl.toString()) + "</loc>\n    <news:news>\n" +
         "      <news:publication><news:name>HarvestHome</news:name><news:language>en</news:language></news:publication>\n" +
         "      <news:publication_date>" + xmlEscape(date) + "</news:publication_date>\n" +
@@ -828,8 +825,9 @@ export default {
     }
 
     // News/social crawlers need server-rendered Open Graph metadata; they do not run page JavaScript.
-    const newsSlug = url.searchParams.get("slug");
-    if (request.method === "GET" && url.pathname === "/news-story.html" && newsSlug) {
+    const pathStoryMatch = url.pathname.match(/^\\/news-story\\/([a-z0-9]+(?:-[a-z0-9]+)*)\\/?$/i);
+    const newsSlug = url.searchParams.get("slug") || (pathStoryMatch ? decodeURIComponent(pathStoryMatch[1]) : "");
+    if (request.method === "GET" && newsSlug && (url.pathname === "/news-story.html" || pathStoryMatch)) {
       const assetResponse = await env.ASSETS.fetch(new Request(new URL("/news-story.html", url).toString(), {
         method: "GET",
         headers: { Accept: "text/html" }

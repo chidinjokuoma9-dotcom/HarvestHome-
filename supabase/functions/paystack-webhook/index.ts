@@ -193,6 +193,10 @@ Deno.serve(async (req) => {
     if (Number(payment.amount) !== amount) {
       throw new Error("Payment amount does not match the HarvestHome record");
     }
+    if (payment.service === "partner_store_annual" &&
+        (amount !== 1500000 || String(currency).toUpperCase() !== "NGN" || !payment.partner_store_id)) {
+      throw new Error("Partner Store subscription payment details are invalid");
+    }
 
     const paidAt =
       transaction.paid_at || new Date().toISOString();
@@ -208,9 +212,6 @@ Deno.serve(async (req) => {
     if (updateError) throw updateError;
 
     if (payment.service === "partner_store_annual") {
-      if (amount !== 1500000 || String(currency).toUpperCase() !== "NGN" || !payment.partner_store_id) {
-        throw new Error("Partner Store subscription payment details are invalid");
-      }
       const { data: store, error: storeError } = await supabase
         .from("partner_storefronts")
         .select("id,seller_id,business_name,is_published,agreement_confirmed,partner_submission_status,removed_at")

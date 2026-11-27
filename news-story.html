@@ -42,7 +42,7 @@ const dateText=v=>{if(!v)return "";const d=new Date(v);return Number.isNaN(d.get
 const safeUrl=v=>{try{const u=new URL(v);return ["https:","http:"].includes(u.protocol)?u.href:"";}catch{return "";}};
 async function load(){
  try{
-  const pathMatch=location.pathname.match(/^\\/news-story\\/([^/]+)\\/?$/);
+  const pathMatch=location.pathname.match(/^\/news-story\/([^/]+)\/?$/);
   let pathSlug="";
   try{pathSlug=pathMatch?decodeURIComponent(pathMatch[1]):"";}catch{}
   const slug=new URLSearchParams(location.search).get("slug")||pathSlug;

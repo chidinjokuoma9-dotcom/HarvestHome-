@@ -231,10 +231,10 @@ serve(async(req)=>{
             const startsAt=priorEnd.getTime()>now.getTime()?priorEnd:now;
             const endsAt=new Date(startsAt);
             endsAt.setUTCFullYear(endsAt.getUTCFullYear()+1);
-            const {error:subError}=await serviceClient.from('partner_store_subscriptions').insert({
+            const {error:subError}=await serviceClient.from('partner_store_subscriptions').upsert({
               storefront_id:store.id,seller_id:user.id,payment_id:payment.id,
               starts_at:startsAt.toISOString(),ends_at:endsAt.toISOString(),status:'active'
-            });
+            },{onConflict:'payment_id',ignoreDuplicates:true});
             if(subError)throw subError;
             const {error:paymentUpdateError}=await serviceClient.from('payments').update({activated_at:new Date().toISOString()}).eq('id',payment.id);
             if(paymentUpdateError)throw paymentUpdateError;

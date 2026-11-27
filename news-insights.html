@@ -386,7 +386,7 @@
     function card(a){
       const img=a.featured_image_url&&String(a.featured_image_url).startsWith("https://")?'<img src="'+esc(a.featured_image_url)+'" alt="" loading="lazy" style="width:100%;height:150px;object-fit:cover;border-radius:11px;margin-bottom:13px">':"";
       const date=dateText(a.published_at||a.created_at);
-      return '<article class="card">'+img+'<span class="tag">'+esc(a.category||"News")+'</span><h3>'+esc(a.title)+'</h3><p>'+esc(a.excerpt)+'</p><p class="story-meta">'+esc(a.author_name||"HarvestHome Editorial Team")+(date?" · "+esc(date):"")+" · "+readingTime(a.content)+" min read"+'</p><a class="read" href="/news-story.html?slug='+encodeURIComponent(a.slug)+'">Read full story →</a></article>';
+      return '<article class="card">'+img+'<span class="tag">'+esc(a.category||"News")+'</span><h3><a href="/news-story/'+encodeURIComponent(a.slug)+'">'+esc(a.title)+'</a></h3><p>'+esc(a.excerpt)+'</p><p class="story-meta">'+esc(a.author_name||"HarvestHome Editorial Team")+(date?" · "+esc(date):"")+" · "+readingTime(a.content)+" min read"+'</p><a class="read" href="/news-story/'+encodeURIComponent(a.slug)+'">Read full story →</a></article>';
     }
     function render(){
       const term=search.value.trim().toLowerCase(),topic=category.value;

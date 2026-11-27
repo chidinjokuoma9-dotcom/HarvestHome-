@@ -36,6 +36,7 @@ create policy partner_store_subscriptions_read_owner_staff
 
 revoke all on public.partner_store_subscriptions from anon, authenticated;
 grant select on public.partner_store_subscriptions to authenticated;
+grant all on public.partner_store_subscriptions to service_role;
 
 -- Idempotent reminder routine. If pg_cron is enabled, schedule it hourly below.
 create or replace function public.notify_partner_store_subscription_events()
